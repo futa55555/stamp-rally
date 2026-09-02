@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { StampsService } from './stamps.service.js';
 import { CreateStampDto } from './dto/create-stamp.dto.js';
 import { UpdateStampDto } from './dto/update-stamp.dto.js';
