@@ -1,0 +1,12 @@
+{
+  "name": "stamp-rally",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "type": "module",
+  "scripts": {
+    "api:dev": "pnpm --filter api start:dev",
+    "mobile:start": "pnpm --filter mobile start",
+    "mobile:ios": "pnpm --filter mobile ios"
+  }
+}
