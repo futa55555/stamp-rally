@@ -1,15 +1,18 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Stamp Rally",
+    "slug": "stamp-rally",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.futa.stamprally",
+      "supportsTablet": true,
+      "usesAppleSignIn": true
     },
     "android": {
+      "package": "com.futa.stamprally",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -20,6 +23,15 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-apple-authentication"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "88124691-85cc-48af-91cd-53d1029509f1"
+      }
+    },
+    "owner": "fuesugi"
   }
 }
