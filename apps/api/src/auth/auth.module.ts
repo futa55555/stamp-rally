@@ -6,6 +6,8 @@ import { AuthTokenService } from './auth-token/auth-token.service.js';
 import { SessionRepository } from './session/session.repository.js';
 import { SessionService } from './session/session.service.js';
 import { JwtAuthGuard } from './jwt-auth/jwt-auth.guard.js';
+import { GoogleIdentityService } from './google-identity/google-identity.service.js';
+import { OAuth2Client } from 'google-auth-library';
 
 @Module({
   imports: [
@@ -31,11 +33,16 @@ import { JwtAuthGuard } from './jwt-auth/jwt-auth.guard.js';
     }),
   ],
   providers: [
+    {
+      provide: OAuth2Client,
+      useFactory: () => new OAuth2Client(),
+    },
     AuthAccountRepository,
     AuthTokenService,
     SessionRepository,
     SessionService,
     JwtAuthGuard,
+    GoogleIdentityService,
   ],
   exports: [AuthAccountRepository, JwtAuthGuard],
 })
