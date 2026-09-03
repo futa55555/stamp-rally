@@ -1,26 +1,39 @@
-import { Injectable } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto.js';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { InvalidUserNameError, User } from './entities/user.entity.js';
+import { UserRepository } from './user.repository.js';
 
 @Injectable()
 export class UsersService {
-  create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
+  constructor(private readonly userRepository: UserRepository) {}
+
+  async getMe(userId: string): Promise<User> {
+    const user = await this.userRepository.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
   }
 
-  findAll() {
-    return `This action returns all users`;
-  }
+  async updateMe(userId: string, dto: UpdateUserDto): Promise<User> {
+    const user = await this.getMe(userId);
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
-  }
+    try {
+      user.updateName(dto.name);
+    } catch (error) {
+      if (error instanceof InvalidUserNameError) {
+        throw new BadRequestException(error.message);
+      }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
-  }
+      throw error;
+    }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+    return this.userRepository.save(user);
   }
 }
