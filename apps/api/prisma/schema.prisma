@@ -13,10 +13,36 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id        String        @id @default(uuid()) @db.Uuid
+  name      String?       @db.VarChar(20)
+  status    UserStatus    @default(ONBOARDING)
+  accounts  AuthAccount[]
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@map("users")
+}
+
+enum UserStatus {
+  ONBOARDING
+  ACTIVE
+}
+
+model AuthAccount {
+  id                String       @id @default(uuid()) @db.Uuid
+  userId            String       @map("user_id") @db.Uuid
+  provider          AuthProvider
+  providerAccountId String       @map("provider_account_id")
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@unique([provider, providerAccountId])
+  @@map("auth_accounts")
+}
+
+enum AuthProvider {
+  GOOGLE
+  APPLE
 }

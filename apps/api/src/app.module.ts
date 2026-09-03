@@ -8,6 +8,7 @@ import { TripsModule } from './trips/trips.module.js';
 import { UsersModule } from './users/users.module.js';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './database/database.module.js';
+import { AuthModule } from './auth/auth.module.js';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { DatabaseModule } from './database/database.module.js';
     TeamsModule,
     TripsModule,
     UsersModule,
+    AuthModule,
   ],
   controllers: [],
   providers: [],
