@@ -6,6 +6,16 @@ import { AuthTokenService } from './auth-token/auth-token.service.js';
 import { SessionRepository } from './session/session.repository.js';
 import { SessionService } from './session/session.service.js';
 import { JwtAuthGuard } from './jwt-auth/jwt-auth.guard.js';
+import {
+  APPLE_ID_TOKEN_VERIFIER,
+  AppleIdTokenVerifier,
+  AppleIdentityService,
+} from './apple-identity/apple-identity.service.js';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { GoogleIdentityService } from './google-identity/google-identity.service.js';
+import { OAuth2Client } from 'google-auth-library';
+import { AuthService } from './auth.service.js';
+import { AuthController } from './auth.controller.js';
 
 @Module({
   imports: [
@@ -31,12 +41,31 @@ import { JwtAuthGuard } from './jwt-auth/jwt-auth.guard.js';
     }),
   ],
   providers: [
+    {
+      provide: APPLE_ID_TOKEN_VERIFIER,
+      useFactory: (): AppleIdTokenVerifier => {
+        const applePublicKeys = createRemoteJWKSet(
+          new URL('https://appleid.apple.com/auth/keys'),
+        );
+
+        return (identityToken, options) =>
+          jwtVerify(identityToken, applePublicKeys, options);
+      },
+    },
+    {
+      provide: OAuth2Client,
+      useFactory: () => new OAuth2Client(),
+    },
     AuthAccountRepository,
     AuthTokenService,
     SessionRepository,
     SessionService,
     JwtAuthGuard,
+    AppleIdentityService,
+    GoogleIdentityService,
+    AuthService,
   ],
   exports: [AuthAccountRepository, JwtAuthGuard],
+  controllers: [AuthController],
 })
 export class AuthModule {}
