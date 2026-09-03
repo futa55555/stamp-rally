@@ -55,6 +55,27 @@ describe('AuthTokenService', () => {
     expect(payload.exp).toBeGreaterThan(payload.iat);
   });
 
+  it('verifies an access token', async () => {
+    const token = await service.signAccessToken('user-123', 'session-456');
+
+    const payload = await service.verifyAccessToken(token);
+
+    expect(payload).toEqual({
+      sub: 'user-123',
+      sid: 'session-456',
+    });
+  });
+
+  it('rejects an access token without required payload', async () => {
+    const token = await jwtService.signAsync({
+      sub: 'user-123',
+    });
+
+    await expect(service.verifyAccessToken(token)).rejects.toThrow(
+      'Invalid access token payload',
+    );
+  });
+
   it('generates different refresh tokens', () => {
     const first = service.generateRefreshToken();
     const second = service.generateRefreshToken();

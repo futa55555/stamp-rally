@@ -42,6 +42,25 @@ export class AuthTokenService {
     return this.jwtService.signAsync(payload);
   }
 
+  async verifyAccessToken(accessToken: string): Promise<AccessTokenPayload> {
+    const payload =
+      await this.jwtService.verifyAsync<AccessTokenPayload>(accessToken);
+
+    if (
+      typeof payload.sub !== 'string' ||
+      payload.sub.length === 0 ||
+      typeof payload.sid !== 'string' ||
+      payload.sid.length === 0
+    ) {
+      throw new Error('Invalid access token payload');
+    }
+
+    return {
+      sub: payload.sub,
+      sid: payload.sid,
+    };
+  }
+
   generateRefreshToken(): string {
     return randomBytes(32).toString('base64url');
   }
