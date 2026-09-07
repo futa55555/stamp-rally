@@ -9,9 +9,12 @@
     "mobile:start": "pnpm --filter mobile start",
     "mobile:ios": "pnpm --filter mobile ios",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix ."
   },
   "devDependencies": {
+    "oxlint": "1.81.0",
     "prettier": "3.9.6"
   }
 }

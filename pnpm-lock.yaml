@@ -207,6 +207,9 @@ importers:
 
   .:
     devDependencies:
+      oxlint:
+        specifier: 1.81.0
+        version: 1.81.0
       prettier:
         specifier: 3.9.6
         version: 3.9.6
@@ -289,9 +292,6 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.1.2
         version: 4.1.11(vitest@4.1.11)
-      oxlint:
-        specifier: ^1.58.0
-        version: 1.81.0
       prisma:
         specifier: ^7.10.0
         version: 7.10.0(@types/react@19.2.18)(magicast@0.5.4)(react-dom@19.2.8(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
