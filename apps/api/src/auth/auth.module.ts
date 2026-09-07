@@ -16,9 +16,12 @@ import { GoogleIdentityService } from './google-identity/google-identity.service
 import { OAuth2Client } from 'google-auth-library';
 import { AuthService } from './auth.service.js';
 import { AuthController } from './auth.controller.js';
+import { ActiveUserGuard } from './active-user.guard.js';
+import { DatabaseModule } from '../database/database.module.js';
 
 @Module({
   imports: [
+    DatabaseModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -61,11 +64,17 @@ import { AuthController } from './auth.controller.js';
     SessionRepository,
     SessionService,
     JwtAuthGuard,
+    ActiveUserGuard,
     AppleIdentityService,
     GoogleIdentityService,
     AuthService,
   ],
-  exports: [AuthAccountRepository, JwtAuthGuard],
+  exports: [
+    AuthAccountRepository,
+    AuthTokenService,
+    JwtAuthGuard,
+    ActiveUserGuard,
+  ],
   controllers: [AuthController],
 })
 export class AuthModule {}

@@ -1,13 +1,19 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { UserStatus } from '../generated/prisma/enums.js';
-import { User } from './entities/user.entity.js';
+import { User, UserNameTakenError } from './entities/user.entity.js';
 import { UserRepository } from './user.repository.js';
 import { UsersService } from './users.service.js';
 
 const userRepositoryMock = {
   findById: vi.fn(),
   save: vi.fn(),
+  findActiveByName: vi.fn(),
 };
 
 function createUser(
@@ -63,6 +69,15 @@ describe('UsersService', () => {
   });
 
   describe('updateMe', () => {
+    it('returns conflict when the database rejects a duplicate name', async () => {
+      userRepositoryMock.findById.mockResolvedValue(createUser());
+      userRepositoryMock.save.mockRejectedValue(new UserNameTakenError());
+
+      await expect(
+        service.updateMe('user-123', { name: 'Taken' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
     it('updates the name and activates the user', async () => {
       const user = createUser();
 
@@ -99,6 +114,43 @@ describe('UsersService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
 
       expect(userRepositoryMock.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('lookup', () => {
+    it('looks up an exact trimmed name and returns public identity only', async () => {
+      userRepositoryMock.findById.mockResolvedValue(
+        createUser('Futa', 'ACTIVE'),
+      );
+      const identity = { id: 'other-user', name: '招待先' };
+      userRepositoryMock.findActiveByName.mockResolvedValue(identity);
+
+      await expect(service.lookup('user-123', '  招待先  ')).resolves.toEqual(
+        identity,
+      );
+      expect(userRepositoryMock.findActiveByName).toHaveBeenCalledWith(
+        '招待先',
+      );
+    });
+
+    it('rejects onboarding requesters', async () => {
+      userRepositoryMock.findById.mockResolvedValue(createUser());
+
+      await expect(service.lookup('user-123', 'Futa')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(userRepositoryMock.findActiveByName).not.toHaveBeenCalled();
+    });
+
+    it('returns not found for a missing or onboarding target', async () => {
+      userRepositoryMock.findById.mockResolvedValue(
+        createUser('Futa', 'ACTIVE'),
+      );
+      userRepositoryMock.findActiveByName.mockResolvedValue(null);
+
+      await expect(
+        service.lookup('user-123', 'Missing'),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

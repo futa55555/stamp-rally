@@ -6,7 +6,7 @@ export default defineConfig({
   test: {
     globals: true,
     root: './',
-    include: ['src/**/*.integration-spec.ts'],
+    include: ['src/**/*.integration-spec.ts', 'test/**/*.integration-spec.ts'],
     fileParallelism: false,
   },
 });

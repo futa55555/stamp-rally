@@ -2,6 +2,13 @@ import { UserStatus } from '../../generated/prisma/enums.js';
 
 export const USER_NAME_MAX_LENGTH = 20;
 
+export class UserNameTakenError extends Error {
+  constructor() {
+    super('User name is already taken');
+    this.name = UserNameTakenError.name;
+  }
+}
+
 export class InvalidUserNameError extends Error {
   constructor() {
     super(`User name must be between 1 and ${USER_NAME_MAX_LENGTH} characters`);

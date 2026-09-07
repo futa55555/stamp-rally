@@ -1,4 +1,15 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateStampDto } from './create-stamp.dto.js';
+import {
+  Description,
+  DomainName,
+  OptionalField,
+} from '../../common/validation.js';
 
-export class UpdateStampDto extends PartialType(CreateStampDto) {}
+export class UpdateStampDto {
+  @OptionalField()
+  @DomainName()
+  name?: string;
+
+  @OptionalField()
+  @Description()
+  description?: string;
+}

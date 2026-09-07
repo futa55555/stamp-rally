@@ -163,4 +163,47 @@ describe('Users flow integration', () => {
   it('rejects a request without an access token', async () => {
     await request(app.getHttpServer()).get('/users/me').expect(401);
   });
+
+  it('returns conflict for a taken name without activating or renaming the requester', async () => {
+    const { user, accessToken } = await createAuthenticatedUser();
+    await prisma.user.create({ data: { name: 'Taken', status: 'ACTIVE' } });
+
+    await request(app.getHttpServer())
+      .patch('/users/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ name: '  Taken  ' })
+      .expect(409);
+
+    expect(
+      await prisma.user.findUniqueOrThrow({ where: { id: user.id } }),
+    ).toMatchObject({
+      name: null,
+      status: 'ONBOARDING',
+    });
+  });
+
+  it('requires an active requester for exact-name lookup', async () => {
+    const { user, accessToken } = await createAuthenticatedUser();
+    const target = await prisma.user.create({
+      data: { name: '招待先', status: 'ACTIVE' },
+    });
+
+    await request(app.getHttpServer())
+      .get('/users/lookup')
+      .query({ name: '招待先' })
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(403);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { name: 'Requester', status: 'ACTIVE' },
+    });
+
+    await request(app.getHttpServer())
+      .get('/users/lookup')
+      .query({ name: '  招待先  ' })
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200)
+      .expect({ id: target.id, name: '招待先' });
+  });
 });

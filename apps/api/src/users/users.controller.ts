@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Patch,
+  Query,
   Req,
   UseGuards,
   UsePipes,
@@ -13,6 +14,7 @@ import {
   JwtAuthGuard,
 } from '../auth/jwt-auth/jwt-auth.guard.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { LookupUserDto } from './dto/lookup-user.dto.js';
 import { User } from './entities/user.entity.js';
 import { UsersService } from './users.service.js';
 
@@ -27,6 +29,14 @@ import { UsersService } from './users.service.js';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Get('lookup')
+  lookup(
+    @Req() request: AuthenticatedRequest,
+    @Query() query: LookupUserDto,
+  ): Promise<{ id: string; name: string }> {
+    return this.usersService.lookup(request.auth.userId, query.name);
+  }
 
   @Get('me')
   getMe(@Req() request: AuthenticatedRequest): Promise<User> {

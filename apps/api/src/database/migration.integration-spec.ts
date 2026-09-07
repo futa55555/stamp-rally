@@ -1,0 +1,128 @@
+import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { Client } from 'pg';
+
+const migration = readFileSync(
+  new URL(
+    '../../prisma/migrations/20260907133000_add_trip_domain/migration.sql',
+    import.meta.url,
+  ),
+  'utf8',
+);
+
+describe('Trip domain migration integration', () => {
+  let client: Client;
+  let schema: string;
+  let schemaCreated = false;
+
+  beforeEach(async () => {
+    if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+    schema = `domain_migration_${randomUUID().replaceAll('-', '')}`;
+    // Only this test-created schema is ever dropped; public data is not in the search path.
+    if (!/^domain_migration_[a-f0-9]{32}$/.test(schema))
+      throw new Error('Invalid test schema');
+    await client.query(`CREATE SCHEMA "${schema}"`);
+    schemaCreated = true;
+    await client.query("SELECT set_config('search_path', $1, false)", [schema]);
+    await client.query(
+      'CREATE TABLE users (id UUID PRIMARY KEY, name VARCHAR(20))',
+    );
+  });
+
+  afterEach(async () => {
+    if (!client) return;
+    try {
+      await client.query('ROLLBACK');
+      if (schemaCreated) await client.query(`DROP SCHEMA "${schema}" CASCADE`);
+    } finally {
+      schemaCreated = false;
+      await client.end();
+    }
+  });
+
+  it('reports duplicate names, aborts before domain DDL, and preserves existing users', async () => {
+    const first = randomUUID();
+    const second = randomUUID();
+    const onboarding = randomUUID();
+    await client.query(
+      'INSERT INTO users (id, name) VALUES ($1, $4), ($2, $4), ($3, NULL)',
+      [first, second, onboarding, '重複名'],
+    );
+    const before = (
+      await client.query('SELECT id, name FROM users ORDER BY id')
+    ).rows;
+
+    await expect(client.query(migration)).rejects.toMatchObject({
+      code: 'P0001',
+      message:
+        "Cannot make users.name unique; resolve duplicate names first: '重複名'",
+    });
+    // The migration's BEGIN remains aborted until rolled back by the migration runner.
+    await expect(client.query('SELECT 1')).rejects.toMatchObject({
+      code: '25P02',
+    });
+    await client.query('ROLLBACK');
+
+    expect(
+      (await client.query('SELECT id, name FROM users ORDER BY id')).rows,
+    ).toEqual(before);
+    const tables = await client.query(
+      'SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = $1 ORDER BY tablename',
+      [schema],
+    );
+    expect(tables.rows).toEqual([{ tablename: 'users' }]);
+    const enums = await client.query(
+      "SELECT t.typname FROM pg_catalog.pg_type t JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = $1 AND t.typtype = 'e'",
+      [schema],
+    );
+    expect(enums.rows).toEqual([]);
+    const indexes = await client.query(
+      'SELECT indexname FROM pg_catalog.pg_indexes WHERE schemaname = $1 ORDER BY indexname',
+      [schema],
+    );
+    expect(indexes.rows).toEqual([{ indexname: 'users_pkey' }]);
+  });
+
+  it('accepts multiple unnamed users and enforces the trip date range after migration', async () => {
+    const owner = randomUUID();
+    await client.query(
+      'INSERT INTO users (id, name) VALUES ($1, NULL), ($2, NULL)',
+      [owner, randomUUID()],
+    );
+    await client.query(migration);
+    expect(
+      (
+        await client.query(
+          'SELECT COUNT(*)::int AS count FROM users WHERE name IS NULL',
+        )
+      ).rows,
+    ).toEqual([{ count: 2 }]);
+
+    const insertTrip =
+      'INSERT INTO trips (id, name, start_date, end_date, created_by_id, updated_at) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)';
+    await expect(
+      client.query(insertTrip, [
+        randomUUID(),
+        '旅行',
+        '2026-09-08',
+        '2026-09-07',
+        owner,
+      ]),
+    ).rejects.toMatchObject({
+      code: '23514',
+      constraint: 'trips_date_range_check',
+    });
+    await client.query(insertTrip, [
+      randomUUID(),
+      '日帰り',
+      '2026-09-07',
+      '2026-09-07',
+      owner,
+    ]);
+    expect((await client.query('SELECT name FROM trips')).rows).toEqual([
+      { name: '日帰り' },
+    ]);
+  });
+});

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
-import type { User as PrismaUser } from '../generated/prisma/client.js';
-import { User } from './entities/user.entity.js';
+import { Prisma, type User as PrismaUser } from '../generated/prisma/client.js';
+import { User, UserNameTakenError } from './entities/user.entity.js';
 
 @Injectable()
 export class UserRepository {
@@ -16,17 +16,34 @@ export class UserRepository {
   }
 
   async save(user: User): Promise<User> {
-    const savedUser = await this.prisma.user.update({
-      where: {
-        id: user.id,
-      },
-      data: {
-        name: user.name,
-        status: user.status,
-      },
+    try {
+      const savedUser = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { name: user.name, status: user.status },
+      });
+
+      return this.toDomain(savedUser);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new UserNameTakenError();
+      }
+
+      throw error;
+    }
+  }
+
+  async findActiveByName(
+    name: string,
+  ): Promise<{ id: string; name: string } | null> {
+    const user = await this.prisma.user.findFirst({
+      where: { name, status: 'ACTIVE' },
+      select: { id: true, name: true },
     });
 
-    return this.toDomain(savedUser);
+    return user?.name ? { id: user.id, name: user.name } : null;
   }
 
   private toDomain(user: PrismaUser): User {

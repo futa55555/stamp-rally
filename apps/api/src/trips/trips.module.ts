@@ -1,9 +1,14 @@
 import { Module } from '@nestjs/common';
-import { TripsService } from './trips.service.js';
+import { AuthModule } from '../auth/auth.module.js';
+import { InvitationsModule } from '../invitations/invitations.module.js';
+import { TripAccessModule } from './trip-access.module.js';
+import { TripRepository } from './trip.repository.js';
 import { TripsController } from './trips.controller.js';
+import { TripsService } from './trips.service.js';
 
 @Module({
+  imports: [AuthModule, TripAccessModule, InvitationsModule],
   controllers: [TripsController],
-  providers: [TripsService],
+  providers: [TripsService, TripRepository],
 })
 export class TripsModule {}

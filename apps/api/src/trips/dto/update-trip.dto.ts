@@ -1,4 +1,26 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateTripDto } from './create-trip.dto.js';
+import { IsDateString, Matches, ValidateIf } from 'class-validator';
+import {
+  DomainName,
+  HttpsUrl,
+  OptionalField,
+} from '../../common/validation.js';
 
-export class UpdateTripDto extends PartialType(CreateTripDto) {}
+export class UpdateTripDto {
+  @OptionalField()
+  @DomainName()
+  name?: string;
+
+  @OptionalField()
+  @IsDateString({ strict: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  startDate?: string;
+
+  @OptionalField()
+  @IsDateString({ strict: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  endDate?: string;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @HttpsUrl()
+  coverImageUrl?: string | null;
+}
