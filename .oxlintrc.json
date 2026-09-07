@@ -1,0 +1,31 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc"],
+  "rules": {
+    "typescript/no-explicit-any": "off"
+  },
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "**/.expo/**",
+    "**/web-build/**",
+    "**/.dev-dist/**",
+    "apps/api/src/generated/**",
+    "apps/mobile/ios/**",
+    "apps/mobile/android/**",
+    "apps/mobile/expo-env.d.ts"
+  ],
+  "overrides": [
+    {
+      "files": ["apps/api/**/*"],
+      "env": {
+        "node": true
+      }
+    },
+    {
+      "files": ["apps/mobile/**/*"],
+      "plugins": ["typescript", "unicorn", "oxc", "react"]
+    }
+  ]
+}
