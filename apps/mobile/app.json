@@ -14,7 +14,6 @@
     "android": {
       "package": "com.futa.stamprally",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -25,13 +24,20 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      "expo-font",
+      "expo-router",
+      "expo-splash-screen"
     ],
     "extra": {
       "eas": {
         "projectId": "88124691-85cc-48af-91cd-53d1029509f1"
       }
     },
-    "owner": "fuesugi"
+    "owner": "fuesugi",
+    "scheme": "stamp-rally",
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }
