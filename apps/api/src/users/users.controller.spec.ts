@@ -10,6 +10,7 @@ import { UsersService } from './users.service.js';
 const usersServiceMock = {
   getMe: vi.fn(),
   updateMe: vi.fn(),
+  lookup: vi.fn(),
 };
 
 const authTokenServiceMock = {
@@ -83,6 +84,46 @@ describe('UsersController', () => {
     await request(app.getHttpServer()).get('/users/me').expect(401);
 
     expect(usersServiceMock.getMe).not.toHaveBeenCalled();
+  });
+
+  it('looks up a trimmed name using the authenticated user', async () => {
+    usersServiceMock.lookup.mockResolvedValue({
+      id: 'other-user',
+      name: '招待先',
+    });
+
+    await request(app.getHttpServer())
+      .get('/users/lookup')
+      .query({ name: '  招待先  ' })
+      .set('Authorization', 'Bearer access-token')
+      .expect(200)
+      .expect({ id: 'other-user', name: '招待先' });
+
+    expect(usersServiceMock.lookup).toHaveBeenCalledWith('user-123', '招待先');
+  });
+
+  it.each([
+    {},
+    { name: '' },
+    { name: ' ' },
+    { name: 'あ'.repeat(21) },
+    { name: 'Futa', status: 'ACTIVE' },
+  ])('rejects invalid lookup query: %o', async (query) => {
+    await request(app.getHttpServer())
+      .get('/users/lookup')
+      .query(query)
+      .set('Authorization', 'Bearer access-token')
+      .expect(400);
+
+    expect(usersServiceMock.lookup).not.toHaveBeenCalled();
+  });
+
+  it('rejects lookup without authentication', async () => {
+    await request(app.getHttpServer())
+      .get('/users/lookup')
+      .query({ name: 'Futa' })
+      .expect(401);
+    expect(usersServiceMock.lookup).not.toHaveBeenCalled();
   });
 
   it('updates the authenticated user', async () => {

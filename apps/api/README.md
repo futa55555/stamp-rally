@@ -1,114 +1,193 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Stamp Rally API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS + Prisma + PostgreSQL。認証済みの参加者が、trip → genre → stamp と投稿・コメントを共有するAPIです。
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## コード構成
 
-## Description
+- `src/auth/`：JWT認証、初期設定完了の判定。
+- `src/trips/`：trip機能、参加者のアクセス判定。`TripAccessModule` は参加者判定だけを公開し、各機能から利用します。
+- `src/common/`：paginationと共通の入力検証。
+- `src/database/`：Prisma接続、transaction処理、migrationの検証。
+- 各機能のディレクトリ：controller・service・repository・entity・DTO。
+- `test/trips.integration-spec.ts`：アプリ全体を通すtripの統合テスト。
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 開発・検証
 
-## Project setup
+リポジトリルートで `pnpm install`、`docker compose up -d postgres` を実行し、`apps/api/.env.example` を参考に `apps/api/.env` を設定してください。
 
-```bash
-$ pnpm install
+```sh
+pnpm --filter api exec prisma generate --config ./prisma7.config.ts
+pnpm --filter api exec prisma migrate deploy --config ./prisma7.config.ts
+pnpm --filter api start:dev
+
+pnpm --filter api test
+pnpm --filter api test:database
+pnpm --filter api lint
+pnpm --filter api build
 ```
 
-## Compile and run the project
+`test:database` はintegrationとe2eを実行します。`test:integration` / `test:e2e` で個別実行も可能です。`.env.test`（または明示した `DATABASE_URL`）の接続先に実行ごとの一時DBを作り、全migrationを適用して、終了時に削除します。接続ユーザーにはDB作成権限が必要です。既存の開発DB・テストDBのデータは削除しません。
 
-```bash
-# development
-$ pnpm run start
+### ローカル開発用ユーザー・トークン（Insomnia等）
 
-# watch mode
-$ pnpm run start:dev
+Google/Appleログインを用意せずに、通常のJWT認証と参加者判定を通してAPIを手動検証するためのCLIです。HTTPの開発用ログインAPIは追加していません。
 
-# production mode
-$ pnpm run start:prod
+DBを起動し、上記のgenerate・migrationを済ませてから、リポジトリルートで実行します。
+
+```sh
+# 名前設定済み・ACTIVEのテストユーザー3人を用意する
+pnpm --filter api db:seed
+
+# 指定ユーザーの新しいセッションとトークンを発行する
+pnpm --filter api dev:token --user dev-user-1
+
+# 別のユーザーに切り替えて、招待や参加者判定も試せる
+pnpm --filter api dev:token --user dev-user-2
+pnpm --filter api dev:token --user dev-user-3
 ```
 
-## Run tests
+ユーザーの識別名は `dev-user-1`〜`dev-user-3` です。固定UUIDで管理するので、APIで名前を変更しても同じ識別名で選べます。Seederは存在しないユーザーだけを作成し、既存ユーザーの名前・状態・セッションや、Trip・投稿などを変更・削除しません。別のユーザーが初期名を使用していた場合は、全体をロールバックしてエラーにします。サンプルTripなどは作成しません。
 
-```bash
-# unit tests
-$ pnpm run test
+Prismaにも同じseed処理を登録してあるため、`pnpm --filter api exec prisma db seed --config ./prisma7.config.ts` でも実行できます。Seeder自体にはDBリセット・migration処理はありません。DBを初期化したあとは、migration、Seeder、トークン発行をやり直してください。
 
-# e2e tests
-$ pnpm run test:e2e
+トークン発行コマンドは以下のJSONを出力します（値は説明用）。`--silent` を付けた `pnpm --filter api --silent dev:token --user dev-user-1` なら、pnpmの実行案内を省いてJSONだけを取得できます。
 
-# test coverage
-$ pnpm run test:cov
+```json
+{
+  "user": {
+    "key": "dev-user-1",
+    "id": "00000000-0000-4000-8000-000000000001",
+    "name": "dev-user-1",
+    "status": "ACTIVE"
+  },
+  "accessToken": "<access-token>",
+  "refreshToken": "<refresh-token>",
+  "refreshTokenExpiresAt": "<ISO日時>",
+  "accessTokenExpiresAt": "<ISO日時>"
+}
 ```
 
-## Deployment
+Insomniaでは **Auth → Bearer Token** のToken欄に `accessToken` の値だけを貼ります。`Bearer ` は付けません。まず `GET http://localhost:3000/users/me` でユーザーを確認し、続いてTripなどを作成できます。ユーザーはすでに `ACTIVE` なので、初回の名前設定は不要です。APIサーバーは別途 `pnpm --filter api start:dev` で起動してください。
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+トークンは通常ログインと同じ署名鍵・有効期限を使います。`.env.example` の設定ではaccess tokenは15分、refresh tokenは30日です。期限切れ時は発行コマンドを再実行するか、以下で更新できます。
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+```http
+POST http://localhost:3000/auth/refresh
+Content-Type: application/json
 
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+{ "refreshToken": "<現在のrefreshToken>" }
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+refresh成功後は、返された **accessTokenとrefreshTokenの両方**を差し替えてください。使用済みrefresh tokenは再利用できません。CLI再実行は新しいセッションを作り、既存セッションを削除しません。既存仕様どおり、ログアウトはrefresh tokenを失効させますが、access tokenは期限まで有効です。
 
-## Observability
+安全対策・実行条件：
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+- `apps/api/.env` を読み、同名の環境変数が既にあればそちらを優先します。APIサーバーとCLIの接続先・JWT設定を揃えてください。CLI自体にはGoogle/Appleの設定は不要です。
+- `NODE_ENV` は未設定・`development`・`test` のみ許可します。
+- PostgreSQLのホストは `localhost`・`127.0.0.1`・`[::1]`、DB名は `stamp_rally`・`stamp_rally_test`・既存テストランナーの一時DB名だけを許可します。URLクエリは `schema` のみ許可し、`host` 等による上書きは拒否します。
+- 接続先の制限は設定の誤りを防ぐためのものです。本番DBへのローカルトンネルや本番のJWT秘密鍵を使用しないでください。
+- トークン発行は固定テストユーザーかつ `ACTIVE` に限定し、Google/Appleのアカウントが紐づくユーザーには発行しません。
+- 出力されたトークンは秘密情報です。コミットや共有をしないでください。CLIはトークンをファイルに保存せず、DBにはrefresh tokenのハッシュだけを保存します。
+- 開発用コードは `scripts/`、専用ビルドの出力はGit管理外の `.dev-dist/` に置きます。本番の `dist/` とAppModuleには含めません。
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+`20260907133000_add_trip_domain` は既存の非nullユーザー名に重複がある場合、名前を報告してtransactionをロールバックします。自動改名や削除は行いません。適用前にも次のSQLで確認できます。
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+```sql
+SELECT name, count(*) FROM users
+WHERE name IS NOT NULL GROUP BY name HAVING count(*) > 1;
+```
 
-## Resources
+## 認証・名前・権限
 
-Check out a few resources that may come in handy when working with NestJS:
+認証APIと `GET/PATCH /users/me` は既存仕様を維持します。`PATCH /users/me` の `{ "name": "名前" }` で初期設定が完了し、`ACTIVE` になります。新たなusernameフィールドはありません。
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+ユーザー名は前後の空白を除去した1〜20文字で、全ユーザー間で一意です。日本語・内部の空白は使用でき、大文字小文字は区別します（`Futa` と `futa` は別名）。未設定のnullは複数ユーザーに許可されます。他人と同名への変更は409、自分の現在の名前への更新は成功します。
 
-## Support
+domain APIには `Authorization: Bearer <accessToken>` と `ACTIVE` が必要です。trip内の閲覧・編集・招待・投稿・お気に入り変更は、全参加者が同じ権限を持ちます。名前検索はACTIVEユーザー間のみ可能です。
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+- 401：認証されていない、または認証されたユーザーが存在しない。
+- 403：初期設定が未完了。
+- 404：対象が存在しない、またはそのtripに参加していない。
+- 400：入力・UUID・日付・絞り込み・cursorが不正。
+- 409：ユーザー名の重複、招待の状態競合、自分自身・参加済みユーザーへの招待。
 
-## Stay in touch
+既存のJWT方式を使用します。ログアウトはrefresh tokenを失効し、発行済みaccess tokenは有効期限まで利用可能です。
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## エンドポイント
 
-## License
+作成は201、取得・更新・招待の承認と辞退は200を返します。未知のbody/query項目はDTOを持つAPIで拒否します。
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+| Method / Path                 | 内容                                                          |
+| ----------------------------- | ------------------------------------------------------------- |
+| GET /users/me                 | 自分のプロフィール                                            |
+| PATCH /users/me               | `{ name }` で名前設定・変更                                   |
+| GET /users/lookup?name=...    | trim後の完全一致検索。返却は `{ id, name }` のみ              |
+| POST /trips                   | `{ name, startDate, endDate, coverImageUrl?, inviteeNames? }` |
+| GET /trips                    | 参加中のtrip一覧と達成集計                                    |
+| GET /trips/:id                | trip詳細と達成集計                                            |
+| PATCH /trips/:id              | name・startDate・endDate・coverImageUrlの部分更新             |
+| GET /trips/:id/members        | 参加者一覧。各項目に `user: { id, name }` を含む              |
+| POST /trips/:id/invitations   | `{ inviteeName }` で登録済みユーザーを招待                    |
+| GET /trips/:id/invitations    | 参加者向けの招待一覧（全状態）                                |
+| GET /invitations              | 自分宛ての保留中招待一覧                                      |
+| POST /invitations/:id/accept  | 本人による承認                                                |
+| POST /invitations/:id/decline | 本人による辞退                                                |
+| POST /genres                  | `{ tripId, name, description? }`                              |
+| GET /genres?tripId=...        | trip内のgenre一覧と達成集計                                   |
+| GET /genres/:id               | genre詳細と達成集計                                           |
+| PATCH /genres/:id             | name・descriptionの部分更新                                   |
+| POST /stamps                  | `{ genreId, name, description? }`                             |
+| GET /stamps?genreId=...       | genre内のstamp一覧と達成状態                                  |
+| GET /stamps/:id               | stamp詳細と達成状態                                           |
+| PATCH /stamps/:id             | name・descriptionの部分更新                                   |
+| POST /posts                   | `{ stampId, mediaType, mediaUrl }`                            |
+| GET /posts                    | `tripId / genreId / stampId` のいずれか1つで一覧              |
+| GET /posts/:id                | 投稿詳細                                                      |
+| PATCH /posts/:id/favorite     | `{ isFavorite: true }` または `false`                         |
+| POST /comments                | `{ stampId, text }`                                           |
+| GET /comments?stampId=...     | stamp内のコメント一覧                                         |
+
+リソースIDはUUIDです。genre・stampの親は変更できません。post・commentの内容編集、各データの削除、退出・除名、ファイルアップロードは今回のAPIには含みません。
+
+### trip・genre・stamp
+
+tripの期間は `YYYY-MM-DD` の暦日で、開始日≦終了日（同日可）。時刻・タイムゾーンは持ちません。過去・未来の期間も指定でき、期間外の投稿・編集も可能です。
+
+trip・genre・stampの名前は前後空白を除去した1〜100文字。descriptionは最大2,000文字で、省略時は空文字です。tripの代表画像URLは任意で、`null` で解除できます。部分更新は少なくとも1項目が必要です。
+
+### 招待
+
+trip作成と作成者の参加、指定された初期招待の作成は同一transactionです。初期招待の名前重複はtrim後にまとめ、不明な名前が含まれる場合はtripごと作成しません。
+
+招待の状態は `PENDING / ACCEPTED / DECLINED`。本人が承認すると参加者に追加されます。保留中の重複招待・同じ判断の再送は冪等です。承認済みを辞退するなどの変更は409ですが、辞退された相手を再招待することは可能です。自動期限はありません。
+
+招待先はユーザーIDで保持するので、改名しても宛先は変わりません。招待一覧にはtripの基本情報と招待者・受信者を含めます。承認前はtrip内コンテンツにアクセスできません。
+
+### 投稿・コメント・お気に入り
+
+postは `mediaType: "IMAGE" | "VIDEO"` と単一の `mediaUrl` が必須です。代表画像と投稿のURLはHTTPS形式・最大2,048文字。URLを登録するAPIで、実ファイルの保存・取得・内容検証は行いません。
+
+commentのtextは前後の空白を除去した1〜2,000文字。投稿者は認証中のユーザーから設定します。投稿・コメントには `author: { id, name }`、投稿にはさらに `tripId / genreId / stampId` を含めます。
+
+お気に入りはpost共通のbooleanです。全参加者が設定・解除でき、個人別の状態や自動toggleではありません。`GET /posts` の `favoritesOnly=true` でお気に入りだけを返し、省略・falseでは全投稿を返します。
+
+```text
+GET /posts?stampId=<uuid>
+GET /posts?stampId=<uuid>&favoritesOnly=true
+GET /posts?genreId=<uuid>&favoritesOnly=true
+GET /posts?tripId=<uuid>&favoritesOnly=true
+```
+
+tripページからはgenreとstamp、genreページからはstampを一覧APIで選択し、共通の `POST /posts` または `POST /comments` にstampIdを送ります。
+
+### 達成集計・pagination
+
+| リソース | 返却する達成情報                                      |
+| -------- | ----------------------------------------------------- |
+| Stamp    | `isCompleted`：postが1件以上存在する                  |
+| Genre    | `totalStampCount / completedStampCount / isCompleted` |
+| Trip     | `totalGenreCount / completedGenreCount / isCompleted` |
+
+Genre・Tripは子が1件以上あり、そのすべてが達成済みなら達成済みです。コメントとお気に入りは達成に影響しません。途中で未達成のstamp・genreを追加すると、親も未達成に戻ります。集計は全配下を対象とし、一覧のページサイズには影響されません。
+
+一覧は `{ items, nextCursor }`。`limit` は既定20・最大100、続きは返された `cursor` を指定します。cursorは不透明な値として扱ってください。trip・post・招待は作成日時の降順、genre・stamp・comment・参加者は昇順です。同時刻はIDで順序を確定します。

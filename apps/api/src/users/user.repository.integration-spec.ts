@@ -2,7 +2,7 @@ import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../database/prisma.service.js';
 import { UserStatus } from '../generated/prisma/enums.js';
-import { User } from './entities/user.entity.js';
+import { User, UserNameTakenError } from './entities/user.entity.js';
 import { UserRepository } from './user.repository.js';
 
 describe('UserRepository integration', () => {
@@ -93,5 +93,67 @@ describe('UserRepository integration', () => {
 
     expect(persistedUser.name).toBe('Futa');
     expect(persistedUser.status).toBe(UserStatus.ACTIVE);
+  });
+
+  it('allows multiple null names and the current name to be saved again', async () => {
+    await prisma.user.createMany({ data: [{ name: null }, { name: null }] });
+    const created = await prisma.user.create({
+      data: { name: '同じ名前', status: 'ACTIVE' },
+    });
+    const user = (await repository.findById(created.id))!;
+
+    user.updateName('  同じ名前  ');
+
+    await expect(repository.save(user)).resolves.toMatchObject({
+      name: '同じ名前',
+    });
+    expect(await prisma.user.count({ where: { name: null } })).toBe(2);
+  });
+
+  it('allows exactly one concurrent claimant for a name', async () => {
+    const first = await prisma.user.create({ data: {} });
+    const second = await prisma.user.create({ data: {} });
+    const users = await Promise.all([
+      repository.findById(first.id),
+      repository.findById(second.id),
+    ]);
+
+    users.forEach((user) => user!.updateName('Shared'));
+    const results = await Promise.allSettled(
+      users.map((user) => repository.save(user!)),
+    );
+
+    expect(
+      results.filter((result) => result.status === 'fulfilled'),
+    ).toHaveLength(1);
+    const failure = results.find(
+      (result) => result.status === 'rejected',
+    ) as PromiseRejectedResult;
+    expect(failure.reason).toBeInstanceOf(UserNameTakenError);
+    expect(await prisma.user.count({ where: { name: 'Shared' } })).toBe(1);
+    expect(
+      await prisma.user.count({ where: { name: null, status: 'ONBOARDING' } }),
+    ).toBe(1);
+  });
+
+  it('looks up active users case-sensitively with only public identity fields', async () => {
+    const upper = await prisma.user.create({
+      data: { name: 'Futa', status: 'ACTIVE' },
+    });
+    const lower = await prisma.user.create({
+      data: { name: 'futa', status: 'ACTIVE' },
+    });
+    await prisma.user.create({ data: { name: 'Onboarding' } });
+
+    await expect(repository.findActiveByName('Futa')).resolves.toEqual({
+      id: upper.id,
+      name: 'Futa',
+    });
+    await expect(repository.findActiveByName('futa')).resolves.toEqual({
+      id: lower.id,
+      name: 'futa',
+    });
+    await expect(repository.findActiveByName('FUTA')).resolves.toBeNull();
+    await expect(repository.findActiveByName('Onboarding')).resolves.toBeNull();
   });
 });

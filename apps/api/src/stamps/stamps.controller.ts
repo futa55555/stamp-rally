@@ -1,42 +1,63 @@
 import {
+  Body,
   Controller,
   Get,
-  Post,
-  Body,
-  Patch,
   Param,
-  Delete,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
-import { StampsService } from './stamps.service.js';
+import { ActiveUserGuard } from '../auth/active-user.guard.js';
+import {
+  type AuthenticatedRequest,
+  JwtAuthGuard,
+} from '../auth/jwt-auth/jwt-auth.guard.js';
 import { CreateStampDto } from './dto/create-stamp.dto.js';
+import { ListStampsDto } from './dto/list-stamps.dto.js';
 import { UpdateStampDto } from './dto/update-stamp.dto.js';
+import { StampsService } from './stamps.service.js';
 
+@UseGuards(JwtAuthGuard, ActiveUserGuard)
+@UsePipes(
+  new ValidationPipe({
+    transform: true,
+    whitelist: true,
+    forbidNonWhitelisted: true,
+  }),
+)
 @Controller('stamps')
 export class StampsController {
   constructor(private readonly stampsService: StampsService) {}
 
   @Post()
-  create(@Body() createStampDto: CreateStampDto) {
-    return this.stampsService.create(createStampDto);
+  create(@Req() request: AuthenticatedRequest, @Body() dto: CreateStampDto) {
+    return this.stampsService.create(request.auth.userId, dto);
   }
 
   @Get()
-  findAll() {
-    return this.stampsService.findAll();
+  findAll(@Req() request: AuthenticatedRequest, @Query() query: ListStampsDto) {
+    return this.stampsService.findAll(request.auth.userId, query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.stampsService.findOne(+id);
+  findOne(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.stampsService.findOne(request.auth.userId, id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateStampDto: UpdateStampDto) {
-    return this.stampsService.update(+id, updateStampDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.stampsService.remove(+id);
+  update(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateStampDto,
+  ) {
+    return this.stampsService.update(request.auth.userId, id, dto);
   }
 }

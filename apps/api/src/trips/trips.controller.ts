@@ -1,42 +1,75 @@
 import {
+  Body,
   Controller,
   Get,
-  Post,
-  Body,
-  Patch,
   Param,
-  Delete,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
-import { TripsService } from './trips.service.js';
+import { ActiveUserGuard } from '../auth/active-user.guard.js';
+import {
+  type AuthenticatedRequest,
+  JwtAuthGuard,
+} from '../auth/jwt-auth/jwt-auth.guard.js';
+import { PaginationQueryDto } from '../common/pagination.js';
 import { CreateTripDto } from './dto/create-trip.dto.js';
 import { UpdateTripDto } from './dto/update-trip.dto.js';
+import { TripsService } from './trips.service.js';
 
+@UseGuards(JwtAuthGuard, ActiveUserGuard)
+@UsePipes(
+  new ValidationPipe({
+    transform: true,
+    whitelist: true,
+    forbidNonWhitelisted: true,
+  }),
+)
 @Controller('trips')
 export class TripsController {
   constructor(private readonly tripsService: TripsService) {}
 
   @Post()
-  create(@Body() createTripDto: CreateTripDto) {
-    return this.tripsService.create(createTripDto);
+  create(@Req() request: AuthenticatedRequest, @Body() dto: CreateTripDto) {
+    return this.tripsService.create(request.auth.userId, dto);
   }
 
   @Get()
-  findAll() {
-    return this.tripsService.findAll();
+  findAll(
+    @Req() request: AuthenticatedRequest,
+    @Query() query: PaginationQueryDto,
+  ) {
+    return this.tripsService.findAll(request.auth.userId, query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.tripsService.findOne(+id);
+  findOne(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.tripsService.findOne(request.auth.userId, id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateTripDto: UpdateTripDto) {
-    return this.tripsService.update(+id, updateTripDto);
+  update(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateTripDto,
+  ) {
+    return this.tripsService.update(request.auth.userId, id, dto);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.tripsService.remove(+id);
+  @Get(':id/members')
+  members(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: PaginationQueryDto,
+  ) {
+    return this.tripsService.members(request.auth.userId, id, query);
   }
 }

@@ -1,42 +1,67 @@
 import {
-  Controller,
   Get,
   Post,
   Body,
+  Controller,
   Patch,
   Param,
-  Delete,
+  Query,
+  Req,
+  ParseUUIDPipe,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
+import { ActiveUserGuard } from '../auth/active-user.guard.js';
+import {
+  type AuthenticatedRequest,
+  JwtAuthGuard,
+} from '../auth/jwt-auth/jwt-auth.guard.js';
 import { PostsService } from './posts.service.js';
 import { CreatePostDto } from './dto/create-post.dto.js';
-import { UpdatePostDto } from './dto/update-post.dto.js';
+import { ListPostsDto } from './dto/list-posts.dto.js';
+import { UpdateFavoriteDto } from './dto/update-favorite.dto.js';
 
+@UseGuards(JwtAuthGuard, ActiveUserGuard)
+@UsePipes(
+  new ValidationPipe({
+    transform: true,
+    whitelist: true,
+    forbidNonWhitelisted: true,
+  }),
+)
 @Controller('posts')
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   @Post()
-  create(@Body() createPostDto: CreatePostDto) {
-    return this.postsService.create(createPostDto);
+  create(@Req() request: AuthenticatedRequest, @Body() dto: CreatePostDto) {
+    return this.postsService.create(request.auth.userId, dto);
   }
 
   @Get()
-  findAll() {
-    return this.postsService.findAll();
+  findAll(@Req() request: AuthenticatedRequest, @Query() query: ListPostsDto) {
+    return this.postsService.findAll(request.auth.userId, query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.postsService.findOne(+id);
+  findOne(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.postsService.findOne(request.auth.userId, id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePostDto: UpdatePostDto) {
-    return this.postsService.update(+id, updatePostDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.postsService.remove(+id);
+  @Patch(':id/favorite')
+  setFavorite(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdateFavoriteDto,
+  ) {
+    return this.postsService.setFavorite(
+      request.auth.userId,
+      id,
+      dto.isFavorite,
+    );
   }
 }
