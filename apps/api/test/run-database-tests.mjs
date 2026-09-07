@@ -47,8 +47,10 @@ try {
   await admin.query(`CREATE DATABASE "${databaseName}"`);
   created = true;
   await run(['prisma', 'migrate', 'deploy', '--config', './prisma7.config.ts']);
-  if (configuration !== 'e2e')
+  if (configuration !== 'e2e') {
+    await run(['tsc', '--project', './tsconfig.scripts.json']);
     await run(['vitest', 'run', '--config', './vitest.config.integration.ts']);
+  }
   if (configuration !== 'integration')
     await run(['vitest', 'run', '--config', './vitest.config.e2e.ts']);
 } catch (error) {

@@ -28,6 +28,68 @@ pnpm --filter api build
 
 `test:database` はintegrationとe2eを実行します。`test:integration` / `test:e2e` で個別実行も可能です。`.env.test`（または明示した `DATABASE_URL`）の接続先に実行ごとの一時DBを作り、全migrationを適用して、終了時に削除します。接続ユーザーにはDB作成権限が必要です。既存の開発DB・テストDBのデータは削除しません。
 
+### ローカル開発用ユーザー・トークン（Insomnia等）
+
+Google/Appleログインを用意せずに、通常のJWT認証と参加者判定を通してAPIを手動検証するためのCLIです。HTTPの開発用ログインAPIは追加していません。
+
+DBを起動し、上記のgenerate・migrationを済ませてから、リポジトリルートで実行します。
+
+```sh
+# 名前設定済み・ACTIVEのテストユーザー3人を用意する
+pnpm --filter api db:seed
+
+# 指定ユーザーの新しいセッションとトークンを発行する
+pnpm --filter api dev:token --user dev-user-1
+
+# 別のユーザーに切り替えて、招待や参加者判定も試せる
+pnpm --filter api dev:token --user dev-user-2
+pnpm --filter api dev:token --user dev-user-3
+```
+
+ユーザーの識別名は `dev-user-1`〜`dev-user-3` です。固定UUIDで管理するので、APIで名前を変更しても同じ識別名で選べます。Seederは存在しないユーザーだけを作成し、既存ユーザーの名前・状態・セッションや、Trip・投稿などを変更・削除しません。別のユーザーが初期名を使用していた場合は、全体をロールバックしてエラーにします。サンプルTripなどは作成しません。
+
+Prismaにも同じseed処理を登録してあるため、`pnpm --filter api exec prisma db seed --config ./prisma7.config.ts` でも実行できます。Seeder自体にはDBリセット・migration処理はありません。DBを初期化したあとは、migration、Seeder、トークン発行をやり直してください。
+
+トークン発行コマンドは以下のJSONを出力します（値は説明用）。`--silent` を付けた `pnpm --filter api --silent dev:token --user dev-user-1` なら、pnpmの実行案内を省いてJSONだけを取得できます。
+
+```json
+{
+  "user": {
+    "key": "dev-user-1",
+    "id": "00000000-0000-4000-8000-000000000001",
+    "name": "dev-user-1",
+    "status": "ACTIVE"
+  },
+  "accessToken": "<access-token>",
+  "refreshToken": "<refresh-token>",
+  "refreshTokenExpiresAt": "<ISO日時>",
+  "accessTokenExpiresAt": "<ISO日時>"
+}
+```
+
+Insomniaでは **Auth → Bearer Token** のToken欄に `accessToken` の値だけを貼ります。`Bearer ` は付けません。まず `GET http://localhost:3000/users/me` でユーザーを確認し、続いてTripなどを作成できます。ユーザーはすでに `ACTIVE` なので、初回の名前設定は不要です。APIサーバーは別途 `pnpm --filter api start:dev` で起動してください。
+
+トークンは通常ログインと同じ署名鍵・有効期限を使います。`.env.example` の設定ではaccess tokenは15分、refresh tokenは30日です。期限切れ時は発行コマンドを再実行するか、以下で更新できます。
+
+```http
+POST http://localhost:3000/auth/refresh
+Content-Type: application/json
+
+{ "refreshToken": "<現在のrefreshToken>" }
+```
+
+refresh成功後は、返された **accessTokenとrefreshTokenの両方**を差し替えてください。使用済みrefresh tokenは再利用できません。CLI再実行は新しいセッションを作り、既存セッションを削除しません。既存仕様どおり、ログアウトはrefresh tokenを失効させますが、access tokenは期限まで有効です。
+
+安全対策・実行条件：
+
+- `apps/api/.env` を読み、同名の環境変数が既にあればそちらを優先します。APIサーバーとCLIの接続先・JWT設定を揃えてください。CLI自体にはGoogle/Appleの設定は不要です。
+- `NODE_ENV` は未設定・`development`・`test` のみ許可します。
+- PostgreSQLのホストは `localhost`・`127.0.0.1`・`[::1]`、DB名は `stamp_rally`・`stamp_rally_test`・既存テストランナーの一時DB名だけを許可します。URLクエリは `schema` のみ許可し、`host` 等による上書きは拒否します。
+- 接続先の制限は設定の誤りを防ぐためのものです。本番DBへのローカルトンネルや本番のJWT秘密鍵を使用しないでください。
+- トークン発行は固定テストユーザーかつ `ACTIVE` に限定し、Google/Appleのアカウントが紐づくユーザーには発行しません。
+- 出力されたトークンは秘密情報です。コミットや共有をしないでください。CLIはトークンをファイルに保存せず、DBにはrefresh tokenのハッシュだけを保存します。
+- 開発用コードは `scripts/`、専用ビルドの出力はGit管理外の `.dev-dist/` に置きます。本番の `dist/` とAppModuleには含めません。
+
 `20260907133000_add_trip_domain` は既存の非nullユーザー名に重複がある場合、名前を報告してtransactionをロールバックします。自動改名や削除は行いません。適用前にも次のSQLで確認できます。
 
 ```sql
