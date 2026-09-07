@@ -1,9 +1,9 @@
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { NativeTabs } from "expo-router/unstable-native-tabs";
-import { useAppTheme } from "../../theme/ThemeProvider";
-import { useNotifications } from "../../features/hooks";
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { useAppTheme } from '../../theme/ThemeProvider';
+import { useNotifications } from '../../features/hooks';
 
-export const unstable_settings = { initialRouteName: "trips" };
+export const unstable_settings = { initialRouteName: 'trips' };
 
 export default function MainLayout() {
   const theme = useAppTheme();

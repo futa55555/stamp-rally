@@ -1,9 +1,9 @@
-import { FlatList, Pressable, View } from "react-native";
-import { useNavigation } from "expo-router";
-import { resolveTarget } from "../../navigation/targets";
-import { useData } from "../../data/AppDataProvider";
-import { timestampLabel } from "../../data/dates";
-import { useAppTheme } from "../../theme/ThemeProvider";
+import { FlatList, Pressable, View } from 'react-native';
+import { useNavigation } from 'expo-router';
+import { resolveTarget } from '../../navigation/targets';
+import { useData } from '../../data/AppDataProvider';
+import { timestampLabel } from '../../data/dates';
+import { useAppTheme } from '../../theme/ThemeProvider';
 import {
   AppText,
   ErrorMessage,
@@ -11,9 +11,9 @@ import {
   SectionHeading,
   StateView,
   UnreadBadge,
-} from "../../components/ui";
-import { useNotifications, useTask } from "../hooks";
-import type { AppNotification } from "../../data/types";
+} from '../../components/ui';
+import { useNotifications, useTask } from '../hooks';
+import type { AppNotification } from '../../data/types';
 
 export function NotificationsScreen() {
   const navigation = useNavigation();
@@ -26,18 +26,18 @@ export function NotificationsScreen() {
       const routes = resolveTarget(data, notification.target, userId!);
       if (!routes)
         throw new Error(
-          "通知の対象が見つかりません。すでに削除されたか、アクセスできない可能性があります。",
+          '通知の対象が見つかりません。すでに削除されたか、アクセスできない可能性があります。',
         );
       await actions.markNotificationRead(notification.id);
       // Replace the Trips stack with the destination and its ancestors so Back
       // follows the trip hierarchy, even when opening another trip's notification.
       navigation.getParent()?.dispatch((state) => ({
-        type: "RESET",
+        type: 'RESET',
         payload: {
           ...state,
-          index: state.routes.findIndex((r) => r.name === "trips"),
+          index: state.routes.findIndex((r) => r.name === 'trips'),
           routes: state.routes.map((r) =>
-            r.name === "trips"
+            r.name === 'trips'
               ? { ...r, state: { index: routes.length - 1, routes } }
               : r,
           ),
@@ -54,9 +54,9 @@ export function NotificationsScreen() {
         padding: theme.spacing.lg,
         paddingBottom: theme.spacing.xxl,
         gap: theme.spacing.sm,
-        width: "100%",
+        width: '100%',
         maxWidth: theme.layout.pageMaxWidth,
-        alignSelf: "center",
+        alignSelf: 'center',
       }}
       ListHeaderComponent={
         <View style={{ gap: theme.spacing.md, marginBottom: theme.spacing.md }}>
@@ -82,10 +82,10 @@ export function NotificationsScreen() {
           }}
           disabled={task.pending}
           accessibilityRole="button"
-          accessibilityLabel={`${item.readAt ? "" : "未読、"}${item.title}、${item.body}`}
+          accessibilityLabel={`${item.readAt ? '' : '未読、'}${item.title}、${item.body}`}
           accessibilityState={{ disabled: task.pending }}
           style={({ pressed }) => ({
-            flexDirection: "row",
+            flexDirection: 'row',
             padding: theme.spacing.md,
             gap: theme.spacing.sm,
             borderRadius: theme.radius.md,
@@ -98,9 +98,9 @@ export function NotificationsScreen() {
           <View style={{ paddingTop: theme.spacing.xxs }}>
             <Icon
               name={
-                item.target.type === "photo" || item.target.type === "stamp"
-                  ? "image-multiple-outline"
-                  : "bag-suitcase-outline"
+                item.target.type === 'photo' || item.target.type === 'stamp'
+                  ? 'image-multiple-outline'
+                  : 'bag-suitcase-outline'
               }
               tone="primary"
             />

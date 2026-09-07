@@ -1,4 +1,4 @@
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
   ActivityIndicator,
   Pressable,
@@ -9,17 +9,17 @@ import {
   type StyleProp,
   type TextProps,
   type ViewStyle,
-} from "react-native";
-import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
-import { useAppTheme } from "../theme/ThemeProvider";
-import type { AppTheme, ColorToken } from "../theme/tokens";
+} from 'react-native';
+import type { ComponentProps, PropsWithChildren, ReactNode } from 'react';
+import { useAppTheme } from '../theme/ThemeProvider';
+import type { AppTheme, ColorToken } from '../theme/tokens';
 
-export type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
+export type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 export function Icon({
   name,
   size = 24,
-  tone = "textSecondary",
+  tone = 'textSecondary',
 }: {
   name: IconName;
   size?: number;
@@ -39,11 +39,11 @@ export function Icon({
 }
 
 export function AppText({
-  variant = "body",
-  tone = "text",
+  variant = 'body',
+  tone = 'text',
   style,
   ...props
-}: TextProps & { variant?: keyof AppTheme["typography"]; tone?: ColorToken }) {
+}: TextProps & { variant?: keyof AppTheme['typography']; tone?: ColorToken }) {
   const theme = useAppTheme();
   return (
     <Text
@@ -57,24 +57,24 @@ export function Button({
   label,
   onPress,
   icon,
-  variant = "primary",
+  variant = 'primary',
   pending = false,
   disabled = false,
 }: {
   label: string;
   onPress: () => void;
   icon?: IconName;
-  variant?: "primary" | "secondary" | "danger";
+  variant?: 'primary' | 'secondary' | 'danger';
   pending?: boolean;
   disabled?: boolean;
 }) {
   const theme = useAppTheme();
   const tone: ColorToken =
-    variant === "primary"
-      ? "onPrimary"
-      : variant === "danger"
-        ? "error"
-        : "text";
+    variant === 'primary'
+      ? 'onPrimary'
+      : variant === 'danger'
+        ? 'error'
+        : 'text';
   return (
     <Pressable
       accessibilityRole="button"
@@ -87,19 +87,19 @@ export function Button({
         paddingHorizontal: theme.spacing.lg,
         paddingVertical: theme.spacing.sm,
         borderRadius: theme.radius.md,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
         gap: theme.spacing.sm,
         backgroundColor:
-          variant === "primary"
+          variant === 'primary'
             ? pressed
               ? theme.colors.primaryPressed
               : theme.colors.primary
-            : variant === "danger"
+            : variant === 'danger'
               ? theme.colors.errorBackground
               : theme.colors.surface,
-        borderWidth: variant === "secondary" ? 1 : 0,
+        borderWidth: variant === 'secondary' ? 1 : 0,
         borderColor: theme.colors.border,
         opacity:
           disabled || pending
@@ -125,7 +125,7 @@ export function IconButton({
   icon,
   label,
   onPress,
-  tone = "text",
+  tone = 'text',
   selected,
   disabled = false,
   style,
@@ -150,8 +150,8 @@ export function IconButton({
         {
           minHeight: theme.layout.touchTarget,
           minWidth: theme.layout.touchTarget,
-          alignItems: "center",
-          justifyContent: "center",
+          alignItems: 'center',
+          justifyContent: 'center',
           borderRadius: theme.radius.pill,
           opacity: disabled
             ? theme.opacity.disabled
@@ -168,7 +168,7 @@ export function IconButton({
 }
 
 export function UnreadBadge({
-  label = "未読の写真があります",
+  label = '未読の写真があります',
 }: {
   label?: string;
 }) {
@@ -189,39 +189,39 @@ export function UnreadBadge({
 export function Badge({
   label,
   icon,
-  kind = "active",
+  kind = 'active',
 }: {
   label: string;
   icon?: IconName;
-  kind?: "active" | "neutral" | "favorite";
+  kind?: 'active' | 'neutral' | 'favorite';
 }) {
   const theme = useAppTheme();
   const tone =
-    kind === "active"
-      ? "active"
-      : kind === "favorite"
-        ? "favorite"
-        : "textSecondary";
+    kind === 'active'
+      ? 'active'
+      : kind === 'favorite'
+        ? 'favorite'
+        : 'textSecondary';
   return (
     <View
       style={{
-        flexDirection: "row",
-        alignItems: "center",
+        flexDirection: 'row',
+        alignItems: 'center',
         gap: theme.spacing.xxs,
         paddingHorizontal: theme.spacing.sm,
         paddingVertical: theme.spacing.xxs,
         borderRadius: theme.radius.pill,
         backgroundColor:
-          kind === "favorite"
+          kind === 'favorite'
             ? theme.colors.favoriteBackground
-            : kind === "active"
+            : kind === 'active'
               ? theme.colors.activeBackground
               : theme.colors.background,
-        alignSelf: "flex-start",
+        alignSelf: 'flex-start',
       }}
     >
       {icon ? <Icon name={icon} size={14} tone={tone} /> : null}
-      <AppText variant="caption" tone={tone} style={{ fontWeight: "600" }}>
+      <AppText variant="caption" tone={tone} style={{ fontWeight: '600' }}>
         {label}
       </AppText>
     </View>
@@ -241,9 +241,9 @@ export function Screen({
           padding: theme.spacing.lg,
           paddingBottom: theme.spacing.xxl,
           gap: theme.spacing.lg,
-          width: "100%",
+          width: '100%',
           maxWidth: theme.layout.pageMaxWidth,
-          alignSelf: "center",
+          alignSelf: 'center',
           flexGrow: 1,
         },
         style,
@@ -269,8 +269,8 @@ export function SectionHeading({
     <View style={{ gap: theme.spacing.xxs }}>
       <View
         style={{
-          flexDirection: "row",
-          alignItems: "center",
+          flexDirection: 'row',
+          alignItems: 'center',
           gap: theme.spacing.xs,
         }}
       >
@@ -299,7 +299,7 @@ export function SectionHeading({
 export function StateView({
   title,
   description,
-  icon = "image-multiple-outline",
+  icon = 'image-multiple-outline',
   loading = false,
   action,
   compact = false,
@@ -317,8 +317,8 @@ export function StateView({
       style={{
         padding: compact ? theme.spacing.lg : theme.spacing.xxl,
         gap: theme.spacing.md,
-        alignItems: "center",
-        justifyContent: "center",
+        alignItems: 'center',
+        justifyContent: 'center',
         flex: compact ? undefined : 1,
         backgroundColor: theme.colors.background,
         borderRadius: theme.radius.md,
@@ -335,7 +335,7 @@ export function StateView({
       <AppText
         variant="label"
         accessibilityRole="header"
-        style={{ textAlign: "center" }}
+        style={{ textAlign: 'center' }}
       >
         {title}
       </AppText>
@@ -343,7 +343,7 @@ export function StateView({
         <AppText
           tone="textSecondary"
           variant="caption"
-          style={{ textAlign: "center" }}
+          style={{ textAlign: 'center' }}
         >
           {description}
         </AppText>
@@ -392,8 +392,8 @@ export function Progress({
     <View style={{ gap: theme.spacing.xs }}>
       <View
         style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
+          flexDirection: 'row',
+          justifyContent: 'space-between',
           gap: theme.spacing.sm,
         }}
       >
@@ -417,12 +417,12 @@ export function Progress({
           height: 4,
           backgroundColor: theme.colors.border,
           borderRadius: theme.radius.pill,
-          overflow: "hidden",
+          overflow: 'hidden',
         }}
       >
         <View
           style={{
-            height: "100%",
+            height: '100%',
             width: `${total ? Math.min(100, (completed / total) * 100) : 0}%`,
             backgroundColor: theme.colors.primary,
             borderRadius: theme.radius.pill,
@@ -455,11 +455,11 @@ export function ListRow({
     <Pressable
       disabled={!onPress}
       onPress={onPress}
-      accessibilityRole={onPress ? "button" : undefined}
-      accessibilityLabel={`${title}${subtitle ? `、${subtitle}` : ""}${unread ? "、未読あり" : ""}`}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={`${title}${subtitle ? `、${subtitle}` : ''}${unread ? '、未読あり' : ''}`}
       style={({ pressed }) => ({
-        flexDirection: "row",
-        alignItems: "center",
+        flexDirection: 'row',
+        alignItems: 'center',
         gap: theme.spacing.md,
         padding: theme.spacing.md,
         backgroundColor: pressed
@@ -475,12 +475,12 @@ export function ListRow({
           height: 44,
           borderRadius: theme.radius.sm,
           backgroundColor: theme.colors.surfaceSubtle,
-          alignItems: "center",
-          justifyContent: "center",
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
         <Icon
-          name={completed ? "check-circle-outline" : icon}
+          name={completed ? 'check-circle-outline' : icon}
           tone="primary"
           size={23}
         />
@@ -503,6 +503,6 @@ export function ListRow({
 }
 
 export const layout = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center" },
+  row: { flexDirection: 'row', alignItems: 'center' },
   flex: { flex: 1 },
 });

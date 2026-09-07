@@ -1,6 +1,6 @@
-import { createContext, useContext, type PropsWithChildren } from "react";
-import { DefaultTheme, type Theme } from "expo-router";
-import { lightTheme, type AppTheme } from "./tokens";
+import { createContext, useContext, type PropsWithChildren } from 'react';
+import { DefaultTheme, type Theme } from 'expo-router';
+import { lightTheme, type AppTheme } from './tokens';
 
 const ThemeContext = createContext<AppTheme>(lightTheme);
 

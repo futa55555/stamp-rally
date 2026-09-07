@@ -1,8 +1,8 @@
-import { View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useData } from "../../data/AppDataProvider";
-import { useAppTheme } from "../../theme/ThemeProvider";
-import { useTask } from "../hooks";
+import { View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useData } from '../../data/AppDataProvider';
+import { useAppTheme } from '../../theme/ThemeProvider';
+import { useTask } from '../hooks';
 import {
   AppText,
   Badge,
@@ -10,8 +10,8 @@ import {
   ErrorMessage,
   Icon,
   Screen,
-} from "../../components/ui";
-import { PhotoImage } from "../../components/PhotoImage";
+} from '../../components/ui';
+import { PhotoImage } from '../../components/PhotoImage';
 
 export function LoginScreen() {
   const theme = useAppTheme();
@@ -22,8 +22,8 @@ export function LoginScreen() {
       <Screen style={{ gap: theme.spacing.lg, paddingTop: theme.spacing.sm }}>
         <View
           style={{
-            flexDirection: "row",
-            alignItems: "center",
+            flexDirection: 'row',
+            alignItems: 'center',
             gap: theme.spacing.xs,
           }}
         >
@@ -40,7 +40,7 @@ export function LoginScreen() {
           />
           <View
             style={{
-              position: "absolute",
+              position: 'absolute',
               bottom: theme.spacing.md,
               left: theme.spacing.md,
             }}
@@ -54,10 +54,10 @@ export function LoginScreen() {
         </View>
         <View style={{ gap: theme.spacing.sm }}>
           <AppText variant="hero" accessibilityRole="header">
-            旅のかけらを、{"\n"}集めよう。
+            旅のかけらを、{'\n'}集めよう。
           </AppText>
           <AppText tone="textSecondary">
-            寄り道も、おいしい一杯も。{"\n"}仲間と残す、あなただけの旅の記録。
+            寄り道も、おいしい一杯も。{'\n'}仲間と残す、あなただけの旅の記録。
           </AppText>
         </View>
         <View style={{ gap: theme.spacing.sm }}>
@@ -66,7 +66,7 @@ export function LoginScreen() {
             icon="google"
             pending={task.pending}
             onPress={() => {
-              void task.run(() => actions.signIn("google"));
+              void task.run(() => actions.signIn('google'));
             }}
           />
           <Button
@@ -75,16 +75,16 @@ export function LoginScreen() {
             variant="secondary"
             disabled={task.pending}
             onPress={() => {
-              void task.run(() => actions.signIn("apple"));
+              void task.run(() => actions.signIn('apple'));
             }}
           />
           <ErrorMessage message={task.error} />
           <AppText
             variant="caption"
             tone="textMuted"
-            style={{ textAlign: "center", marginTop: theme.spacing.xs }}
+            style={{ textAlign: 'center', marginTop: theme.spacing.xs }}
           >
-            サンプルアカウントで体験できます。{"\n"}
+            サンプルアカウントで体験できます。{'\n'}
             実際のアカウントへの接続は行いません。
           </AppText>
         </View>

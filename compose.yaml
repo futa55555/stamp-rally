@@ -6,11 +6,11 @@ services:
       POSTGRES_PASSWORD: stamp_rally
       POSTGRES_DB: stamp_rally
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U stamp_rally -d stamp_rally"]
+      test: ['CMD-SHELL', 'pg_isready -U stamp_rally -d stamp_rally']
       interval: 5s
       timeout: 5s
       retries: 5

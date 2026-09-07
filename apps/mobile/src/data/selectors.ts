@@ -1,5 +1,5 @@
-import { localDate } from "./dates";
-import type { AppData, Post, Trip } from "./types";
+import { localDate } from './dates';
+import type { AppData, Post, Trip } from './types';
 
 export const newestFirst = <T extends { createdAt: string; id: string }>(
   a: T,
@@ -19,7 +19,7 @@ export function sortTrips(trips: Trip[], today = localDate(new Date())) {
 
 export function isUnreadPhoto(data: AppData, userId: string, photo: Post) {
   return (
-    photo.mediaType === "IMAGE" &&
+    photo.mediaType === 'IMAGE' &&
     photo.author.id !== userId &&
     !(data.readPhotoIds[userId] ?? []).includes(photo.id)
   );
@@ -32,7 +32,7 @@ export function hasUnreadPhotos(
 ) {
   return data.posts.some(
     (p) =>
-      ("stampId" in scope
+      ('stampId' in scope
         ? p.stampId === scope.stampId
         : p.genreId === scope.genreId) && isUnreadPhoto(data, userId, p),
   );
@@ -46,8 +46,8 @@ export function selectPhotos(
   return data.posts
     .filter(
       (p) =>
-        p.mediaType === "IMAGE" &&
-        ("tripId" in scope
+        p.mediaType === 'IMAGE' &&
+        ('tripId' in scope
           ? p.tripId === scope.tripId
           : p.stampId === scope.stampId) &&
         (!favoritesOnly || p.isFavorite),
@@ -66,12 +66,12 @@ export function selectPhotos(
 export function validateName(
   name: string,
   userId: string,
-  users: AppData["users"],
+  users: AppData['users'],
 ) {
   const normalized = name.trim();
   if (Array.from(normalized).length < 1 || Array.from(normalized).length > 20)
-    throw new Error("名前は1〜20文字で入力してください。");
+    throw new Error('名前は1〜20文字で入力してください。');
   if (users.some((u) => u.id !== userId && u.name === normalized))
-    throw new Error("この名前はすでに使われています。");
+    throw new Error('この名前はすでに使われています。');
   return normalized;
 }

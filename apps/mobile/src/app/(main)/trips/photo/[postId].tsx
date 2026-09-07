@@ -1,1 +1,1 @@
-export { PhotoDetailScreen as default } from "../../../../features/photos/PhotoDetailScreen";
+export { PhotoDetailScreen as default } from '../../../../features/photos/PhotoDetailScreen';

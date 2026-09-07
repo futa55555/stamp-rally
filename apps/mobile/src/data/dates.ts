@@ -1,6 +1,6 @@
 // Trip dates are calendar dates, not UTC instants.
 export function localDate(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 export function offsetDate(date: Date, days: number): string {
@@ -10,7 +10,7 @@ export function offsetDate(date: Date, days: number): string {
 }
 
 export function dateLabel(value: string): string {
-  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number);
   return `${year}年${month}月${day}日`;
 }
 
@@ -19,10 +19,10 @@ export function dateRange(start: string, end: string): string {
 }
 
 export function timestampLabel(value: string): string {
-  return new Intl.DateTimeFormat("ja-JP", {
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+  return new Intl.DateTimeFormat('ja-JP', {
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   }).format(new Date(value));
 }

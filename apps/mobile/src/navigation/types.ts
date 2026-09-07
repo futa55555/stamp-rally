@@ -1,10 +1,10 @@
 // Route names are relative to the (main)/trips Stack layout.
 export type TripStackParamList = {
   index: undefined;
-  "trip/[tripId]": { tripId: string };
-  "genre/[genreId]": { genreId: string };
-  "stamp/[stampId]": { stampId: string };
-  "photo/[postId]": { postId: string };
+  'trip/[tripId]': { tripId: string };
+  'genre/[genreId]': { genreId: string };
+  'stamp/[stampId]': { stampId: string };
+  'photo/[postId]': { postId: string };
 };
 
 export type TripRoute = {

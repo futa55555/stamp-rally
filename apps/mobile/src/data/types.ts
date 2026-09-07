@@ -1,7 +1,7 @@
 export type User = {
   id: string;
   name: string | null;
-  status: "ACTIVE" | "ONBOARDING";
+  status: 'ACTIVE' | 'ONBOARDING';
 };
 export type Trip = {
   id: string;
@@ -41,18 +41,18 @@ export type Post = {
   tripId: string;
   genreId: string;
   stampId: string;
-  author: Pick<User, "id" | "name">;
-  mediaType: "IMAGE" | "VIDEO";
+  author: Pick<User, 'id' | 'name'>;
+  mediaType: 'IMAGE' | 'VIDEO';
   mediaUrl: string;
   isFavorite: boolean;
   createdAt: string;
   updatedAt: string;
 };
 export type NotificationTarget =
-  | { type: "trip"; tripId: string }
-  | { type: "genre"; genreId: string }
-  | { type: "stamp"; stampId: string }
-  | { type: "photo"; postId: string };
+  | { type: 'trip'; tripId: string }
+  | { type: 'genre'; genreId: string }
+  | { type: 'stamp'; stampId: string }
+  | { type: 'photo'; postId: string };
 export type AppNotification = {
   id: string;
   recipientId: string;
@@ -72,4 +72,4 @@ export type AppData = {
   notifications: AppNotification[];
   readPhotoIds: Record<string, string[]>;
 };
-export type LoginProvider = "google" | "apple";
+export type LoginProvider = 'google' | 'apple';
