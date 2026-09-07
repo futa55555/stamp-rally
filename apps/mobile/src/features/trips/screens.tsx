@@ -1,7 +1,7 @@
-import { FlatList, Pressable, ScrollView, View } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useGenre, useStamp, useToday, useTrip, useTrips } from "../hooks";
-import { useAppTheme } from "../../theme/ThemeProvider";
+import { FlatList, Pressable, ScrollView, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useGenre, useStamp, useToday, useTrip, useTrips } from '../hooks';
+import { useAppTheme } from '../../theme/ThemeProvider';
 import {
   AppText,
   Badge,
@@ -11,11 +11,11 @@ import {
   Screen,
   SectionHeading,
   StateView,
-} from "../../components/ui";
-import { PhotoImage } from "../../components/PhotoImage";
-import { PhotoTile } from "../../components/PhotoTile";
-import { dateRange } from "../../data/dates";
-import { isActiveTrip } from "../../data/selectors";
+} from '../../components/ui';
+import { PhotoImage } from '../../components/PhotoImage';
+import { PhotoTile } from '../../components/PhotoTile';
+import { dateRange } from '../../data/dates';
+import { isActiveTrip } from '../../data/selectors';
 
 export function TripListScreen() {
   const router = useRouter();
@@ -30,9 +30,9 @@ export function TripListScreen() {
         padding: theme.spacing.lg,
         paddingBottom: theme.spacing.xxl,
         gap: theme.spacing.lg,
-        width: "100%",
+        width: '100%',
         maxWidth: theme.layout.pageMaxWidth,
-        alignSelf: "center",
+        alignSelf: 'center',
         flexGrow: 1,
       }}
       ListHeaderComponent={
@@ -41,7 +41,7 @@ export function TripListScreen() {
             YOUR TRAVEL JOURNAL
           </AppText>
           <AppText variant="hero" accessibilityRole="header">
-            次の思い出を、{"\n"}ここに。
+            次の思い出を、{'\n'}ここに。
           </AppText>
           <AppText tone="textSecondary">
             いつもの仲間と、まだ知らない景色へ。
@@ -62,17 +62,17 @@ export function TripListScreen() {
       renderItem={({ item: trip }) => (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${trip.name}、${isActiveTrip(trip, today) ? "旅行中、" : ""}${dateRange(trip.startDate, trip.endDate)}`}
+          accessibilityLabel={`${trip.name}、${isActiveTrip(trip, today) ? '旅行中、' : ''}${dateRange(trip.startDate, trip.endDate)}`}
           onPress={() =>
             router.push({
-              pathname: "/trips/trip/[tripId]",
+              pathname: '/trips/trip/[tripId]',
               params: { tripId: trip.id },
             })
           }
           style={({ pressed }) => ({
             backgroundColor: theme.colors.surface,
             borderRadius: theme.radius.lg,
-            overflow: "hidden",
+            overflow: 'hidden',
             borderWidth: 1,
             borderColor: theme.colors.border,
             opacity: pressed ? theme.opacity.pressed : 1,
@@ -82,7 +82,7 @@ export function TripListScreen() {
             <PhotoImage url={trip.coverImageUrl} style={{ height: 204 }} />
             <View
               style={{
-                position: "absolute",
+                position: 'absolute',
                 left: theme.spacing.md,
                 top: theme.spacing.md,
               }}
@@ -90,25 +90,25 @@ export function TripListScreen() {
               <Badge
                 label={
                   isActiveTrip(trip, today)
-                    ? "旅行中"
+                    ? '旅行中'
                     : trip.startDate > today
-                      ? "これからの旅"
-                      : "旅の思い出"
+                      ? 'これからの旅'
+                      : '旅の思い出'
                 }
                 icon={
                   isActiveTrip(trip, today)
-                    ? "circle-small"
-                    : "calendar-blank-outline"
+                    ? 'circle-small'
+                    : 'calendar-blank-outline'
                 }
-                kind={isActiveTrip(trip, today) ? "active" : "neutral"}
+                kind={isActiveTrip(trip, today) ? 'active' : 'neutral'}
               />
             </View>
           </View>
           <View style={{ padding: theme.spacing.md, gap: theme.spacing.sm }}>
             <View
               style={{
-                flexDirection: "row",
-                alignItems: "center",
+                flexDirection: 'row',
+                alignItems: 'center',
                 gap: theme.spacing.sm,
               }}
             >
@@ -144,8 +144,8 @@ export function TripDetailScreen() {
         title="旅行が見つかりません"
         description="旅行一覧から選び直してください。"
         action={{
-          label: "旅行一覧へ",
-          onPress: () => router.dismissTo("/trips"),
+          label: '旅行一覧へ',
+          onPress: () => router.dismissTo('/trips'),
         }}
       />
     );
@@ -165,8 +165,8 @@ export function TripDetailScreen() {
         </AppText>
         <View
           style={{
-            flexDirection: "row",
-            alignItems: "center",
+            flexDirection: 'row',
+            alignItems: 'center',
             gap: theme.spacing.xs,
           }}
         >
@@ -177,14 +177,14 @@ export function TripDetailScreen() {
         </View>
         <View
           style={{
-            flexDirection: "row",
-            alignItems: "center",
+            flexDirection: 'row',
+            alignItems: 'center',
             gap: theme.spacing.xs,
           }}
         >
           <Icon name="account-group-outline" size={18} />
           <AppText variant="caption" tone="textSecondary" style={{ flex: 1 }}>
-            {members.map((u) => u.name ?? "旅の仲間").join("・")}
+            {members.map((u) => u.name ?? '旅の仲間').join('・')}
           </AppText>
         </View>
         <Progress
@@ -215,7 +215,7 @@ export function TripDetailScreen() {
                 width={174}
                 onOpen={() =>
                   router.push({
-                    pathname: "/trips/photo/[postId]",
+                    pathname: '/trips/photo/[postId]',
                     params: { postId: photo.id },
                   })
                 }
@@ -247,7 +247,7 @@ export function TripDetailScreen() {
             unread={genre.unread}
             onPress={() =>
               router.push({
-                pathname: "/trips/genre/[genreId]",
+                pathname: '/trips/genre/[genreId]',
                 params: { genreId: genre.id },
               })
             }
@@ -275,7 +275,7 @@ export function GenreDetailScreen() {
     return (
       <StateView
         title="ジャンルが見つかりません"
-        action={{ label: "戻る", onPress: () => router.back() }}
+        action={{ label: '戻る', onPress: () => router.back() }}
       />
     );
   return (
@@ -287,9 +287,9 @@ export function GenreDetailScreen() {
         padding: theme.spacing.lg,
         paddingBottom: theme.spacing.xxl,
         gap: theme.spacing.sm,
-        width: "100%",
+        width: '100%',
         maxWidth: theme.layout.pageMaxWidth,
-        alignSelf: "center",
+        alignSelf: 'center',
         flexGrow: 1,
       }}
       ListHeaderComponent={
@@ -328,14 +328,14 @@ export function GenreDetailScreen() {
           subtitle={
             item.isCompleted
               ? `${item.photoCount}枚の写真 · 達成済み`
-              : "まだ写真がありません"
+              : 'まだ写真がありません'
           }
           icon="postage-stamp"
           completed={item.isCompleted}
           unread={item.unread}
           onPress={() =>
             router.push({
-              pathname: "/trips/stamp/[stampId]",
+              pathname: '/trips/stamp/[stampId]',
               params: { stampId: item.id },
             })
           }
@@ -354,22 +354,22 @@ export function StampDetailScreen() {
     return (
       <StateView
         title="スタンプが見つかりません"
-        action={{ label: "戻る", onPress: () => router.back() }}
+        action={{ label: '戻る', onPress: () => router.back() }}
       />
     );
   return (
     <FlatList
       data={photos.length % 2 ? [...photos, null] : photos}
       numColumns={2}
-      keyExtractor={(photo) => photo?.id ?? "empty-cell"}
+      keyExtractor={(photo) => photo?.id ?? 'empty-cell'}
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       contentContainerStyle={{
         padding: theme.spacing.lg,
         paddingBottom: theme.spacing.xxl,
         gap: theme.spacing.md,
-        width: "100%",
+        width: '100%',
         maxWidth: theme.layout.pageMaxWidth,
-        alignSelf: "center",
+        alignSelf: 'center',
         flexGrow: 1,
       }}
       columnWrapperStyle={{ gap: theme.spacing.sm }}
@@ -383,9 +383,9 @@ export function StampDetailScreen() {
           </AppText>
           <AppText tone="textSecondary">{stamp.description}</AppText>
           <Badge
-            label={stamp.isCompleted ? "スタンプ達成" : "これからのお楽しみ"}
-            icon={stamp.isCompleted ? "check-circle-outline" : "postage-stamp"}
-            kind={stamp.isCompleted ? "active" : "neutral"}
+            label={stamp.isCompleted ? 'スタンプ達成' : 'これからのお楽しみ'}
+            icon={stamp.isCompleted ? 'check-circle-outline' : 'postage-stamp'}
+            kind={stamp.isCompleted ? 'active' : 'neutral'}
           />
           <View style={{ marginTop: theme.spacing.lg }}>
             <SectionHeading
@@ -410,7 +410,7 @@ export function StampDetailScreen() {
             photo={item}
             onOpen={() =>
               router.push({
-                pathname: "/trips/photo/[postId]",
+                pathname: '/trips/photo/[postId]',
                 params: { postId: item.id },
               })
             }

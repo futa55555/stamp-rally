@@ -1,4 +1,4 @@
-import type { AppData, AppNotification, Post, User } from "./types";
+import type { AppData, AppNotification, Post, User } from './types';
 
 export type StoreState = {
   data: AppData | null;
@@ -11,25 +11,25 @@ export const initialState: StoreState = {
   error: null,
 };
 export type Action =
-  | { type: "loaded"; data: AppData }
-  | { type: "failed"; message: string | null }
-  | { type: "signedIn"; userId: string }
-  | { type: "signedOut" }
-  | { type: "favoriteUpdated"; post: Post }
-  | { type: "photoRead"; userId: string; postId: string }
-  | { type: "notificationRead"; notification: AppNotification }
-  | { type: "nameUpdated"; user: User };
+  | { type: 'loaded'; data: AppData }
+  | { type: 'failed'; message: string | null }
+  | { type: 'signedIn'; userId: string }
+  | { type: 'signedOut' }
+  | { type: 'favoriteUpdated'; post: Post }
+  | { type: 'photoRead'; userId: string; postId: string }
+  | { type: 'notificationRead'; notification: AppNotification }
+  | { type: 'nameUpdated'; user: User };
 
 export function reducer(state: StoreState, action: Action): StoreState {
-  if (action.type === "loaded")
+  if (action.type === 'loaded')
     return { ...state, data: action.data, error: null };
-  if (action.type === "failed") return { ...state, error: action.message };
-  if (action.type === "signedIn") return { ...state, userId: action.userId };
-  if (action.type === "signedOut") return { ...state, userId: null };
+  if (action.type === 'failed') return { ...state, error: action.message };
+  if (action.type === 'signedIn') return { ...state, userId: action.userId };
+  if (action.type === 'signedOut') return { ...state, userId: null };
   const data = state.data;
   if (!data) return state;
   switch (action.type) {
-    case "favoriteUpdated":
+    case 'favoriteUpdated':
       return {
         ...state,
         data: {
@@ -39,7 +39,7 @@ export function reducer(state: StoreState, action: Action): StoreState {
           ),
         },
       };
-    case "photoRead":
+    case 'photoRead':
       return {
         ...state,
         data: {
@@ -55,7 +55,7 @@ export function reducer(state: StoreState, action: Action): StoreState {
           },
         },
       };
-    case "notificationRead":
+    case 'notificationRead':
       return {
         ...state,
         data: {
@@ -65,7 +65,7 @@ export function reducer(state: StoreState, action: Action): StoreState {
           ),
         },
       };
-    case "nameUpdated":
+    case 'nameUpdated':
       return {
         ...state,
         data: {

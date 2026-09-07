@@ -1,21 +1,21 @@
 // Color literals belong only here. Components consume semantic roles.
 const palette = {
-  white: "#FFFFFF",
-  canvas: "#F7F8F5",
-  ink: "#202C29",
-  gray: "#65706A",
-  faint: "#68736C",
-  line: "#E3E8E1",
-  forest: "#286448",
-  forestDeep: "#1D4C37",
-  sage: "#E8F0E7",
-  amber: "#966817",
-  sand: "#F7EECF",
-  rose: "#AD453F",
-  blush: "#FAEAE7",
-  night: "#18201D",
-  scrim: "rgba(16, 27, 21, 0.48)",
-  clear: "transparent",
+  white: '#FFFFFF',
+  canvas: '#F7F8F5',
+  ink: '#202C29',
+  gray: '#65706A',
+  faint: '#68736C',
+  line: '#E3E8E1',
+  forest: '#286448',
+  forestDeep: '#1D4C37',
+  sage: '#E8F0E7',
+  amber: '#966817',
+  sand: '#F7EECF',
+  rose: '#AD453F',
+  blush: '#FAEAE7',
+  night: '#18201D',
+  scrim: 'rgba(16, 27, 21, 0.48)',
+  clear: 'transparent',
 };
 
 export const lightTheme = {
@@ -50,23 +50,23 @@ export const lightTheme = {
     hero: {
       fontSize: 34,
       lineHeight: 43,
-      fontWeight: "700" as const,
+      fontWeight: '700' as const,
       letterSpacing: -1,
     },
     title: {
       fontSize: 27,
       lineHeight: 36,
-      fontWeight: "700" as const,
+      fontWeight: '700' as const,
       letterSpacing: -0.5,
     },
-    heading: { fontSize: 19, lineHeight: 28, fontWeight: "700" as const },
-    body: { fontSize: 15, lineHeight: 24, fontWeight: "400" as const },
-    label: { fontSize: 14, lineHeight: 21, fontWeight: "600" as const },
-    caption: { fontSize: 12, lineHeight: 18, fontWeight: "400" as const },
+    heading: { fontSize: 19, lineHeight: 28, fontWeight: '700' as const },
+    body: { fontSize: 15, lineHeight: 24, fontWeight: '400' as const },
+    label: { fontSize: 14, lineHeight: 21, fontWeight: '600' as const },
+    caption: { fontSize: 12, lineHeight: 18, fontWeight: '400' as const },
     eyebrow: {
       fontSize: 11,
       lineHeight: 18,
-      fontWeight: "700" as const,
+      fontWeight: '700' as const,
       letterSpacing: 2,
     },
   },
@@ -75,4 +75,4 @@ export const lightTheme = {
 };
 
 export type AppTheme = typeof lightTheme;
-export type ColorToken = keyof AppTheme["colors"];
+export type ColorToken = keyof AppTheme['colors'];

@@ -1,8 +1,8 @@
-import { View } from "react-native";
-import type { NativeStackNavigationOptions } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useAppTheme } from "../theme/ThemeProvider";
-import { AppText, Icon, IconButton } from "../components/ui";
+import { View } from 'react-native';
+import type { NativeStackNavigationOptions } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAppTheme } from '../theme/ThemeProvider';
+import { AppText, Icon, IconButton } from '../components/ui';
 
 export function Header({
   title,
@@ -14,14 +14,14 @@ export function Header({
   const theme = useAppTheme();
   return (
     <SafeAreaView
-      edges={["top", "left", "right"]}
+      edges={['top', 'left', 'right']}
       style={{ backgroundColor: theme.colors.background }}
     >
       <View
         style={{
           minHeight: 56,
-          flexDirection: "row",
-          alignItems: "center",
+          flexDirection: 'row',
+          alignItems: 'center',
           paddingHorizontal: theme.spacing.sm,
           gap: theme.spacing.xxs,
         }}
@@ -30,7 +30,7 @@ export function Header({
           <IconButton icon="arrow-left" label="戻る" onPress={onBack} />
         ) : (
           <View
-            style={{ width: theme.layout.touchTarget, alignItems: "center" }}
+            style={{ width: theme.layout.touchTarget, alignItems: 'center' }}
           >
             <Icon name="postage-stamp" tone="primary" size={26} />
           </View>
@@ -54,7 +54,7 @@ export function useStackScreenOptions(): NativeStackNavigationOptions {
     contentStyle: { backgroundColor: theme.colors.background },
     header: ({ options, navigation, back }) => (
       <Header
-        title={options.title ?? "Stamp Rally"}
+        title={options.title ?? 'Stamp Rally'}
         onBack={back ? () => navigation.goBack() : undefined}
       />
     ),

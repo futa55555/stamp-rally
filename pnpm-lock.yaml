@@ -205,7 +205,11 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    devDependencies:
+      prettier:
+        specifier: 3.9.6
+        version: 3.9.6
 
   apps/api:
     dependencies:
@@ -288,9 +292,6 @@ importers:
       oxlint:
         specifier: ^1.58.0
         version: 1.81.0
-      prettier:
-        specifier: ^3.4.2
-        version: 3.9.6
       prisma:
         specifier: ^7.10.0
         version: 7.10.0(@types/react@19.2.18)(magicast@0.5.4)(react-dom@19.2.8(react@19.2.3))(react@19.2.3)(typescript@6.0.3)

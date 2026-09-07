@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState } from "react-native";
-import { useData } from "../data/AppDataProvider";
-import { localDate } from "../data/dates";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
+import { useData } from '../data/AppDataProvider';
+import { localDate } from '../data/dates';
 import {
   hasUnreadPhotos,
   newestFirst,
   selectPhotos,
   sortTrips,
-} from "../data/selectors";
+} from '../data/selectors';
 
 export function useTask() {
   const locked = useRef(false);
@@ -33,7 +33,7 @@ export function useTask() {
         setError(
           error instanceof Error
             ? error.message
-            : "操作に失敗しました。もう一度お試しください。",
+            : '操作に失敗しました。もう一度お試しください。',
         );
       return false;
     } finally {
@@ -49,8 +49,8 @@ export function useToday() {
   useEffect(() => {
     const update = () => setToday(localDate(new Date()));
     const timer = setInterval(update, 60_000);
-    const listener = AppState.addEventListener("change", (state) => {
-      if (state === "active") update();
+    const listener = AppState.addEventListener('change', (state) => {
+      if (state === 'active') update();
     });
     return () => {
       clearInterval(timer);
@@ -116,7 +116,7 @@ export function useGenre(genreId: string) {
 export function useStamp(stampId: string) {
   const { data } = useData();
   const stamp = data.stamps.find((s) => s.id === stampId);
-  const { genre } = useGenre(stamp?.genreId ?? "");
+  const { genre } = useGenre(stamp?.genreId ?? '');
   return {
     stamp: genre ? stamp : undefined,
     genre,
@@ -127,9 +127,9 @@ export function useStamp(stampId: string) {
 export function usePhoto(postId: string) {
   const { data } = useData();
   const post = data.posts.find(
-    (p) => p.id === postId && p.mediaType === "IMAGE",
+    (p) => p.id === postId && p.mediaType === 'IMAGE',
   );
-  const { stamp } = useStamp(post?.stampId ?? "");
+  const { stamp } = useStamp(post?.stampId ?? '');
   return {
     photo:
       stamp && post

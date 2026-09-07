@@ -1,1 +1,1 @@
-export { NotificationsScreen as default } from "../../../features/notifications/NotificationsScreen";
+export { NotificationsScreen as default } from '../../../features/notifications/NotificationsScreen';

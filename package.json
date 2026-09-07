@@ -7,6 +7,11 @@
   "scripts": {
     "api:dev": "pnpm --filter api start:dev",
     "mobile:start": "pnpm --filter mobile start",
-    "mobile:ios": "pnpm --filter mobile ios"
+    "mobile:ios": "pnpm --filter mobile ios",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "3.9.6"
   }
 }

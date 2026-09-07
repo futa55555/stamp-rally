@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -6,10 +6,10 @@ import {
   ScrollView,
   TextInput,
   View,
-} from "react-native";
-import appConfig from "../../../app.json";
-import { useData } from "../../data/AppDataProvider";
-import { useAppTheme } from "../../theme/ThemeProvider";
+} from 'react-native';
+import appConfig from '../../../app.json';
+import { useData } from '../../data/AppDataProvider';
+import { useAppTheme } from '../../theme/ThemeProvider';
 import {
   AppText,
   Badge,
@@ -20,15 +20,15 @@ import {
   ListRow,
   Screen,
   SectionHeading,
-} from "../../components/ui";
-import { useTask } from "../hooks";
+} from '../../components/ui';
+import { useTask } from '../hooks';
 
 export function SettingsScreen() {
   const theme = useAppTheme();
   const { data, userId, actions } = useData();
   const user = data.users.find((u) => u.id === userId);
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState("");
+  const [name, setName] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const saveTask = useTask();
   const logoutTask = useTask();
@@ -39,7 +39,7 @@ export function SettingsScreen() {
     if (!userId) return;
     if (await saveTask.run(() => actions.updateName(userId, name))) {
       setEditing(false);
-      setNotice("名前を更新しました。");
+      setNotice('名前を更新しました。');
     }
   };
   return (
@@ -47,7 +47,7 @@ export function SettingsScreen() {
       <Screen>
         <View
           style={{
-            alignItems: "center",
+            alignItems: 'center',
             gap: theme.spacing.sm,
             paddingVertical: theme.spacing.lg,
           }}
@@ -58,14 +58,14 @@ export function SettingsScreen() {
               height: 80,
               borderRadius: theme.radius.pill,
               backgroundColor: theme.colors.surfaceSubtle,
-              alignItems: "center",
-              justifyContent: "center",
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             <Icon name="account-outline" size={40} tone="primary" />
           </View>
           <AppText variant="title" accessibilityRole="header">
-            {user?.name ?? "旅の仲間"}
+            {user?.name ?? '旅の仲間'}
           </AppText>
           <Badge label="旅の仲間" icon="bag-suitcase-outline" />
         </View>
@@ -73,10 +73,10 @@ export function SettingsScreen() {
           <SectionHeading title="アカウント" />
           <ListRow
             title="名前"
-            subtitle={user?.name ?? "未設定"}
+            subtitle={user?.name ?? '未設定'}
             icon="account-edit-outline"
             onPress={() => {
-              setName(user?.name ?? "");
+              setName(user?.name ?? '');
               setNotice(null);
               saveTask.clearError();
               setEditing(true);
@@ -115,7 +115,7 @@ export function SettingsScreen() {
           <AppText
             variant="caption"
             tone="textMuted"
-            style={{ textAlign: "center" }}
+            style={{ textAlign: 'center' }}
           >
             サンプルの変更はアプリを再起動するとリセットされます。
           </AppText>
@@ -129,11 +129,11 @@ export function SettingsScreen() {
         statusBarTranslucent
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{
             flex: 1,
             backgroundColor: theme.colors.overlay,
-            justifyContent: "center",
+            justifyContent: 'center',
             padding: theme.spacing.lg,
           }}
         >
@@ -142,10 +142,10 @@ export function SettingsScreen() {
             style={{
               backgroundColor: theme.colors.surface,
               borderRadius: theme.radius.lg,
-              maxHeight: "90%",
-              width: "100%",
+              maxHeight: '90%',
+              width: '100%',
               maxWidth: 480,
-              alignSelf: "center",
+              alignSelf: 'center',
             }}
           >
             <ScrollView
@@ -155,7 +155,7 @@ export function SettingsScreen() {
                 gap: theme.spacing.md,
               }}
             >
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <AppText
                   variant="heading"
                   accessibilityRole="header"
