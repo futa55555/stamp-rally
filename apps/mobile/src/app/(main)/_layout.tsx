@@ -7,9 +7,9 @@ export const unstable_settings = { initialRouteName: 'trips' };
 
 export default function MainLayout() {
   const theme = useAppTheme();
-  const unread = useNotifications().some(
+  const unreadCount = useNotifications().filter(
     (notification) => !notification.readAt,
-  );
+  ).length;
 
   return (
     <NativeTabs
@@ -69,7 +69,9 @@ export default function MainLayout() {
             ),
           }}
         />
-        <NativeTabs.Trigger.Badge hidden={!unread} />
+        <NativeTabs.Trigger.Badge hidden={unreadCount === 0}>
+          {unreadCount > 0 ? String(unreadCount) : undefined}
+        </NativeTabs.Trigger.Badge>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings">
         <NativeTabs.Trigger.Label>設定</NativeTabs.Trigger.Label>
