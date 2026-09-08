@@ -6,7 +6,6 @@ import { Screen } from '../../shared/ui/Screen';
 import { SectionHeading } from '../../shared/ui/SectionHeading';
 import { TripCard } from './components/TripCard';
 import { CreateTripButton } from './components/CreateTripButton';
-import { TripHero } from './sections/TripHero';
 
 export function TripListScreen() {
   const { trips, today } = useTrips();
@@ -21,7 +20,6 @@ export function TripListScreen() {
           ))}
         </View>
       ) : null}
-      <TripHero />
       <View className="gap-6 px-4">
         <View className="gap-4">
           <SectionHeading title="あなたの旅行" />
