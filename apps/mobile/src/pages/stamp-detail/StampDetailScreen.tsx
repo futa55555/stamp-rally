@@ -3,12 +3,15 @@ import { FlatList } from 'react-native';
 import { PhotoTile } from '../../features/photos/ui/PhotoTile';
 import { useStamp } from '../../features/trips/hooks';
 import { StateView } from '../../shared/ui/StateView';
+import { CreatePostTile } from './components/CreatePostTile';
 import { StampDetailHeader } from './sections/StampDetailHeader';
 
 export function StampDetailScreen() {
   const router = useRouter();
   const { stampId } = useLocalSearchParams<{ stampId: string }>();
   const { stamp, trip, photos } = useStamp(stampId);
+  const openPost = () =>
+    router.push({ pathname: '/editor/post', params: { stampId } });
   if (!stamp)
     return (
       <StateView
@@ -19,9 +22,9 @@ export function StampDetailScreen() {
   return (
     <>
       <FlatList
-        data={photos}
+        data={photos.length ? [...photos, null] : photos}
         numColumns={2}
-        keyExtractor={(photo) => photo.id}
+        keyExtractor={(photo) => (photo ? `post-${photo.id}` : 'create-post')}
         className="flex-1 bg-background"
         contentContainerClassName="pb-12 w-full grow"
         columnWrapperClassName="gap-0"
@@ -35,23 +38,26 @@ export function StampDetailScreen() {
             description="最初の写真を投稿して、スタンプを達成しましょう。"
             action={{
               label: '写真を投稿',
-              onPress: () =>
-                router.push({ pathname: '/editor/post', params: { stampId } }),
+              onPress: openPost,
             }}
             icon="camera-outline"
           />
         }
-        renderItem={({ item }) => (
-          <PhotoTile
-            photo={item}
-            onOpen={() =>
-              router.push({
-                pathname: '/trips/photo/[postId]',
-                params: { postId: item.id },
-              })
-            }
-          />
-        )}
+        renderItem={({ item }) =>
+          item ? (
+            <PhotoTile
+              photo={item}
+              onOpen={() =>
+                router.push({
+                  pathname: '/trips/photo/[postId]',
+                  params: { postId: item.id },
+                })
+              }
+            />
+          ) : (
+            <CreatePostTile onPress={openPost} />
+          )
+        }
       />
     </>
   );
