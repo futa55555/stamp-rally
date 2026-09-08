@@ -1,4 +1,5 @@
 import { View } from 'react-native';
+import type { ReactNode } from 'react';
 import type { NativeStackNavigationOptions } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '../theme/ThemeProvider';
@@ -7,9 +8,13 @@ import { AppText, Icon, IconButton } from '../components/ui';
 export function Header({
   title,
   onBack,
+  action,
+  backDisabled,
 }: {
   title: string;
   onBack?: () => void;
+  action?: ReactNode;
+  backDisabled?: boolean;
 }) {
   const theme = useAppTheme();
   return (
@@ -27,7 +32,12 @@ export function Header({
         }}
       >
         {onBack ? (
-          <IconButton icon="arrow-left" label="戻る" onPress={onBack} />
+          <IconButton
+            icon="arrow-left"
+            label="戻る"
+            onPress={onBack}
+            disabled={backDisabled}
+          />
         ) : (
           <View
             style={{ width: theme.layout.touchTarget, alignItems: 'center' }}
@@ -43,6 +53,7 @@ export function Header({
         >
           {title}
         </AppText>
+        {action}
       </View>
     </SafeAreaView>
   );
@@ -56,6 +67,10 @@ export function useStackScreenOptions(): NativeStackNavigationOptions {
       <Header
         title={options.title ?? 'Stamp Rally'}
         onBack={back ? () => navigation.goBack() : undefined}
+        action={options.headerRight?.({
+          canGoBack: !!back,
+          tintColor: theme.colors.primary,
+        })}
       />
     ),
   };

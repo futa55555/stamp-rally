@@ -117,7 +117,7 @@ export function SettingsScreen() {
             tone="textMuted"
             style={{ textAlign: 'center' }}
           >
-            サンプルの変更はアプリを再起動するとリセットされます。
+            変更内容はアプリを再起動するとリセットされます。
           </AppText>
         </View>
       </Screen>

@@ -259,10 +259,12 @@ export function SectionHeading({
   title,
   subtitle,
   count,
+  action,
 }: {
   title: string;
   subtitle?: string;
   count?: number;
+  action?: { label: string; onPress: () => void };
 }) {
   const theme = useAppTheme();
   return (
@@ -277,7 +279,7 @@ export function SectionHeading({
         <AppText
           variant="heading"
           accessibilityRole="header"
-          style={{ flexShrink: 1 }}
+          style={{ flex: 1 }}
         >
           {title}
         </AppText>
@@ -285,6 +287,14 @@ export function SectionHeading({
           <AppText variant="caption" tone="textMuted">
             {count}
           </AppText>
+        ) : null}
+        {action ? (
+          <IconButton
+            icon="plus"
+            label={action.label}
+            onPress={action.onPress}
+            tone="primary"
+          />
         ) : null}
       </View>
       {subtitle ? (

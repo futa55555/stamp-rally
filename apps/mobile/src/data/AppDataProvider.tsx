@@ -11,6 +11,13 @@ import {
 import { createMockService, type DataService } from './service';
 import { initialState, reducer } from './reducer';
 import type { LoginProvider } from './types';
+import type {
+  TripInput,
+  NamedInput,
+  CreateGenreInput,
+  CreateStampInput,
+  CreatePostsInput,
+} from './mutations';
 
 function useStore(service: DataService) {
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -59,6 +66,41 @@ function useStore(service: DataService) {
           type: 'nameUpdated',
           user: await service.updateName(userId, name),
         });
+      },
+      async createTrip(userId: string, input: TripInput) {
+        const trip = await service.createTrip(userId, input);
+        dispatch({ type: 'tripSaved', trip, memberId: userId });
+        return trip;
+      },
+      async updateTrip(userId: string, id: string, input: TripInput) {
+        const trip = await service.updateTrip(userId, id, input);
+        dispatch({ type: 'tripSaved', trip });
+        return trip;
+      },
+      async createGenre(userId: string, input: CreateGenreInput) {
+        const genre = await service.createGenre(userId, input);
+        dispatch({ type: 'genreSaved', genre });
+        return genre;
+      },
+      async updateGenre(userId: string, id: string, input: NamedInput) {
+        const genre = await service.updateGenre(userId, id, input);
+        dispatch({ type: 'genreSaved', genre });
+        return genre;
+      },
+      async createStamp(userId: string, input: CreateStampInput) {
+        const stamp = await service.createStamp(userId, input);
+        dispatch({ type: 'stampSaved', stamp });
+        return stamp;
+      },
+      async updateStamp(userId: string, id: string, input: NamedInput) {
+        const stamp = await service.updateStamp(userId, id, input);
+        dispatch({ type: 'stampSaved', stamp });
+        return stamp;
+      },
+      async createPosts(userId: string, input: CreatePostsInput) {
+        const posts = await service.createPosts(userId, input);
+        dispatch({ type: 'postsCreated', posts });
+        return posts;
       },
     }),
     [service],
