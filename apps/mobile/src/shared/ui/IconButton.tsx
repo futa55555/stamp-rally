@@ -3,6 +3,12 @@ import type { ColorToken } from '../theme/tokens';
 import type { IconName } from './Icon';
 import { Icon } from './Icon';
 
+const alignments = {
+  start: 'items-start',
+  center: 'items-center',
+  end: 'items-end',
+};
+
 export function IconButton({
   icon,
   label,
@@ -10,6 +16,7 @@ export function IconButton({
   tone = 'text',
   selected,
   disabled = false,
+  align = 'center',
   className = '',
 }: {
   icon: IconName;
@@ -18,6 +25,7 @@ export function IconButton({
   tone?: ColorToken;
   selected?: boolean;
   disabled?: boolean;
+  align?: keyof typeof alignments;
   className?: string;
 }) {
   return (
@@ -28,7 +36,8 @@ export function IconButton({
       accessibilityLabel={label}
       accessibilityState={{ selected, disabled }}
       className={[
-        'min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full active:opacity-pressed',
+        'min-h-12 min-w-12 shrink-0 justify-center rounded-full active:opacity-pressed',
+        alignments[align],
         disabled ? 'opacity-disabled' : '',
         className,
       ].join(' ')}

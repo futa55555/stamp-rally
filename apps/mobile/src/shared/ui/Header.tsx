@@ -39,13 +39,14 @@ function HeaderTitle({
 export function TopHeader({ onPost }: { onPost: () => void }) {
   return (
     <HeaderFrame>
-      <View className="w-12 items-center">
+      <View className="shrink-0">
         <Icon name="postage-stamp" tone="primary" size={26} />
       </View>
       <HeaderTitle title="Stamp Rally" />
       <IconButton
         icon="camera-plus-outline"
         label="投稿を作成"
+        align="end"
         onPress={onPost}
       />
     </HeaderFrame>
@@ -64,12 +65,18 @@ export function PageHeader({
 }) {
   return (
     <HeaderFrame>
-      <IconButton icon="arrow-left" label={backLabel} onPress={onBack} />
+      <IconButton
+        icon="arrow-left"
+        label={backLabel}
+        align="start"
+        onPress={onBack}
+      />
       <HeaderTitle title={title} />
       {onPost ? (
         <IconButton
           icon="camera-plus-outline"
           label="投稿を作成"
+          align="end"
           onPress={onPost}
         />
       ) : (
@@ -92,6 +99,7 @@ export function FormHeader({
       <IconButton
         icon="close"
         label="閉じる"
+        align="start"
         onPress={onClose}
         disabled={disabled}
       />
