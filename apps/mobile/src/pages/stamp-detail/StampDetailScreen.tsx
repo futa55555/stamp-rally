@@ -20,7 +20,7 @@ export function StampDetailScreen() {
     <>
       <FlatList
         data={photos}
-        numColumns={3}
+        numColumns={2}
         keyExtractor={(photo) => photo.id}
         className="flex-1 bg-background"
         contentContainerClassName="pb-12 w-full grow"

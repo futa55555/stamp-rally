@@ -33,9 +33,12 @@ export function StampCard({
       className="min-w-0 flex-1 gap-2 active:opacity-pressed"
     >
       {stamp.photoCount ? (
-        <PhotoImage url={imageUrl ?? null} className="aspect-square" />
+        <PhotoImage
+          url={imageUrl ?? null}
+          className="aspect-square rounded-2xl"
+        />
       ) : (
-        <View className="aspect-square items-center justify-center bg-border">
+        <View className="aspect-square items-center justify-center rounded-2xl bg-border">
           <Icon name="camera-outline" size={32} tone="textMuted" />
         </View>
       )}

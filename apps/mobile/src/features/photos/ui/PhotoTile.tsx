@@ -19,7 +19,7 @@ export function PhotoTile({
     if (task.error) Alert.alert('お気に入りを更新できませんでした', task.error);
   }, [task.error]);
   return (
-    <View className="w-1/3">
+    <View className="w-1/2">
       <Pressable
         onPress={onOpen}
         accessibilityRole="button"

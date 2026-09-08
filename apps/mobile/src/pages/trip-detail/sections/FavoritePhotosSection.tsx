@@ -45,7 +45,10 @@ export function FavoritePhotosSection({
                 }
                 className="w-[174px] gap-2 active:opacity-pressed"
               >
-                <PhotoImage url={photo.mediaUrl} className="aspect-square" />
+                <PhotoImage
+                  url={photo.mediaUrl}
+                  className="aspect-square rounded-2xl"
+                />
                 <AppText
                   variant="caption"
                   tone="textSecondary"
