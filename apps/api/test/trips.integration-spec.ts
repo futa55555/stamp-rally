@@ -29,7 +29,6 @@ interface Resource {
   completedStampCount: number;
   isFavorite: boolean;
   author: { id: string; name: string };
-  text: string;
 }
 
 interface Page<T = Resource> {
@@ -252,7 +251,6 @@ describe('Trip API integration', () => {
       `/genres/${genre.id}`,
       `/stamps/${stamp.id}`,
       `/posts?stampId=${stamp.id}`,
-      `/comments?stampId=${stamp.id}`,
     ]) {
       await http('get', path, member, undefined, 404);
     }
@@ -301,10 +299,6 @@ describe('Trip API integration', () => {
       name: '海',
     });
     await join(trip.id, outsider, member);
-    const comment = await http('post', '/comments', member, {
-      stampId: stamp.id,
-      text: '  おいしい  ',
-    });
     const post = await http('post', '/posts', member, {
       stampId: stamp.id,
       ...mediaInput,
@@ -322,10 +316,6 @@ describe('Trip API integration', () => {
       name: '朝食',
       description: '朝に集合',
     });
-    expect(comment).toMatchObject({
-      text: 'おいしい',
-      author: { id: member.id, name: member.name },
-    });
     expect(post).toMatchObject({
       tripId: trip.id,
       genreId: genre.id,
@@ -337,10 +327,10 @@ describe('Trip API integration', () => {
       (await get<Page>(`/trips/${trip.id}/members`, outsider)).items,
     ).toHaveLength(3);
     expect(
-      (await get<Page>('/comments', owner, { stampId: stamp.id })).items.map(
+      (await get<Page>('/posts', owner, { stampId: stamp.id })).items.map(
         (item) => item.id,
       ),
-    ).toEqual([comment.id]);
+    ).toEqual([post.id]);
   });
 
   it('requires ACTIVE users on every domain route while retaining name-only onboarding', async () => {
@@ -356,8 +346,6 @@ describe('Trip API integration', () => {
       ['post', '/stamps', { genreId: genre.id, name: 'Stamp' }],
       ['get', `/posts?stampId=${stamp.id}`],
       ['post', '/posts', { stampId: stamp.id, ...mediaInput }],
-      ['get', `/comments?stampId=${stamp.id}`],
-      ['post', '/comments', { stampId: stamp.id, text: 'Comment' }],
       ['get', '/invitations'],
       ['post', `/trips/${trip.id}/invitations`, { inviteeName: 'Member' }],
     ];
@@ -393,10 +381,6 @@ describe('Trip API integration', () => {
       stampId: stamp.id,
       ...mediaInput,
     });
-    const comment = await http('post', '/comments', owner, {
-      stampId: stamp.id,
-      text: 'Private comment',
-    });
     const invitation = await http(
       'post',
       `/trips/${trip.id}/invitations`,
@@ -426,8 +410,6 @@ describe('Trip API integration', () => {
       ['get', `/posts?stampId=${stamp.id}&favoritesOnly=true`],
       ['post', '/posts', { stampId: stamp.id, ...mediaInput }],
       ['patch', `/posts/${post.id}/favorite`, { isFavorite: true }],
-      ['get', `/comments?stampId=${stamp.id}`],
-      ['post', '/comments', { stampId: stamp.id, text: 'Intrusion' }],
       ['post', `/invitations/${invitation.id}/accept`],
       ['post', `/invitations/${invitation.id}/decline`],
     ];
@@ -442,10 +424,10 @@ describe('Trip API integration', () => {
       isFavorite: false,
     });
     expect(
-      (await get<Page>('/comments', owner, { stampId: stamp.id })).items.map(
+      (await get<Page>('/posts', owner, { stampId: stamp.id })).items.map(
         (item) => item.id,
       ),
-    ).toEqual([comment.id]);
+    ).toEqual([post.id]);
     expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
       name: '秋の旅',
       totalGenreCount: 1,
@@ -473,11 +455,6 @@ describe('Trip API integration', () => {
         { stampId: stamp.id, ...mediaInput, authorId: outsider.id },
       ],
       [
-        'post',
-        '/comments',
-        { stampId: stamp.id, text: 'Text', authorId: outsider.id },
-      ],
-      [
         'patch',
         `/posts/${post.id}/favorite`,
         { isFavorite: true, stampId: other.stamp.id },
@@ -501,10 +478,6 @@ describe('Trip API integration', () => {
 
   it('derives progress from posts, updates ancestors after additions, and counts beyond pagination', async () => {
     const { trip, genre, stamp } = await tree();
-    await http('post', '/comments', owner, {
-      stampId: stamp.id,
-      text: 'Comments are not completion',
-    });
     expect(await get(`/stamps/${stamp.id}`, owner)).toMatchObject({
       isCompleted: false,
     });
@@ -829,10 +802,6 @@ describe('Trip API integration', () => {
         '/posts',
         { stampId: stamp.id, ...mediaInput, isFavorite: true },
       ],
-      ['post', '/comments', { stampId: stamp.id }],
-      ['post', '/comments', { stampId: stamp.id, text: null }],
-      ['post', '/comments', { stampId: stamp.id, text: ' \n ' }],
-      ['post', '/comments', { stampId: stamp.id, text: 'x'.repeat(2001) }],
       ['patch', `/posts/${post.id}/favorite`, {}],
       ['patch', `/posts/${post.id}/favorite`, { isFavorite: null }],
       ['patch', `/posts/${post.id}/favorite`, { isFavorite: 'true' }],
@@ -840,7 +809,6 @@ describe('Trip API integration', () => {
     for (const [method, path, body] of invalidRequests)
       await http(method, path, owner, body, 400);
     expect(await prisma.post.count()).toBe(1);
-    expect(await prisma.comment.count()).toBe(0);
   });
 
   it('rejects invalid, ambiguous or missing list scopes and malformed UUIDs and cursors', async () => {
@@ -856,8 +824,6 @@ describe('Trip API integration', () => {
       '/genres?tripId=invalid',
       '/stamps',
       '/stamps?genreId=invalid',
-      '/comments',
-      '/comments?stampId=invalid',
       '/trips/invalid',
       '/genres/invalid',
       '/stamps/invalid',
@@ -867,7 +833,6 @@ describe('Trip API integration', () => {
       '/trips?limit=1.5',
       '/trips?cursor=invalid',
       `/posts?stampId=${stamp.id}&cursor=invalid`,
-      `/comments?stampId=${stamp.id}&cursor=invalid`,
     ])
       await http('get', path, owner, undefined, 400);
     await http(
@@ -891,13 +856,6 @@ describe('Trip API integration', () => {
       { stampId: 'invalid', ...mediaInput },
       400,
     );
-    await http(
-      'post',
-      '/comments',
-      owner,
-      { stampId: 'invalid', text: 'Comment' },
-      400,
-    );
     for (const path of [
       `/trips/${randomUUID()}`,
       `/genres/${randomUUID()}`,
@@ -919,21 +877,12 @@ describe('Trip API integration', () => {
       name: 'Second',
     });
     const postIds: string[] = [];
-    const commentIds: string[] = [];
     for (let index = 0; index < 3; index++) {
       postIds.push(
         (
           await http('post', '/posts', owner, {
             stampId: stamp.id,
             ...mediaInput,
-          })
-        ).id,
-      );
-      commentIds.push(
-        (
-          await http('post', '/comments', owner, {
-            stampId: stamp.id,
-            text: `Comment ${index}`,
           })
         ).id,
       );
@@ -948,10 +897,6 @@ describe('Trip API integration', () => {
       data: { createdAt: tied },
     });
     await prisma.post.updateMany({
-      where: { stampId: stamp.id },
-      data: { createdAt: tied },
-    });
-    await prisma.comment.updateMany({
       where: { stampId: stamp.id },
       data: { createdAt: tied },
     });
@@ -971,11 +916,6 @@ describe('Trip API integration', () => {
         path: '/posts',
         query: { stampId: stamp.id },
         expected: postIds.sort().reverse(),
-      },
-      {
-        path: '/comments',
-        query: { stampId: stamp.id },
-        expected: commentIds.sort(),
       },
     ];
     for (const { path, query, expected } of scopes) {

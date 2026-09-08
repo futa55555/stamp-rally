@@ -25,12 +25,18 @@ describe('Application bootstrap (e2e)', () => {
       '/genres',
       '/stamps',
       '/posts',
-      '/comments',
       '/invitations',
     ]) {
       await request(app.getHttpServer()).get(path).expect(401);
     }
   });
+
+  it.each(['get', 'post'] as const)(
+    'returns 404 for %s /comments',
+    async (method) => {
+      await request(app.getHttpServer())[method]('/comments').expect(404);
+    },
+  );
 
   afterAll(async () => {
     await app?.close();
