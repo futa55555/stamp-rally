@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppText } from './AppText';
 import { Icon } from './Icon';
@@ -65,13 +65,15 @@ export function PageHeader({
 }) {
   return (
     <HeaderFrame>
-      <IconButton
-        icon="arrow-left"
-        label={backLabel}
-        align="start"
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={backLabel}
         onPress={onBack}
-      />
-      <HeaderTitle title={title} />
+        className="min-h-12 min-w-0 flex-1 flex-row items-center gap-2 active:opacity-pressed"
+      >
+        <Icon name="arrow-left" tone="text" />
+        <HeaderTitle title={title} />
+      </Pressable>
       {onPost ? (
         <IconButton
           icon="camera-plus-outline"
