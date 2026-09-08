@@ -1,6 +1,6 @@
 # Stamp Rally API
 
-NestJS + Prisma + PostgreSQL。認証済みの参加者が、trip → genre → stamp と投稿・コメントを共有するAPIです。
+NestJS + Prisma + PostgreSQL。認証済みの参加者が、trip → genre → stamp と投稿を共有するAPIです。
 
 ## コード構成
 
@@ -144,10 +144,8 @@ domain APIには `Authorization: Bearer <accessToken>` と `ACTIVE` が必要で
 | GET /posts                    | `tripId / genreId / stampId` のいずれか1つで一覧              |
 | GET /posts/:id                | 投稿詳細                                                      |
 | PATCH /posts/:id/favorite     | `{ isFavorite: true }` または `false`                         |
-| POST /comments                | `{ stampId, text }`                                           |
-| GET /comments?stampId=...     | stamp内のコメント一覧                                         |
 
-リソースIDはUUIDです。genre・stampの親は変更できません。post・commentの内容編集、各データの削除、退出・除名、ファイルアップロードは今回のAPIには含みません。
+リソースIDはUUIDです。genre・stampの親は変更できません。postの内容編集、各データの削除、退出・除名、ファイルアップロードは今回のAPIには含みません。
 
 ### trip・genre・stamp
 
@@ -163,11 +161,11 @@ trip作成と作成者の参加、指定された初期招待の作成は同一t
 
 招待先はユーザーIDで保持するので、改名しても宛先は変わりません。招待一覧にはtripの基本情報と招待者・受信者を含めます。承認前はtrip内コンテンツにアクセスできません。
 
-### 投稿・コメント・お気に入り
+### 投稿・お気に入り
 
 postは `mediaType: "IMAGE" | "VIDEO"` と単一の `mediaUrl` が必須です。代表画像と投稿のURLはHTTPS形式・最大2,048文字。URLを登録するAPIで、実ファイルの保存・取得・内容検証は行いません。
 
-commentのtextは前後の空白を除去した1〜2,000文字。投稿者は認証中のユーザーから設定します。投稿・コメントには `author: { id, name }`、投稿にはさらに `tripId / genreId / stampId` を含めます。
+stampに紐付くコンテンツはpostのみです。投稿者は認証中のユーザーから設定します。投稿には `author: { id, name }` と `tripId / genreId / stampId` を含めます。
 
 お気に入りはpost共通のbooleanです。全参加者が設定・解除でき、個人別の状態や自動toggleではありません。`GET /posts` の `favoritesOnly=true` でお気に入りだけを返し、省略・falseでは全投稿を返します。
 
@@ -178,7 +176,7 @@ GET /posts?genreId=<uuid>&favoritesOnly=true
 GET /posts?tripId=<uuid>&favoritesOnly=true
 ```
 
-tripページからはgenreとstamp、genreページからはstampを一覧APIで選択し、共通の `POST /posts` または `POST /comments` にstampIdを送ります。
+tripページからはgenreとstamp、genreページからはstampを一覧APIで選択し、共通の `POST /posts` にstampIdを送ります。
 
 ### 達成集計・pagination
 
@@ -188,6 +186,6 @@ tripページからはgenreとstamp、genreページからはstampを一覧API�
 | Genre    | `totalStampCount / completedStampCount / isCompleted` |
 | Trip     | `totalGenreCount / completedGenreCount / isCompleted` |
 
-Genre・Tripは子が1件以上あり、そのすべてが達成済みなら達成済みです。コメントとお気に入りは達成に影響しません。途中で未達成のstamp・genreを追加すると、親も未達成に戻ります。集計は全配下を対象とし、一覧のページサイズには影響されません。
+Genre・Tripは子が1件以上あり、そのすべてが達成済みなら達成済みです。お気に入りは達成に影響しません。途中で未達成のstamp・genreを追加すると、親も未達成に戻ります。集計は全配下を対象とし、一覧のページサイズには影響されません。
 
-一覧は `{ items, nextCursor }`。`limit` は既定20・最大100、続きは返された `cursor` を指定します。cursorは不透明な値として扱ってください。trip・post・招待は作成日時の降順、genre・stamp・comment・参加者は昇順です。同時刻はIDで順序を確定します。
+一覧は `{ items, nextCursor }`。`limit` は既定20・最大100、続きは返された `cursor` を指定します。cursorは不透明な値として扱ってください。trip・post・招待は作成日時の降順、genre・stamp・参加者は昇順です。同時刻はIDで順序を確定します。

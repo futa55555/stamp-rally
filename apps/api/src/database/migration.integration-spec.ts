@@ -10,6 +10,14 @@ const migration = readFileSync(
   'utf8',
 );
 
+const removeCommentsMigration = readFileSync(
+  new URL(
+    '../../prisma/migrations/20260908000000_remove_comments/migration.sql',
+    import.meta.url,
+  ),
+  'utf8',
+);
+
 describe('Trip domain migration integration', () => {
   let client: Client;
   let schema: string;
@@ -83,6 +91,56 @@ describe('Trip domain migration integration', () => {
       [schema],
     );
     expect(indexes.rows).toEqual([{ indexname: 'users_pkey' }]);
+  });
+
+  it('removes populated comments while preserving the hierarchy and posts', async () => {
+    const owner = randomUUID();
+    const trip = randomUUID();
+    const genre = randomUUID();
+    const stamp = randomUUID();
+    await client.query('INSERT INTO users (id, name) VALUES ($1, $2)', [
+      owner,
+      'Owner',
+    ]);
+    await client.query(migration);
+    await client.query(
+      "INSERT INTO trips (id, name, start_date, end_date, created_by_id, updated_at) VALUES ($1, 'Trip', '2026-09-08', '2026-09-08', $2, CURRENT_TIMESTAMP)",
+      [trip, owner],
+    );
+    await client.query(
+      "INSERT INTO genres (id, trip_id, name, updated_at) VALUES ($1, $2, 'Genre', CURRENT_TIMESTAMP)",
+      [genre, trip],
+    );
+    await client.query(
+      "INSERT INTO stamps (id, genre_id, name, updated_at) VALUES ($1, $2, 'Stamp', CURRENT_TIMESTAMP)",
+      [stamp, genre],
+    );
+    await client.query(
+      "INSERT INTO posts (id, stamp_id, author_id, media_type, media_url, updated_at) VALUES ($1, $2, $3, 'IMAGE', 'https://example.com/photo.jpg', CURRENT_TIMESTAMP)",
+      [randomUUID(), stamp, owner],
+    );
+    await client.query(
+      "INSERT INTO comments (id, stamp_id, author_id, text, updated_at) VALUES ($1, $2, $3, 'Existing comment', CURRENT_TIMESTAMP)",
+      [randomUUID(), stamp, owner],
+    );
+    const tables = ['users', 'trips', 'genres', 'stamps', 'posts'];
+    const before = [];
+    for (const table of tables) {
+      before.push(
+        (await client.query(`SELECT * FROM ${table} ORDER BY id`)).rows,
+      );
+    }
+
+    await client.query(removeCommentsMigration);
+
+    expect(
+      (await client.query("SELECT to_regclass('comments') AS table_name")).rows,
+    ).toEqual([{ table_name: null }]);
+    for (const [index, table] of tables.entries()) {
+      expect(
+        (await client.query(`SELECT * FROM ${table} ORDER BY id`)).rows,
+      ).toEqual(before[index]);
+    }
   });
 
   it('accepts multiple unnamed users and enforces the trip date range after migration', async () => {
