@@ -191,5 +191,12 @@ export function createMockService(
       commit({ type: 'postsCreated', posts });
       return copy(posts);
     },
+    async deletePost(userId, postId) {
+      await delay();
+      find(data.users, userId);
+      const post = find(data.posts, postId);
+      requireTripAccess(data, userId, post.tripId);
+      commit({ type: 'postDeleted', postId });
+    },
   };
 }

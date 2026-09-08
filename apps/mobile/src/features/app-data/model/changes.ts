@@ -7,7 +7,8 @@ export type DomainChange =
   | { type: 'tripSaved'; trip: Trip; memberId?: string }
   | { type: 'genreSaved'; genre: Genre }
   | { type: 'stampSaved'; stamp: Stamp }
-  | { type: 'postsCreated'; posts: Post[] };
+  | { type: 'postsCreated'; posts: Post[] }
+  | { type: 'postDeleted'; postId: string };
 
 const upsert = <T extends { id: string }>(items: T[], item: T): T[] =>
   items.some((i) => i.id === item.id)
@@ -51,6 +52,21 @@ export function applyDomainChange(
         posts: change.posts.reduce(
           (items, post) => upsert(items, post),
           data.posts,
+        ),
+      });
+    case 'postDeleted':
+      return withProgress({
+        ...data,
+        posts: data.posts.filter((post) => post.id !== change.postId),
+        readPhotoIds: Object.fromEntries(
+          Object.entries(data.readPhotoIds).map(([userId, postIds]) => [
+            userId,
+            postIds.filter((postId) => postId !== change.postId),
+          ]),
+        ),
+        notifications: data.notifications.filter(
+          ({ target }) =>
+            target.type !== 'photo' || target.postId !== change.postId,
         ),
       });
   }

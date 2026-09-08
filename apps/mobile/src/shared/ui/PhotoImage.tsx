@@ -6,6 +6,12 @@ import { AppText } from './AppText';
 import { Icon } from './Icon';
 import { IconButton } from './IconButton';
 
+const backgrounds = {
+  background: 'bg-background',
+  surfaceSubtle: 'bg-surfaceSubtle',
+  photoBackground: 'bg-photoBackground',
+};
+
 export function PhotoImage({
   url,
   ...props
@@ -13,6 +19,7 @@ export function PhotoImage({
   url: string | null;
   label?: string;
   fit?: 'cover' | 'contain';
+  background?: keyof typeof backgrounds;
   onDisplayed?: () => void;
   className?: string;
 }) {
@@ -24,21 +31,21 @@ function ImageContent({
   url,
   label,
   fit = 'cover',
+  background = fit === 'contain' ? 'photoBackground' : 'surfaceSubtle',
   onDisplayed,
   className = '',
 }: Parameters<typeof PhotoImage>[0]) {
   const theme = useAppTheme();
+  const darkBackground = background === 'photoBackground';
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
   );
   const [attempt, setAttempt] = useState(0);
   return (
     <View
-      className={[
-        'overflow-hidden',
-        fit === 'contain' ? 'bg-photoBackground' : 'bg-surfaceSubtle',
-        className,
-      ].join(' ')}
+      className={['overflow-hidden', backgrounds[background], className].join(
+        ' ',
+      )}
     >
       {url && status !== 'error' ? (
         <Image
@@ -62,25 +69,25 @@ function ImageContent({
           ) : status === 'loading' ? (
             <ActivityIndicator
               color={
-                fit === 'contain' ? theme.colors.onPhoto : theme.colors.primary
+                darkBackground ? theme.colors.onPhoto : theme.colors.primary
               }
             />
           ) : (
             <>
               <Icon
                 name="image-broken-variant"
-                tone={fit === 'contain' ? 'onPhoto' : 'textMuted'}
+                tone={darkBackground ? 'onPhoto' : 'textMuted'}
               />
               <AppText
                 variant="caption"
-                tone={fit === 'contain' ? 'onPhoto' : 'textSecondary'}
+                tone={darkBackground ? 'onPhoto' : 'textSecondary'}
               >
                 写真を読み込めませんでした
               </AppText>
               <IconButton
                 icon="reload"
                 label="写真を再読み込み"
-                tone={fit === 'contain' ? 'onPhoto' : 'primary'}
+                tone={darkBackground ? 'onPhoto' : 'primary'}
                 onPress={() => {
                   setStatus('loading');
                   setAttempt((n) => n + 1);

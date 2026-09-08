@@ -50,7 +50,7 @@ export function StampDetailScreen() {
               onOpen={() =>
                 router.push({
                   pathname: '/trips/photo/[postId]',
-                  params: { postId: item.id },
+                  params: { postId: item.id, source: 'stamp', stampId },
                 })
               }
             />

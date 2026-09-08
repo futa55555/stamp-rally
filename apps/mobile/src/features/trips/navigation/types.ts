@@ -4,7 +4,12 @@ export type TripStackParamList = {
   'trip/[tripId]': { tripId: string };
   'genre/[genreId]': { genreId: string };
   'stamp/[stampId]': { stampId: string };
-  'photo/[postId]': { postId: string };
+  'photo/[postId]': {
+    postId: string;
+    source?: 'trip' | 'stamp';
+    tripId?: string;
+    stampId?: string;
+  };
 };
 
 export type TripRoute = {

@@ -103,6 +103,10 @@ function useStore(service: DataService) {
         dispatch({ type: 'postsCreated', posts });
         return posts;
       },
+      async deletePost(userId: string, postId: string) {
+        await service.deletePost(userId, postId);
+        dispatch({ type: 'postDeleted', postId });
+      },
     }),
     [service],
   );

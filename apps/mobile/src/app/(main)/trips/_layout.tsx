@@ -23,7 +23,7 @@ export default function TripsLayout() {
       <Stack.Screen name="trip/[tripId]" options={{ title: '旅行のホーム' }} />
       <Stack.Screen name="genre/[genreId]" options={{ title: 'ジャンル' }} />
       <Stack.Screen name="stamp/[stampId]" options={{ title: 'スタンプ' }} />
-      <Stack.Screen name="photo/[postId]" options={{ title: '旅の一枚' }} />
+      <Stack.Screen name="photo/[postId]" options={{ headerShown: false }} />
     </Stack>
   );
 }

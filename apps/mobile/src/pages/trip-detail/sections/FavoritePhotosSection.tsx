@@ -40,7 +40,11 @@ export function FavoritePhotosSection({
                 onPress={() =>
                   router.push({
                     pathname: '/trips/photo/[postId]',
-                    params: { postId: photo.id },
+                    params: {
+                      postId: photo.id,
+                      source: 'trip',
+                      tripId: photo.tripId,
+                    },
                   })
                 }
                 className="w-[174px] gap-2 active:opacity-pressed"

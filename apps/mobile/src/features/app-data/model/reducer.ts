@@ -51,6 +51,7 @@ export function reducer(state: StoreState, action: Action): StoreState {
     case 'genreSaved':
     case 'stampSaved':
     case 'postsCreated':
+    case 'postDeleted':
       return { ...state, data: applyDomainChange(data, action) };
     case 'favoriteUpdated':
       return {
@@ -63,6 +64,7 @@ export function reducer(state: StoreState, action: Action): StoreState {
         },
       };
     case 'photoRead':
+      if (!data.posts.some((post) => post.id === action.postId)) return state;
       return {
         ...state,
         data: {
