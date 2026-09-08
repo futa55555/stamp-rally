@@ -27,7 +27,16 @@
       "expo-apple-authentication",
       "expo-font",
       "expo-router",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "旅行に投稿する写真を選ぶために写真へのアクセスを使用します。",
+          "cameraPermission": "旅行に投稿する写真を撮影するためにカメラを使用します。",
+          "microphonePermission": false
+        }
+      ]
     ],
     "extra": {
       "eas": {

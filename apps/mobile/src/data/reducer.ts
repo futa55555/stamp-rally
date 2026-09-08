@@ -1,4 +1,5 @@
 import type { AppData, AppNotification, Post, User } from './types';
+import { applyDomainChange, type DomainChange } from './mutations';
 
 export type StoreState = {
   data: AppData | null;
@@ -11,6 +12,7 @@ export const initialState: StoreState = {
   error: null,
 };
 export type Action =
+  | DomainChange
   | { type: 'loaded'; data: AppData }
   | { type: 'failed'; message: string | null }
   | { type: 'signedIn'; userId: string }
@@ -29,6 +31,11 @@ export function reducer(state: StoreState, action: Action): StoreState {
   const data = state.data;
   if (!data) return state;
   switch (action.type) {
+    case 'tripSaved':
+    case 'genreSaved':
+    case 'stampSaved':
+    case 'postsCreated':
+      return { ...state, data: applyDomainChange(data, action) };
     case 'favoriteUpdated':
       return {
         ...state,

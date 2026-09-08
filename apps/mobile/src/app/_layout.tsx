@@ -56,6 +56,14 @@ function RootNavigation() {
           <Stack.Protected guard={!!store.userId}>
             <Stack.Screen name="(main)" />
             <Stack.Screen name="index" />
+            <Stack.Screen
+              name="editor"
+              options={{
+                presentation: 'fullScreenModal',
+                animation: 'slide_from_bottom',
+                gestureEnabled: false,
+              }}
+            />
           </Stack.Protected>
           <Stack.Protected guard={!store.userId}>
             <Stack.Screen name="login" />
