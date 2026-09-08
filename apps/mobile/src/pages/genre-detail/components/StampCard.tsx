@@ -55,6 +55,7 @@ export function StampCard({
         <View className="w-2 shrink-0">
           {stamp.unread ? <UnreadBadge /> : null}
         </View>
+        <Icon name="chevron-right" size={20} tone="textMuted" />
       </View>
       <AppText variant="caption" tone="textSecondary">
         {stamp.photoCount
