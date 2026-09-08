@@ -1,17 +1,16 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { FlatList } from 'react-native';
-import { PostAction } from '../../features/editor/ui/EntryActions';
+import { FlatList, View } from 'react-native';
 import { useGenre } from '../../features/trips/hooks';
-import { useAppTheme } from '../../shared/theme/ThemeProvider';
-import { ListRow } from '../../shared/ui/ListRow';
+import { StampCard } from './components/StampCard';
+import { useRepresentativePhotos } from '../../features/photos/hooks/useRepresentativePhotos';
 import { StateView } from '../../shared/ui/StateView';
 import { GenreDetailHeader } from './sections/GenreDetailHeader';
 
 export function GenreDetailScreen() {
   const router = useRouter();
   const { genreId } = useLocalSearchParams<{ genreId: string }>();
-  const theme = useAppTheme();
   const { genre, stamps } = useGenre(genreId);
+  const representatives = useRepresentativePhotos(stamps);
   if (!genre)
     return (
       <StateView
@@ -21,20 +20,13 @@ export function GenreDetailScreen() {
     );
   return (
     <>
-      <PostAction scope={{ tripId: genre.tripId, genreId }} />
       <FlatList
-        data={stamps}
-        keyExtractor={(stamp) => stamp.id}
-        style={{ flex: 1, backgroundColor: theme.colors.background }}
-        contentContainerStyle={{
-          padding: theme.spacing.lg,
-          paddingBottom: theme.spacing.xxl,
-          gap: theme.spacing.sm,
-          width: '100%',
-          maxWidth: theme.layout.pageMaxWidth,
-          alignSelf: 'center',
-          flexGrow: 1,
-        }}
+        data={stamps.length % 2 ? [...stamps, null] : stamps}
+        numColumns={2}
+        columnWrapperClassName="gap-4"
+        keyExtractor={(stamp) => stamp?.id ?? 'empty-cell'}
+        className="flex-1 bg-background"
+        contentContainerClassName="px-4 pt-6 pb-12 gap-6 w-full grow"
         ListHeaderComponent={
           <GenreDetailHeader
             genre={genre}
@@ -55,25 +47,16 @@ export function GenreDetailScreen() {
             icon="postage-stamp"
           />
         }
-        renderItem={({ item }) => (
-          <ListRow
-            title={item.name}
-            subtitle={
-              item.isCompleted
-                ? `${item.photoCount}枚の写真 · 達成済み`
-                : 'まだ写真がありません'
-            }
-            icon="postage-stamp"
-            completed={item.isCompleted}
-            unread={item.unread}
-            onPress={() =>
-              router.push({
-                pathname: '/trips/stamp/[stampId]',
-                params: { stampId: item.id },
-              })
-            }
-          />
-        )}
+        renderItem={({ item }) =>
+          item ? (
+            <StampCard
+              stamp={item}
+              imageUrl={representatives[item.id]?.mediaUrl}
+            />
+          ) : (
+            <View className="flex-1" />
+          )
+        }
       />
     </>
   );

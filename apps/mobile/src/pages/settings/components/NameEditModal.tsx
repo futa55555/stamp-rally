@@ -39,36 +39,21 @@ export function NameEditModal({
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{
-          flex: 1,
-          backgroundColor: theme.colors.overlay,
-          justifyContent: 'center',
-          padding: theme.spacing.lg,
-        }}
+        className="flex-1 bg-overlay justify-center p-6"
       >
         <View
           accessibilityViewIsModal
-          style={{
-            backgroundColor: theme.colors.surface,
-            borderRadius: theme.radius.lg,
-            maxHeight: '90%',
-            width: '100%',
-            maxWidth: 480,
-            alignSelf: 'center',
-          }}
+          className="bg-surface rounded-3xl w-full max-w-[480px] self-center max-h-[90%]"
         >
           <ScrollView
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{
-              padding: theme.spacing.lg,
-              gap: theme.spacing.md,
-            }}
+            contentContainerClassName="p-6 gap-4"
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View className="flex-row items-center">
               <AppText
                 variant="heading"
                 accessibilityRole="header"
-                style={{ flex: 1 }}
+                className="flex-1"
               >
                 名前を変更
               </AppText>
@@ -97,18 +82,10 @@ export function NameEditModal({
               selectionColor={theme.colors.primary}
               placeholder="名前を入力"
               placeholderTextColor={theme.colors.textMuted}
-              style={{
-                ...theme.typography.body,
-                color: theme.colors.text,
-                backgroundColor: theme.colors.background,
-                borderColor: saveTask.error
-                  ? theme.colors.error
-                  : theme.colors.border,
-                borderWidth: 1,
-                borderRadius: theme.radius.sm,
-                padding: theme.spacing.md,
-                minHeight: theme.layout.touchTarget,
-              }}
+              className={[
+                'text-body text-text bg-background border rounded-lg p-4 min-h-12',
+                saveTask.error ? 'border-error' : 'border-border',
+              ].join(' ')}
             />
             <ErrorMessage message={saveTask.error} />
             <Button

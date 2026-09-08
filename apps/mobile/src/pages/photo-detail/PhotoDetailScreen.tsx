@@ -6,7 +6,6 @@ import { usePhoto } from '../../features/photos/hooks/usePhoto';
 import { isUnreadPhoto } from '../../features/photos/model/selectors';
 import { useTask } from '../../shared/hooks/useTask';
 import { timestampLabel } from '../../shared/lib/dates';
-import { useAppTheme } from '../../shared/theme/ThemeProvider';
 import { AppText } from '../../shared/ui/AppText';
 import { Button } from '../../shared/ui/Button';
 import { ErrorMessage } from '../../shared/ui/ErrorMessage';
@@ -17,7 +16,6 @@ import { StateView } from '../../shared/ui/StateView';
 export function PhotoDetailScreen() {
   const router = useRouter();
   const { postId } = useLocalSearchParams<{ postId: string }>();
-  const theme = useAppTheme();
   const { photo, stamp } = usePhoto(postId);
   const { data, userId, actions } = useData();
   const favoriteTask = useTask();
@@ -41,43 +39,22 @@ export function PhotoDetailScreen() {
     );
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.background }}
-      contentContainerStyle={{
-        flexGrow: 1,
-        paddingBottom: theme.spacing.lg,
-        width: '100%',
-        maxWidth: theme.layout.pageMaxWidth,
-        alignSelf: 'center',
-      }}
+      className="flex-1 bg-background"
+      contentContainerClassName="grow pb-6 w-full max-w-page self-center"
     >
       <PhotoImage
         url={photo.mediaUrl}
         label={`${photo.author.name ?? '旅の仲間'}が投稿した${stamp?.name ?? '旅'}の写真`}
         fit="contain"
         onDisplayed={() => setDisplayedId(photo.id)}
-        style={{ width: '100%', aspectRatio: 0.9, minHeight: 260 }}
+        className="w-full aspect-[0.9] min-h-[260px]"
       />
-      <View style={{ padding: theme.spacing.lg, gap: theme.spacing.md }}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: theme.spacing.sm,
-          }}
-        >
-          <View
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: theme.radius.pill,
-              backgroundColor: theme.colors.surfaceSubtle,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
+      <View className="p-6 gap-4">
+        <View className="flex-row items-center gap-3">
+          <View className="w-[42px] h-[42px] rounded-full bg-surfaceSubtle items-center justify-center">
             <Icon name="account-outline" tone="primary" />
           </View>
-          <View style={{ flex: 1 }}>
+          <View className="flex-1">
             <AppText variant="label">{photo.author.name ?? '旅の仲間'}</AppText>
             <AppText variant="caption" tone="textSecondary">
               {timestampLabel(photo.createdAt)}

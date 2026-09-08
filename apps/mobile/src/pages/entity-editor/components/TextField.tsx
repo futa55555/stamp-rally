@@ -1,7 +1,6 @@
 import { TextInput, View } from 'react-native';
 import { useAppTheme } from '../../../shared/theme/ThemeProvider';
 import { AppText } from '../../../shared/ui/AppText';
-
 export function TextField({
   label,
   value,
@@ -9,6 +8,7 @@ export function TextField({
   multiline = false,
   disabled = false,
   hint,
+  hideLabel = false,
 }: {
   label: string;
   value: string;
@@ -16,35 +16,31 @@ export function TextField({
   multiline?: boolean;
   disabled?: boolean;
   hint?: string;
+  hideLabel?: boolean;
 }) {
   const theme = useAppTheme();
   return (
-    <View style={{ gap: theme.spacing.xs }}>
-      <AppText variant="label">{label}</AppText>
+    <View className="gap-2">
+      {!hideLabel ? <AppText variant="label">{label}</AppText> : null}
       <TextInput
-        testID={`input-${label}`}
+        testID={'input-' + label}
         accessibilityLabel={label}
+        accessibilityHint={hint}
         value={value}
         onChangeText={onChangeText}
         multiline={multiline}
         editable={!disabled}
         autoCapitalize="none"
+        allowFontScaling
         selectionColor={theme.colors.primary}
         placeholder={label}
         placeholderTextColor={theme.colors.textMuted}
-        style={{
-          ...theme.typography.body,
-          color: theme.colors.text,
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.border,
-          borderWidth: 1,
-          borderRadius: theme.radius.sm,
-          padding: theme.spacing.md,
-          minHeight: multiline ? 120 : theme.layout.touchTarget,
-          textAlignVertical: multiline ? 'top' : 'center',
-        }}
+        className={[
+          'text-body text-text bg-surface border-border border rounded-lg p-4',
+          multiline ? 'min-h-[120px] align-top' : 'min-h-12 align-middle',
+        ].join(' ')}
       />
-      {hint ? (
+      {hint && !hideLabel ? (
         <AppText variant="caption" tone="textMuted">
           {hint}
         </AppText>

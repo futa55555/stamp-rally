@@ -1,3 +1,4 @@
+import '../../global.css';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFonts } from 'expo-font';
 import { ThemeProvider as NavigationThemeProvider, Stack } from 'expo-router';

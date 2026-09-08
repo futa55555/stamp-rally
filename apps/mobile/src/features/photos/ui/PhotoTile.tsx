@@ -1,8 +1,6 @@
-import { Pressable, View } from 'react-native';
+import { useEffect } from 'react';
+import { Alert, Pressable, View } from 'react-native';
 import { useTask } from '../../../shared/hooks/useTask';
-import { useAppTheme } from '../../../shared/theme/ThemeProvider';
-import { AppText } from '../../../shared/ui/AppText';
-import { ErrorMessage } from '../../../shared/ui/ErrorMessage';
 import { IconButton } from '../../../shared/ui/IconButton';
 import { PhotoImage } from '../../../shared/ui/PhotoImage';
 import { useData } from '../../app-data/AppDataProvider';
@@ -11,61 +9,36 @@ import type { Post } from '../model/types';
 export function PhotoTile({
   photo,
   onOpen,
-  width,
 }: {
   photo: Post;
   onOpen: () => void;
-  width?: number;
 }) {
-  const theme = useAppTheme();
   const { actions } = useData();
   const task = useTask();
+  useEffect(() => {
+    if (task.error) Alert.alert('お気に入りを更新できませんでした', task.error);
+  }, [task.error]);
   return (
-    <View
-      style={{
-        flex: width ? undefined : 1,
-        width,
-        gap: theme.spacing.xs,
-        minWidth: 0,
-      }}
-    >
-      <View>
-        <Pressable
-          onPress={onOpen}
-          accessibilityRole="button"
-          accessibilityLabel={`${photo.author.name ?? '旅の仲間'}の写真を開く`}
-          style={({ pressed }) => ({
-            opacity: pressed ? theme.opacity.pressed : 1,
-          })}
-        >
-          <PhotoImage
-            url={photo.mediaUrl}
-            style={{ aspectRatio: 0.92, borderRadius: theme.radius.md }}
-          />
-        </Pressable>
-        <IconButton
-          icon={photo.isFavorite ? 'star' : 'star-outline'}
-          label={photo.isFavorite ? 'お気に入りを解除' : 'お気に入りに追加'}
-          selected={photo.isFavorite}
-          disabled={task.pending}
-          tone={photo.isFavorite ? 'favorite' : 'text'}
-          onPress={() => {
-            void task.run(() =>
-              actions.setFavorite(photo.id, !photo.isFavorite),
-            );
-          }}
-          style={{
-            position: 'absolute',
-            top: theme.spacing.xs,
-            right: theme.spacing.xs,
-            backgroundColor: theme.colors.surface,
-          }}
-        />
-      </View>
-      <AppText variant="caption" tone="textSecondary" numberOfLines={1}>
-        {photo.author.name ?? '旅の仲間'}
-      </AppText>
-      <ErrorMessage message={task.error} />
+    <View className="w-1/3">
+      <Pressable
+        onPress={onOpen}
+        accessibilityRole="button"
+        accessibilityLabel={(photo.author.name ?? '旅の仲間') + 'の写真を開く'}
+        className="active:opacity-pressed"
+      >
+        <PhotoImage url={photo.mediaUrl} className="aspect-square" />
+      </Pressable>
+      <IconButton
+        icon={photo.isFavorite ? 'heart' : 'heart-outline'}
+        label={photo.isFavorite ? 'お気に入りを解除' : 'お気に入りに追加'}
+        selected={photo.isFavorite}
+        disabled={task.pending}
+        tone={photo.isFavorite ? 'favorite' : 'onPhoto'}
+        onPress={() => {
+          void task.run(() => actions.setFavorite(photo.id, !photo.isFavorite));
+        }}
+        className="absolute right-0 top-0"
+      />
     </View>
   );
 }

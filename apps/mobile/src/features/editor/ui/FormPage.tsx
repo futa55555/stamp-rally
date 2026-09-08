@@ -2,10 +2,9 @@ import { useRouter } from 'expo-router';
 import type { PropsWithChildren } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAppTheme } from '../../../shared/theme/ThemeProvider';
 import { Button } from '../../../shared/ui/Button';
 import { ErrorMessage } from '../../../shared/ui/ErrorMessage';
-import { Header } from '../../../shared/ui/Header';
+import { FormHeader } from '../../../shared/ui/Header';
 
 export function FormPage({
   title,
@@ -23,44 +22,27 @@ export function FormPage({
   saveLabel?: string;
   disabled?: boolean;
 }>) {
-  const theme = useAppTheme();
   const router = useRouter();
   return (
-    <SafeAreaView
-      edges={['left', 'right', 'bottom']}
-      style={{ flex: 1, backgroundColor: theme.colors.background }}
-    >
-      <Header
+    <SafeAreaView edges={['bottom']} className="flex-1 bg-background">
+      <FormHeader
         title={title}
-        onBack={() => {
+        onClose={() => {
           if (!pending) router.back();
         }}
-        backDisabled={pending}
+        disabled={pending}
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
+        className="flex-1"
       >
         <ScrollView
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{
-            padding: theme.spacing.lg,
-            gap: theme.spacing.lg,
-            width: '100%',
-            maxWidth: theme.layout.pageMaxWidth,
-            alignSelf: 'center',
-          }}
+          contentContainerClassName="px-4 py-6 gap-6 w-full max-w-page self-center"
         >
           {children}
         </ScrollView>
-        <View
-          style={{
-            padding: theme.spacing.md,
-            gap: theme.spacing.xs,
-            borderTopWidth: 1,
-            borderColor: theme.colors.border,
-          }}
-        >
+        <View className="p-4 gap-2 border-t border-border">
           <ErrorMessage message={error} />
           <Button
             label={saveLabel}

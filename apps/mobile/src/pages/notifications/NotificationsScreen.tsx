@@ -6,17 +6,14 @@ import type { AppNotification } from '../../features/notifications/model/types';
 import { resolveTarget } from '../../features/trips/navigation/targets';
 import { useTask } from '../../shared/hooks/useTask';
 import { timestampLabel } from '../../shared/lib/dates';
-import { useAppTheme } from '../../shared/theme/ThemeProvider';
 import { AppText } from '../../shared/ui/AppText';
 import { ErrorMessage } from '../../shared/ui/ErrorMessage';
 import { Icon } from '../../shared/ui/Icon';
-import { SectionHeading } from '../../shared/ui/SectionHeading';
 import { StateView } from '../../shared/ui/StateView';
 import { UnreadBadge } from '../../shared/ui/UnreadBadge';
 
 export function NotificationsScreen() {
   const navigation = useNavigation();
-  const theme = useAppTheme();
   const notifications = useNotifications();
   const { data, userId, actions } = useData();
   const task = useTask();
@@ -47,24 +44,10 @@ export function NotificationsScreen() {
     <FlatList
       data={notifications}
       keyExtractor={(notification) => notification.id}
-      style={{ flex: 1, backgroundColor: theme.colors.background }}
-      contentContainerStyle={{
-        flexGrow: 1,
-        padding: theme.spacing.lg,
-        paddingBottom: theme.spacing.xxl,
-        gap: theme.spacing.sm,
-        width: '100%',
-        maxWidth: theme.layout.pageMaxWidth,
-        alignSelf: 'center',
-      }}
+      className="flex-1 bg-background"
+      contentContainerClassName="grow px-4 pt-6 pb-12 gap-3 w-full max-w-page self-center"
       ListHeaderComponent={
-        <View style={{ gap: theme.spacing.md, marginBottom: theme.spacing.md }}>
-          <SectionHeading
-            title="旅の便り"
-            subtitle="仲間から届いた、新しい思い出。"
-          />
-          <ErrorMessage message={task.error} />
-        </View>
+        task.error ? <ErrorMessage message={task.error} /> : null
       }
       ListEmptyComponent={
         <StateView
@@ -83,18 +66,13 @@ export function NotificationsScreen() {
           accessibilityRole="button"
           accessibilityLabel={`${item.readAt ? '' : '未読、'}${item.title}、${item.body}`}
           accessibilityState={{ disabled: task.pending }}
-          style={({ pressed }) => ({
-            flexDirection: 'row',
-            padding: theme.spacing.md,
-            gap: theme.spacing.sm,
-            borderRadius: theme.radius.md,
-            backgroundColor: item.readAt
-              ? theme.colors.surface
-              : theme.colors.surfaceSubtle,
-            opacity: pressed || task.pending ? theme.opacity.pressed : 1,
-          })}
+          className={[
+            'flex-row p-4 gap-3 rounded-2xl active:opacity-pressed',
+            item.readAt ? 'bg-surface' : 'bg-surfaceSubtle',
+            task.pending ? 'opacity-pressed' : '',
+          ].join(' ')}
         >
-          <View style={{ paddingTop: theme.spacing.xxs }}>
+          <View className="pt-1">
             <Icon
               name={
                 item.target.type === 'photo' || item.target.type === 'stamp'
@@ -104,7 +82,7 @@ export function NotificationsScreen() {
               tone="primary"
             />
           </View>
-          <View style={{ flex: 1, gap: theme.spacing.xs }}>
+          <View className="flex-1 gap-2">
             <AppText variant="label">{item.title}</AppText>
             <AppText variant="caption" tone="textSecondary">
               {item.body}
@@ -114,7 +92,7 @@ export function NotificationsScreen() {
             </AppText>
           </View>
           {!item.readAt ? (
-            <View style={{ paddingTop: theme.spacing.xs }}>
+            <View className="pt-2">
               <UnreadBadge label="未読のお知らせがあります" />
             </View>
           ) : null}

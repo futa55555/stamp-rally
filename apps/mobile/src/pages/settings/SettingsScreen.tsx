@@ -3,7 +3,6 @@ import { View } from 'react-native';
 import appConfig from '../../../app.json';
 import { useData } from '../../features/app-data/AppDataProvider';
 import { useTask } from '../../shared/hooks/useTask';
-import { useAppTheme } from '../../shared/theme/ThemeProvider';
 import { AppText } from '../../shared/ui/AppText';
 import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
@@ -15,7 +14,6 @@ import { SectionHeading } from '../../shared/ui/SectionHeading';
 import { NameEditModal } from './components/NameEditModal';
 
 export function SettingsScreen() {
-  const theme = useAppTheme();
   const { data, userId, actions } = useData();
   const user = data.users.find((u) => u.id === userId);
   const [editing, setEditing] = useState(false);
@@ -35,24 +33,9 @@ export function SettingsScreen() {
   };
   return (
     <>
-      <Screen>
-        <View
-          style={{
-            alignItems: 'center',
-            gap: theme.spacing.sm,
-            paddingVertical: theme.spacing.lg,
-          }}
-        >
-          <View
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: theme.radius.pill,
-              backgroundColor: theme.colors.surfaceSubtle,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
+      <Screen contentContainerClassName="px-4 pt-6">
+        <View className="items-center gap-3 py-6">
+          <View className="w-20 h-20 rounded-full bg-surfaceSubtle items-center justify-center">
             <Icon name="account-outline" size={40} tone="primary" />
           </View>
           <AppText variant="title" accessibilityRole="header">
@@ -60,7 +43,7 @@ export function SettingsScreen() {
           </AppText>
           <Badge label="旅の仲間" icon="bag-suitcase-outline" />
         </View>
-        <View style={{ gap: theme.spacing.sm }}>
+        <View className="gap-3">
           <SectionHeading title="アカウント" />
           <ListRow
             title="名前"
@@ -84,7 +67,7 @@ export function SettingsScreen() {
             </AppText>
           ) : null}
         </View>
-        <View style={{ gap: theme.spacing.sm }}>
+        <View className="gap-3">
           <SectionHeading title="アプリについて" />
           <ListRow
             title="バージョン"
@@ -92,7 +75,7 @@ export function SettingsScreen() {
             icon="information-outline"
           />
         </View>
-        <View style={{ gap: theme.spacing.sm, marginTop: theme.spacing.lg }}>
+        <View className="gap-3 mt-6">
           <Button
             label="ログアウト"
             icon="logout"
@@ -103,11 +86,7 @@ export function SettingsScreen() {
             }}
           />
           <ErrorMessage message={logoutTask.error} />
-          <AppText
-            variant="caption"
-            tone="textMuted"
-            style={{ textAlign: 'center' }}
-          >
+          <AppText variant="caption" tone="textMuted" className="text-center">
             変更内容はアプリを再起動するとリセットされます。
           </AppText>
         </View>

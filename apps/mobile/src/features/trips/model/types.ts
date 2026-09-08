@@ -1,6 +1,7 @@
 export type Trip = {
   id: string;
   name: string;
+  locations: string[];
   startDate: string;
   endDate: string;
   coverImageUrl: string | null;

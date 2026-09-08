@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
-import { useAppTheme } from '../theme/ThemeProvider';
 import { AppText } from './AppText';
 import type { IconName } from './Icon';
 import { Icon } from './Icon';
@@ -14,6 +13,7 @@ export function ListRow({
   completed,
   onPress,
   trailing,
+  children,
 }: {
   title: string;
   subtitle?: string;
@@ -22,49 +22,33 @@ export function ListRow({
   completed?: boolean;
   onPress?: () => void;
   trailing?: ReactNode;
+  children?: ReactNode;
 }) {
-  const theme = useAppTheme();
   return (
     <Pressable
       disabled={!onPress}
       onPress={onPress}
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`${title}${subtitle ? `、${subtitle}` : ''}${unread ? '、未読あり' : ''}`}
-      style={({ pressed }) => ({
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: theme.spacing.md,
-        padding: theme.spacing.md,
-        backgroundColor: pressed
-          ? theme.colors.surfaceSubtle
-          : theme.colors.surface,
-        borderRadius: theme.radius.md,
-        minHeight: 88,
-      })}
+      accessibilityLabel={
+        title + (subtitle ? '、' + subtitle : '') + (unread ? '、未読あり' : '')
+      }
+      className="min-h-[88px] flex-row items-center gap-4 rounded-2xl bg-surface p-4 active:bg-surfaceSubtle"
     >
-      <View
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: theme.radius.sm,
-          backgroundColor: theme.colors.surfaceSubtle,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
+      <View className="h-11 w-11 items-center justify-center rounded-lg bg-surfaceSubtle">
         <Icon
           name={completed ? 'check-circle-outline' : icon}
           tone="primary"
           size={23}
         />
       </View>
-      <View style={{ flex: 1, gap: theme.spacing.xxs }}>
+      <View className="flex-1 gap-2">
         <AppText variant="label">{title}</AppText>
         {subtitle ? (
           <AppText variant="caption" tone="textSecondary">
             {subtitle}
           </AppText>
         ) : null}
+        {children}
       </View>
       {unread ? <UnreadBadge /> : null}
       {trailing ??

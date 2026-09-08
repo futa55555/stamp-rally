@@ -1,28 +1,17 @@
 import type { PropsWithChildren } from 'react';
-import type { StyleProp, ViewStyle } from 'react-native';
 import { ScrollView } from 'react-native';
-import { useAppTheme } from '../theme/ThemeProvider';
 
 export function Screen({
   children,
-  style,
-}: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
-  const theme = useAppTheme();
+  contentContainerClassName = '',
+}: PropsWithChildren<{ contentContainerClassName?: string }>) {
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.background }}
-      contentContainerStyle={[
-        {
-          padding: theme.spacing.lg,
-          paddingBottom: theme.spacing.xxl,
-          gap: theme.spacing.lg,
-          width: '100%',
-          maxWidth: theme.layout.pageMaxWidth,
-          alignSelf: 'center',
-          flexGrow: 1,
-        },
-        style,
-      ]}
+      className="flex-1 bg-background"
+      contentContainerClassName={[
+        'w-full grow gap-6 pb-12',
+        contentContainerClassName,
+      ].join(' ')}
       keyboardShouldPersistTaps="handled"
     >
       {children}

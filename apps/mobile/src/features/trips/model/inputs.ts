@@ -2,7 +2,7 @@ import type { Genre, Trip } from './types';
 
 export type TripInput = Pick<
   Trip,
-  'name' | 'startDate' | 'endDate' | 'coverImageUrl'
+  'name' | 'locations' | 'startDate' | 'endDate' | 'coverImageUrl'
 >;
 
 export type NamedInput = Pick<Genre, 'name' | 'description'>;

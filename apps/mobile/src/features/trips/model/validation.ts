@@ -32,9 +32,14 @@ export function validateTripInput(input: TripInput): TripInput {
   return {
     ...input,
     name,
+    locations: normalizeLocations(input.locations),
     coverImageUrl:
       input.coverImageUrl === null
         ? null
         : validateMediaUri(input.coverImageUrl),
   };
+}
+
+export function normalizeLocations(locations: string[] = []): string[] {
+  return locations.map((location) => location.trim()).filter(Boolean);
 }

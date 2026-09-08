@@ -1,5 +1,4 @@
 import { View } from 'react-native';
-import { useAppTheme } from '../theme/ThemeProvider';
 import { AppText } from './AppText';
 
 export function Progress({
@@ -11,17 +10,16 @@ export function Progress({
   total: number;
   label: string;
 }) {
-  const theme = useAppTheme();
+  if (!total)
+    return (
+      <AppText variant="caption" tone="textSecondary">
+        まだスタンプがありません
+      </AppText>
+    );
   return (
-    <View style={{ gap: theme.spacing.xs }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          gap: theme.spacing.sm,
-        }}
-      >
-        <AppText variant="caption" tone="textSecondary">
+    <View className="gap-2">
+      <View className="flex-row justify-between gap-3">
+        <AppText variant="caption" tone="textSecondary" className="flex-1">
           {label}
         </AppText>
         <AppText variant="caption" tone="primary">
@@ -33,23 +31,17 @@ export function Progress({
         accessibilityLabel={label}
         accessibilityValue={{
           min: 0,
-          max: total || 1,
+          max: total,
           now: completed,
-          text: `${total}件中${completed}件達成`,
+          text: total + '件中' + completed + '件達成',
         }}
-        style={{
-          height: 4,
-          backgroundColor: theme.colors.border,
-          borderRadius: theme.radius.pill,
-          overflow: 'hidden',
-        }}
+        className="h-1 overflow-hidden rounded-full bg-border"
       >
         <View
+          className="h-full rounded-full bg-primary"
           style={{
-            height: '100%',
-            width: `${total ? Math.min(100, (completed / total) * 100) : 0}%`,
-            backgroundColor: theme.colors.primary,
-            borderRadius: theme.radius.pill,
+            width: (Math.min(100, (completed / total) * 100) +
+              '%') as `${number}%`,
           }}
         />
       </View>

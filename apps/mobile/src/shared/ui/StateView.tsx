@@ -23,15 +23,10 @@ export function StateView({
   const theme = useAppTheme();
   return (
     <View
-      style={{
-        padding: compact ? theme.spacing.lg : theme.spacing.xxl,
-        gap: theme.spacing.md,
-        alignItems: 'center',
-        justifyContent: 'center',
-        flex: compact ? undefined : 1,
-        backgroundColor: theme.colors.background,
-        borderRadius: theme.radius.md,
-      }}
+      className={[
+        'gap-4 items-center justify-center bg-background rounded-2xl',
+        compact ? 'p-6' : 'flex-1 px-4 py-12',
+      ].join(' ')}
     >
       {loading ? (
         <ActivityIndicator
@@ -44,16 +39,12 @@ export function StateView({
       <AppText
         variant="label"
         accessibilityRole="header"
-        style={{ textAlign: 'center' }}
+        className="text-center"
       >
         {title}
       </AppText>
       {description ? (
-        <AppText
-          tone="textSecondary"
-          variant="caption"
-          style={{ textAlign: 'center' }}
-        >
+        <AppText tone="textSecondary" variant="caption" className="text-center">
           {description}
         </AppText>
       ) : null}

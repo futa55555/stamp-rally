@@ -30,7 +30,17 @@ export type Action =
 
 export function reducer(state: StoreState, action: Action): StoreState {
   if (action.type === 'loaded')
-    return { ...state, data: action.data, error: null };
+    return {
+      ...state,
+      data: {
+        ...action.data,
+        trips: action.data.trips.map((trip) => ({
+          ...trip,
+          locations: trip.locations ?? [],
+        })),
+      },
+      error: null,
+    };
   if (action.type === 'failed') return { ...state, error: action.message };
   if (action.type === 'signedIn') return { ...state, userId: action.userId };
   if (action.type === 'signedOut') return { ...state, userId: null };

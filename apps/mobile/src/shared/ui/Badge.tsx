@@ -1,5 +1,4 @@
 import { View } from 'react-native';
-import { useAppTheme } from '../theme/ThemeProvider';
 import { AppText } from './AppText';
 import type { IconName } from './Icon';
 import { Icon } from './Icon';
@@ -13,7 +12,6 @@ export function Badge({
   icon?: IconName;
   kind?: 'active' | 'neutral' | 'favorite';
 }) {
-  const theme = useAppTheme();
   const tone =
     kind === 'active'
       ? 'active'
@@ -22,24 +20,17 @@ export function Badge({
         : 'textSecondary';
   return (
     <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: theme.spacing.xxs,
-        paddingHorizontal: theme.spacing.sm,
-        paddingVertical: theme.spacing.xxs,
-        borderRadius: theme.radius.pill,
-        backgroundColor:
-          kind === 'favorite'
-            ? theme.colors.favoriteBackground
-            : kind === 'active'
-              ? theme.colors.activeBackground
-              : theme.colors.background,
-        alignSelf: 'flex-start',
-      }}
+      className={[
+        'flex-row items-center gap-1 px-3 py-1 rounded-full self-start',
+        kind === 'favorite'
+          ? 'bg-favoriteBackground'
+          : kind === 'active'
+            ? 'bg-activeBackground'
+            : 'bg-background',
+      ].join(' ')}
     >
       {icon ? <Icon name={icon} size={14} tone={tone} /> : null}
-      <AppText variant="caption" tone={tone} style={{ fontWeight: '600' }}>
+      <AppText variant="caption" tone={tone} className="font-semibold">
         {label}
       </AppText>
     </View>

@@ -28,7 +28,6 @@
       "expo-font",
       "expo-router",
       "expo-splash-screen",
-      "@react-native-community/datetimepicker",
       [
         "expo-image-picker",
         {

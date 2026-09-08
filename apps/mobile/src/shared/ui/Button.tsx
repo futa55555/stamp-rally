@@ -27,6 +27,11 @@ export function Button({
       : variant === 'danger'
         ? 'error'
         : 'text';
+  const backgrounds = {
+    primary: 'bg-primary active:bg-primaryPressed',
+    secondary: 'bg-surface border border-border',
+    danger: 'bg-errorBackground',
+  };
   return (
     <Pressable
       accessibilityRole="button"
@@ -34,39 +39,18 @@ export function Button({
       accessibilityState={{ disabled: disabled || pending, busy: pending }}
       disabled={disabled || pending}
       onPress={onPress}
-      style={({ pressed }) => ({
-        minHeight: theme.layout.touchTarget + 4,
-        paddingHorizontal: theme.spacing.lg,
-        paddingVertical: theme.spacing.sm,
-        borderRadius: theme.radius.md,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: theme.spacing.sm,
-        backgroundColor:
-          variant === 'primary'
-            ? pressed
-              ? theme.colors.primaryPressed
-              : theme.colors.primary
-            : variant === 'danger'
-              ? theme.colors.errorBackground
-              : theme.colors.surface,
-        borderWidth: variant === 'secondary' ? 1 : 0,
-        borderColor: theme.colors.border,
-        opacity:
-          disabled || pending
-            ? theme.opacity.disabled
-            : pressed
-              ? theme.opacity.pressed
-              : 1,
-      })}
+      className={[
+        'min-h-[52px] flex-row items-center justify-center gap-3 rounded-2xl px-6 py-3 active:opacity-pressed',
+        backgrounds[variant],
+        disabled || pending ? 'opacity-disabled' : '',
+      ].join(' ')}
     >
       {pending ? (
         <ActivityIndicator color={theme.colors[tone]} />
       ) : icon ? (
         <Icon name={icon} tone={tone} size={21} />
       ) : null}
-      <AppText variant="label" tone={tone}>
+      <AppText variant="label" tone={tone} className="shrink text-center">
         {label}
       </AppText>
     </Pressable>

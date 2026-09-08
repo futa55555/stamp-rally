@@ -26,6 +26,7 @@ export function EntityEditorScreen({ kind }: { kind: EntityKind }) {
     startDate: localDate(new Date()),
     endDate: localDate(new Date()),
     coverImageUrl: null,
+    locations: [],
   };
   let parentLabel = '';
   try {
@@ -60,7 +61,7 @@ export function EntityEditorScreen({ kind }: { kind: EntityKind }) {
       tripId={tripId}
       genreId={genreId}
       fromPost={fromPost === '1'}
-      initial={initial}
+      initial={{ ...initial, locations: initial.locations ?? [] }}
       parentLabel={parentLabel}
     />
   );

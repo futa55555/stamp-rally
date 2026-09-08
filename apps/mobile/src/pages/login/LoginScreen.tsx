@@ -2,7 +2,6 @@ import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useData } from '../../features/app-data/AppDataProvider';
 import { useTask } from '../../shared/hooks/useTask';
-import { useAppTheme } from '../../shared/theme/ThemeProvider';
 import { AppText } from '../../shared/ui/AppText';
 import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
@@ -12,21 +11,14 @@ import { PhotoImage } from '../../shared/ui/PhotoImage';
 import { Screen } from '../../shared/ui/Screen';
 
 export function LoginScreen() {
-  const theme = useAppTheme();
   const { data, actions } = useData();
   const task = useTask();
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <Screen style={{ gap: theme.spacing.lg, paddingTop: theme.spacing.sm }}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: theme.spacing.xs,
-          }}
-        >
+    <SafeAreaView className="flex-1 bg-background">
+      <Screen contentContainerClassName="gap-6 px-4 pt-3">
+        <View className="flex-row items-center gap-2">
           <Icon name="postage-stamp" tone="primary" size={28} />
-          <AppText variant="label" style={{ letterSpacing: 1 }}>
+          <AppText variant="label" className="tracking-[1px]">
             STAMP RALLY
           </AppText>
         </View>
@@ -34,15 +26,9 @@ export function LoginScreen() {
           <PhotoImage
             url={data.trips[0]?.coverImageUrl ?? null}
             label="旅先の風景"
-            style={{ height: 256, borderRadius: theme.radius.lg }}
+            className="h-64 rounded-3xl"
           />
-          <View
-            style={{
-              position: 'absolute',
-              bottom: theme.spacing.md,
-              left: theme.spacing.md,
-            }}
-          >
+          <View className="absolute bottom-4 left-4">
             <Badge
               label="思い出を、みんなで。"
               icon="camera-outline"
@@ -50,7 +36,7 @@ export function LoginScreen() {
             />
           </View>
         </View>
-        <View style={{ gap: theme.spacing.sm }}>
+        <View className="gap-3">
           <AppText variant="hero" accessibilityRole="header">
             旅のかけらを、{'\n'}集めよう。
           </AppText>
@@ -58,7 +44,7 @@ export function LoginScreen() {
             寄り道も、おいしい一杯も。{'\n'}仲間と残す、あなただけの旅の記録。
           </AppText>
         </View>
-        <View style={{ gap: theme.spacing.sm }}>
+        <View className="gap-3">
           <Button
             label="Google で続ける"
             icon="google"
@@ -80,7 +66,7 @@ export function LoginScreen() {
           <AppText
             variant="caption"
             tone="textMuted"
-            style={{ textAlign: 'center', marginTop: theme.spacing.xs }}
+            className="text-center mt-2"
           >
             サンプルアカウントで体験できます。{'\n'}
             実際のアカウントへの接続は行いません。

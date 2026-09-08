@@ -1,30 +1,8 @@
-import { Stack, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Pressable, View } from 'react-native';
-import { useAppTheme } from '../../../shared/theme/ThemeProvider';
 import { AppText } from '../../../shared/ui/AppText';
-import { Button } from '../../../shared/ui/Button';
 import { Icon } from '../../../shared/ui/Icon';
-import type { PostScope } from '../model/draft';
 import type { EntityKind } from '../model/types';
-
-export function PostAction({ scope }: { scope: PostScope }) {
-  const router = useRouter();
-  return (
-    <Stack.Screen
-      options={{
-        headerRight: () => (
-          <Button
-            label="投稿"
-            icon="camera-plus-outline"
-            onPress={() =>
-              router.push({ pathname: '/editor/post', params: scope })
-            }
-          />
-        ),
-      }}
-    />
-  );
-}
 
 export function EditableTitle({
   title,
@@ -36,19 +14,12 @@ export function EditableTitle({
   id: string;
 }) {
   const router = useRouter();
-  const theme = useAppTheme();
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: theme.spacing.sm,
-      }}
-    >
+    <View className="flex-row items-start gap-3">
       <AppText
         variant="title"
         accessibilityRole="header"
-        style={{ flex: 1, paddingVertical: theme.spacing.xs }}
+        className="flex-1 py-2"
       >
         {title}
       </AppText>
@@ -58,14 +29,7 @@ export function EditableTitle({
         onPress={() =>
           router.push({ pathname: `/editor/${kind}`, params: { id } })
         }
-        style={({ pressed }) => ({
-          minHeight: theme.layout.touchTarget,
-          paddingHorizontal: theme.spacing.xs,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: theme.spacing.xxs,
-          opacity: pressed ? theme.opacity.pressed : 1,
-        })}
+        className="min-h-12 flex-row items-center gap-1 px-2 active:opacity-pressed"
       >
         <Icon name="pencil-outline" size={18} tone="textSecondary" />
         <AppText variant="label" tone="textSecondary">

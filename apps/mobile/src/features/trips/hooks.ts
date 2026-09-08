@@ -46,12 +46,16 @@ export function useGenre(genreId: string) {
   );
   return {
     genre: accessible ? genre : undefined,
+    trip: accessible
+      ? data.trips.find((t) => t.id === genre?.tripId)
+      : undefined,
     stamps: data.stamps
       .filter((s) => s.genreId === genreId)
       .map((s) => ({
         ...s,
         unread: hasUnreadPhotos(data, userId!, { stampId: s.id }),
         photoCount: selectPhotos(data, { stampId: s.id }).length,
+        photos: selectPhotos(data, { stampId: s.id }),
       })),
   };
 }
@@ -63,6 +67,7 @@ export function useStamp(stampId: string) {
   return {
     stamp: genre ? stamp : undefined,
     genre,
+    trip: data.trips.find((t) => t.id === genre?.tripId),
     photos: selectPhotos(data, { stampId }),
   };
 }

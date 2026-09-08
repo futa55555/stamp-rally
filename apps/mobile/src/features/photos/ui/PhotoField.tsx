@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Modal, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAppTheme } from '../../../shared/theme/ThemeProvider';
 import { AppText } from '../../../shared/ui/AppText';
 import { Button } from '../../../shared/ui/Button';
 import { IconButton } from '../../../shared/ui/IconButton';
@@ -23,10 +22,9 @@ export function PhotoField({
   max: number;
   label?: string;
 }) {
-  const theme = useAppTheme();
   const [preview, setPreview] = useState<string | null>(null);
   return (
-    <View style={{ gap: theme.spacing.sm }}>
+    <View className="gap-3">
       <AppText variant="heading">
         {label}{' '}
         <AppText tone="textMuted">
@@ -34,28 +32,16 @@ export function PhotoField({
         </AppText>
       </AppText>
       {uris.length ? (
-        <View
-          style={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            gap: theme.spacing.xs,
-          }}
-        >
+        <View className="flex-row flex-wrap gap-2">
           {uris.map((uri, index) => (
-            <View
-              key={`${index}-${uri}`}
-              style={{ width: '30%', gap: theme.spacing.xxs }}
-            >
+            <View key={`${index}-${uri}`} className="w-[30%] gap-1">
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`${index + 1}枚目の写真を拡大`}
                 onPress={() => setPreview(uri)}
                 disabled={disabled}
               >
-                <PhotoImage
-                  url={uri}
-                  style={{ aspectRatio: 1, borderRadius: theme.radius.sm }}
-                />
+                <PhotoImage url={uri} className="aspect-square rounded-lg" />
               </Pressable>
               <IconButton
                 icon="close-circle-outline"
@@ -93,10 +79,8 @@ export function PhotoField({
         animationType="fade"
         onRequestClose={() => setPreview(null)}
       >
-        <SafeAreaView
-          style={{ flex: 1, backgroundColor: theme.colors.photoBackground }}
-        >
-          <View style={{ alignItems: 'flex-end', padding: theme.spacing.sm }}>
+        <SafeAreaView className="flex-1 bg-photoBackground">
+          <View className="items-end p-3">
             <IconButton
               icon="close"
               label="写真の拡大を閉じる"
@@ -104,7 +88,7 @@ export function PhotoField({
               onPress={() => setPreview(null)}
             />
           </View>
-          <PhotoImage url={preview} fit="contain" style={{ flex: 1 }} />
+          <PhotoImage url={preview} fit="contain" className="flex-1" />
         </SafeAreaView>
       </Modal>
     </View>

@@ -31,7 +31,7 @@ describe('calendar dates and trip order', () => {
     expect(dateLabel('2026-09-08')).toBe('2026年9月8日');
   });
 
-  it('puts all active trips first, then orders each group by creation date', () => {
+  it('puts active trips before upcoming and past, using creation date for matching schedules', () => {
     const data = fixture();
     const newerActive = {
       ...data.trips[0],

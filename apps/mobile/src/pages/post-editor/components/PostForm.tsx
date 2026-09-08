@@ -43,7 +43,7 @@ export function PostForm({ initial }: { initial: PostDraft }) {
     router.push({ pathname: '/editor/select', params: { field } });
   return (
     <FormPage
-      title="写真を投稿"
+      title="投稿を作成"
       pending={pending}
       error={task.error ?? picker.error}
       saveLabel={

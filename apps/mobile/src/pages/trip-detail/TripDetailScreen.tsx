@@ -1,7 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { PostAction } from '../../features/editor/ui/EntryActions';
 import { useTrip } from '../../features/trips/hooks';
-import { useToday } from '../../shared/hooks/useToday';
+import { PhotoImage } from '../../shared/ui/PhotoImage';
 import { Screen } from '../../shared/ui/Screen';
 import { StateView } from '../../shared/ui/StateView';
 import { FavoritePhotosSection } from './sections/FavoritePhotosSection';
@@ -12,7 +11,6 @@ export function TripDetailScreen() {
   const router = useRouter();
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
   const { trip, genres, favorites, members } = useTrip(tripId);
-  const today = useToday();
   if (!trip)
     return (
       <StateView
@@ -26,14 +24,13 @@ export function TripDetailScreen() {
     );
   return (
     <>
-      <PostAction scope={{ tripId }} />
       <Screen>
-        <TripDetailHeader
-          trip={trip}
-          tripId={tripId}
-          members={members}
-          today={today}
+        <PhotoImage
+          url={trip.coverImageUrl}
+          label={trip.name}
+          className="w-full aspect-[1.6]"
         />
+        <TripDetailHeader trip={trip} members={members} />
         <FavoritePhotosSection favorites={favorites} />
         <GenresSection tripId={tripId} genres={genres} />
       </Screen>

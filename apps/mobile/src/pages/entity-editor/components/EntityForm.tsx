@@ -7,7 +7,8 @@ import { selectPostScope } from '../../../features/editor/model/draft';
 import type { EntityKind } from '../../../features/editor/model/types';
 import { FormPage } from '../../../features/editor/ui/FormPage';
 import { usePhotoPicker } from '../../../features/photos/hooks/usePhotoPicker';
-import { PhotoField } from '../../../features/photos/ui/PhotoField';
+import { CoverField } from './CoverField';
+import { LocationsField } from './LocationsField';
 import type {
   NamedInput,
   TripInput,
@@ -47,9 +48,11 @@ export function EntityForm({
     1,
   );
   const pending = task.pending || picker.pending || flow.finishing;
-  const dirty = (
-    ['name', 'description', 'startDate', 'endDate', 'coverImageUrl'] as const
-  ).some((key) => values[key] !== original[key]);
+  const dirty =
+    JSON.stringify(values.locations) !== JSON.stringify(original.locations) ||
+    (
+      ['name', 'description', 'startDate', 'endDate', 'coverImageUrl'] as const
+    ).some((key) => values[key] !== original[key]);
   const leave = useEditorGuard(dirty, pending);
   const save = () => {
     void task.run(async () => {
@@ -59,6 +62,7 @@ export function EntityForm({
           startDate: values.startDate,
           endDate: values.endDate,
           coverImageUrl: values.coverImageUrl,
+          locations: values.locations,
         };
         const trip = id
           ? await actions.updateTrip(userId!, id, input)
@@ -110,25 +114,22 @@ export function EntityForm({
         onChangeText={(name) => setValues((v) => ({ ...v, name }))}
         disabled={pending}
         hint="1〜100文字"
+        hideLabel={kind === 'trip'}
       />
       {kind === 'trip' ? (
         <>
           <DateField
-            label="開始日"
-            value={values.startDate}
-            onChange={(startDate) => setValues((v) => ({ ...v, startDate }))}
+            value={{ startDate: values.startDate, endDate: values.endDate }}
+            onChange={(range) => setValues((v) => ({ ...v, ...range }))}
             disabled={pending}
           />
-          <DateField
-            label="終了日"
-            value={values.endDate}
-            onChange={(endDate) => setValues((v) => ({ ...v, endDate }))}
+          <LocationsField
+            values={values.locations}
+            onChange={(locations) => setValues((v) => ({ ...v, locations }))}
             disabled={pending}
           />
-          <PhotoField
-            label="カバー写真（任意）"
-            uris={values.coverImageUrl ? [values.coverImageUrl] : []}
-            max={1}
+          <CoverField
+            uri={values.coverImageUrl}
             onRemove={() => setValues((v) => ({ ...v, coverImageUrl: null }))}
             picker={picker}
             disabled={pending}

@@ -24,6 +24,10 @@ export function createMockService(
   // The API-shaped data contains only JSON values; this also works in Hermes.
   const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value));
   let data = copy(initial);
+  data.trips = data.trips.map((trip) => ({
+    ...trip,
+    locations: trip.locations ?? [],
+  }));
   let sequence = 0;
   const id = () =>
     `mock-${Date.now().toString(36)}-${String(++sequence).padStart(6, '0')}`;

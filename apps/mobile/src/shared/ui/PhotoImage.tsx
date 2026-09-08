@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import type { StyleProp, ViewStyle } from 'react-native';
-import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, View } from 'react-native';
 import { photoSource } from '../../../assets/photoSources';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { AppText } from './AppText';
@@ -15,7 +14,7 @@ export function PhotoImage({
   label?: string;
   fit?: 'cover' | 'contain';
   onDisplayed?: () => void;
-  style?: StyleProp<ViewStyle>;
+  className?: string;
 }) {
   // Reset loading/error state when a reused list cell changes its image.
   return <ImageContent key={url} url={url} {...props} />;
@@ -26,7 +25,7 @@ function ImageContent({
   label,
   fit = 'cover',
   onDisplayed,
-  style,
+  className = '',
 }: Parameters<typeof PhotoImage>[0]) {
   const theme = useAppTheme();
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
@@ -35,16 +34,11 @@ function ImageContent({
   const [attempt, setAttempt] = useState(0);
   return (
     <View
-      style={[
-        {
-          overflow: 'hidden',
-          backgroundColor:
-            fit === 'contain'
-              ? theme.colors.photoBackground
-              : theme.colors.surfaceSubtle,
-        },
-        style,
-      ]}
+      className={[
+        'overflow-hidden',
+        fit === 'contain' ? 'bg-photoBackground' : 'bg-surfaceSubtle',
+        className,
+      ].join(' ')}
     >
       {url && status !== 'error' ? (
         <Image
@@ -53,7 +47,7 @@ function ImageContent({
           resizeMode={fit}
           accessible={!!label}
           accessibilityLabel={label}
-          style={StyleSheet.absoluteFill}
+          className="absolute inset-0 h-full w-full"
           onLoad={() => {
             setStatus('ready');
             onDisplayed?.();
@@ -62,17 +56,7 @@ function ImageContent({
         />
       ) : null}
       {!url || status !== 'ready' ? (
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              justifyContent: 'center',
-              alignItems: 'center',
-              padding: theme.spacing.sm,
-              gap: theme.spacing.xs,
-            },
-          ]}
-        >
+        <View className="absolute inset-0 items-center justify-center gap-2 p-3">
           {!url ? (
             <Icon name="image-outline" tone="textMuted" size={32} />
           ) : status === 'loading' ? (

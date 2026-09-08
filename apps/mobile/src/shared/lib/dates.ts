@@ -15,7 +15,7 @@ export function dateLabel(value: string): string {
 }
 
 export function dateRange(start: string, end: string): string {
-  return `${dateLabel(start)} — ${dateLabel(end)}`;
+  return `${start.replaceAll('-', '/')} ~ ${end.replaceAll('-', '/')}`;
 }
 
 export function timestampLabel(value: string): string {

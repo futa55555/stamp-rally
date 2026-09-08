@@ -1,5 +1,4 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAppTheme } from '../theme/ThemeProvider';
 import { StateView } from './StateView';
 
 export function AppLoadingState({
@@ -11,9 +10,8 @@ export function AppLoadingState({
   error: string | null;
   reload: () => Promise<void>;
 }) {
-  const theme = useAppTheme();
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <SafeAreaView className="flex-1 bg-background">
       <StateView
         title={
           fontError

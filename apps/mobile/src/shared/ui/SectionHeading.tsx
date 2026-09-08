@@ -1,5 +1,4 @@
 import { View } from 'react-native';
-import { useAppTheme } from '../theme/ThemeProvider';
 import { AppText } from './AppText';
 import { IconButton } from './IconButton';
 
@@ -14,20 +13,13 @@ export function SectionHeading({
   count?: number;
   action?: { label: string; onPress: () => void };
 }) {
-  const theme = useAppTheme();
   return (
-    <View style={{ gap: theme.spacing.xxs }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: theme.spacing.xs,
-        }}
-      >
+    <View className="gap-1">
+      <View className="flex-row items-center gap-2">
         <AppText
           variant="heading"
           accessibilityRole="header"
-          style={{ flex: 1 }}
+          className="flex-1"
         >
           {title}
         </AppText>

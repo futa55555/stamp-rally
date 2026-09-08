@@ -5,9 +5,8 @@ import { useData } from '../../features/app-data/AppDataProvider';
 import { useEditor } from '../../features/editor/EditorProvider';
 import { selectPostScope } from '../../features/editor/model/draft';
 import { sortTrips } from '../../features/trips/model/selectors';
-import { useAppTheme } from '../../shared/theme/ThemeProvider';
 import { Button } from '../../shared/ui/Button';
-import { Header } from '../../shared/ui/Header';
+import { FormHeader } from '../../shared/ui/Header';
 import { Icon } from '../../shared/ui/Icon';
 import { ListRow } from '../../shared/ui/ListRow';
 import { StateView } from '../../shared/ui/StateView';
@@ -17,7 +16,6 @@ export function DestinationScreen() {
   const flow = useEditor();
   const { data, userId } = useData();
   const router = useRouter();
-  const theme = useAppTheme();
   const draft = flow.draft;
   if (
     !draft ||
@@ -53,18 +51,12 @@ export function DestinationScreen() {
       ? parentAccessible
       : field === 'stampId' && parentAccessible && !!genre;
   return (
-    <SafeAreaView
-      edges={['bottom', 'left', 'right']}
-      style={{ flex: 1, backgroundColor: theme.colors.background }}
-    >
-      <Header title={`${label}を選択`} onBack={() => router.back()} />
+    <SafeAreaView edges={['bottom']} className="flex-1 bg-background">
+      <FormHeader title={`${label}を選択`} onClose={() => router.back()} />
       <FlatList<{ id: string; name: string }>
         data={items}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{
-          padding: theme.spacing.lg,
-          gap: theme.spacing.sm,
-        }}
+        contentContainerClassName="px-4 py-6 gap-4"
         ListEmptyComponent={
           <StateView
             compact
@@ -101,7 +93,7 @@ export function DestinationScreen() {
         )}
       />
       {canCreate ? (
-        <View style={{ padding: theme.spacing.md }}>
+        <View className="p-4">
           <Button
             label={`${label}を新規作成`}
             icon="plus"

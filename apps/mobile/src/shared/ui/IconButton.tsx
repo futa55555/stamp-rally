@@ -1,6 +1,4 @@
-import type { StyleProp, ViewStyle } from 'react-native';
 import { Pressable } from 'react-native';
-import { useAppTheme } from '../theme/ThemeProvider';
 import type { ColorToken } from '../theme/tokens';
 import type { IconName } from './Icon';
 import { Icon } from './Icon';
@@ -12,7 +10,7 @@ export function IconButton({
   tone = 'text',
   selected,
   disabled = false,
-  style,
+  className = '',
 }: {
   icon: IconName;
   label: string;
@@ -20,9 +18,8 @@ export function IconButton({
   tone?: ColorToken;
   selected?: boolean;
   disabled?: boolean;
-  style?: StyleProp<ViewStyle>;
+  className?: string;
 }) {
-  const theme = useAppTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -30,21 +27,11 @@ export function IconButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected, disabled }}
-      style={({ pressed }) => [
-        {
-          minHeight: theme.layout.touchTarget,
-          minWidth: theme.layout.touchTarget,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: theme.radius.pill,
-          opacity: disabled
-            ? theme.opacity.disabled
-            : pressed
-              ? theme.opacity.pressed
-              : 1,
-        },
-        style,
-      ]}
+      className={[
+        'min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full active:opacity-pressed',
+        disabled ? 'opacity-disabled' : '',
+        className,
+      ].join(' ')}
     >
       <Icon name={icon} tone={tone} />
     </Pressable>

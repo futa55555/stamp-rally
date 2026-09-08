@@ -18,6 +18,7 @@ const tripInput = {
   startDate: '2026-09-08',
   endDate: '2026-09-10',
   coverImageUrl: null,
+  locations: [],
 };
 
 const named = { name: '発見', description: '旅の記録' };
