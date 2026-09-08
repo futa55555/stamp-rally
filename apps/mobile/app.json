@@ -28,13 +28,22 @@
       "expo-font",
       "expo-router",
       "expo-splash-screen",
-      "@react-native-community/datetimepicker",
       [
         "expo-image-picker",
         {
           "photosPermission": "旅行に投稿する写真を選ぶために写真へのアクセスを使用します。",
           "cameraPermission": "旅行に投稿する写真を撮影するためにカメラを使用します。",
           "microphonePermission": false
+        }
+      ],
+      "expo-sharing",
+      "expo-asset",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "旅行に投稿する写真を選ぶために写真へのアクセスを使用します。",
+          "savePhotosPermission": "投稿の写真を端末の写真ライブラリに保存します。",
+          "granularPermissions": []
         }
       ]
     ],

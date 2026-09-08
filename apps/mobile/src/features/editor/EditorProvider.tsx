@@ -1,15 +1,10 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type PropsWithChildren,
-} from 'react';
 import { useNavigation } from 'expo-router';
-import { useData } from '../../data/AppDataProvider';
-import { resolveTarget } from '../../navigation/targets';
-import type { NotificationTarget } from '../../data/types';
-import type { PostDraft } from './draft';
+import type { PropsWithChildren } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { useData } from '../app-data/AppDataProvider';
+import type { NotificationTarget } from '../notifications/model/types';
+import { resolveTarget } from '../trips/navigation/targets';
+import type { PostDraft } from './model/draft';
 
 function useEditorFlow() {
   const navigation = useNavigation('/');
@@ -75,12 +70,14 @@ function useEditorFlow() {
 const EditorContext = createContext<ReturnType<typeof useEditorFlow> | null>(
   null,
 );
+
 export function EditorProvider({ children }: PropsWithChildren) {
   const flow = useEditorFlow();
   return (
     <EditorContext.Provider value={flow}>{children}</EditorContext.Provider>
   );
 }
+
 export function useEditor() {
   const flow = useContext(EditorContext);
   if (!flow) throw new Error('EditorProvider is required');

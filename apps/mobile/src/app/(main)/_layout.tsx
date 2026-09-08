@@ -1,11 +1,13 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useSegments } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useAppTheme } from '../../theme/ThemeProvider';
-import { useNotifications } from '../../features/hooks';
+import { useNotifications } from '../../features/notifications/hooks';
+import { useAppTheme } from '../../shared/theme/ThemeProvider';
 
 export const unstable_settings = { initialRouteName: 'trips' };
 
 export default function MainLayout() {
+  const segments = useSegments();
   const theme = useAppTheme();
   const unreadCount = useNotifications().filter(
     (notification) => !notification.readAt,
@@ -13,6 +15,7 @@ export default function MainLayout() {
 
   return (
     <NativeTabs
+      hidden={segments.some((segment) => segment === 'photo')}
       backBehavior="initialRoute"
       backgroundColor={theme.colors.surface}
       tintColor={theme.colors.primary}

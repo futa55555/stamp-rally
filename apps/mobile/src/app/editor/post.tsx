@@ -1,1 +1,1 @@
-export { PostEditorScreen as default } from '../../features/editor/PostEditorScreen';
+export { PostEditorScreen as default } from '../../pages/post-editor/PostEditorScreen';

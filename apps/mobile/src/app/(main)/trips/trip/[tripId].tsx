@@ -1,1 +1,1 @@
-export { TripDetailScreen as default } from '../../../../features/trips/screens';
+export { TripDetailScreen as default } from '../../../../pages/trip-detail/TripDetailScreen';
