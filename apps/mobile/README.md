@@ -17,12 +17,16 @@ Google / Apple のどちらからもサンプルアカウントで入れます�
 
 ## 構成
 
-- `src/theme/`：palette・意味別のカラートークン、余白・角丸・文字スタイル、ThemeProvider。配色は `tokens.ts` に集約し、画面では `useAppTheme()` を使用します。
-- `src/components/`：標準の View / Text / Pressable などで構成した共通UI。PaperなどのUIライブラリは使用しません。
-- `src/app/`：Expo Router のファイルベースルーティング。`Stack.Protected` で認証分岐し、`(main)/_layout.tsx` の `NativeTabs` に旅行・お知らせ・設定を配置します。各タブ内は `Stack` です。
-- `src/navigation/`：共通ヘッダーと通知の遷移先解決。通知からは対象の親階層を構成します。
-- `src/data/`：APIに対応する型、非同期の `DataService`、モックアダプター、Context / Reducer。`AppDataProvider` に別のサービスを渡して差し替えられます。
-- `src/features/`：画面とデータ取得フック。
+- `src/app/`：Expo Router のルートとレイアウト。通常のルートは `pages/` の画面を再exportし、共通編集画面には種類を渡します。`Stack.Protected` による認証分岐、Providerの組み立て、NativeTabs・Stackの設定もここに置きます。
+- `src/pages/`：各画面の実装の正本。画面専用のまとまりは各pageの `sections/`・`components/` に置きます。旅行・ジャンル・スタンプの編集は `entity-editor/` の共通実装です。
+- `src/features/`：ドメインの型・検証・整形・取得フック・画面をまたぐ機能UI。`trips/` は旅行・ジャンル・スタンプをまとめて扱い、`photos/` は写真・お気に入り・既読・写真選択、`notifications/` は通知、`auth/` は認証・ユーザー情報、`editor/` は編集・投稿フローを扱います。
+- `src/features/app-data/`：複数ドメインを束ねる単一のContext / Reducer、`api/DataService.ts` のサービス契約、`mocks/` のモックとfixtures。`AppDataProvider` に別のサービスを渡して差し替えられます。横断する更新・動作のテストもここに置きます。
+- `src/shared/`：ドメインに依存しない共通処理。`ui/` は標準の View / Text / Pressable などを使ったUI、`theme/` はThemeProviderとトークン、`hooks/` は汎用フック、`lib/` は日付・ソートなど、`navigation/` は共通ヘッダーの設定です。配色は `theme/tokens.ts` に集約し、画面では `useAppTheme()` を使用します。
+- `assets/`：`src/` と同階層に置く同梱画像・画像URL定数・静的参照マップ。画面からは `PhotoImage` を通して画像を表示します。
+
+UIは使用回数だけで判断せず、ドメインへの結びつきと画面固有の構成かどうかで配置します。写真へのお気に入り操作を持つ `PhotoTile` は `features/photos/ui/`、旅行一覧専用の `TripCard` は `pages/trip-list/components/`、画像の表示・読み込み・再試行を扱う `PhotoImage` は `shared/ui/` に置きます。
+
+依存は基本的に `app → pages → features → shared` です。appからProviderなどのfeatures利用と、feature間の参照は許可します。featuresからpages、sharedからfeaturesへの参照は作りません。通知と投稿完了で共用する遷移先解決は `features/trips/navigation/` に置きます。app-dataから呼ぶモデル・純粋関数はProviderに依存させず、型の参照と実行時の依存を分けます。importは具体的なモジュールへの相対パスを使用します。
 
 タブバーは `expo-router/unstable-native-tabs` の OS ネイティブUIです。アイコンは `NativeTabs.Trigger.VectorIcon` を通して MaterialCommunityIcons を使用し、ラベル・アイコン・選択背景・未読バッジの色もテーマトークンから指定します。
 
@@ -60,4 +64,4 @@ Google / Apple のどちらからもサンプルアカウントで入れます�
 
 ## 写真
 
-`assets/demo` は [Unsplash](https://unsplash.com/license) のサンプル写真です。元の画像URLは `src/data/demoPhotoUrls.ts` に記録しています。画面の旅行名や投稿者は架空で、写真はイメージです。
+`assets/demo` は [Unsplash](https://unsplash.com/license) のサンプル写真です。元の画像URLは `assets/demoPhotoUrls.ts`、同梱画像への対応は `assets/photoSources.ts` に記録しています。画面の旅行名や投稿者は架空で、写真はイメージです。

@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useAppTheme } from '../../theme/ThemeProvider';
-import { useNotifications } from '../../features/hooks';
+import { useNotifications } from '../../features/notifications/hooks';
+import { useAppTheme } from '../../shared/theme/ThemeProvider';
 
 export const unstable_settings = { initialRouteName: 'trips' };
 

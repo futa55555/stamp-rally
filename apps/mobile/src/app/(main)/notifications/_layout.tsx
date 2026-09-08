@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { useStackScreenOptions } from '../../../navigation/Header';
+import { useStackScreenOptions } from '../../../shared/navigation/useStackScreenOptions';
 
 export default function Layout() {
   const screenOptions = useStackScreenOptions();

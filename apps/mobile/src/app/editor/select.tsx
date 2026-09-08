@@ -1,1 +1,1 @@
-export { DestinationScreen as default } from '../../features/editor/DestinationScreen';
+export { DestinationScreen as default } from '../../pages/destination/DestinationScreen';

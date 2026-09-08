@@ -1,1 +1,1 @@
-export { StampDetailScreen as default } from '../../../../features/trips/screens';
+export { StampDetailScreen as default } from '../../../../pages/stamp-detail/StampDetailScreen';
