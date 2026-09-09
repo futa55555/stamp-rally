@@ -92,6 +92,7 @@ export function PostEditorScreen() {
           batch.files.every((file) => current.clientIds!.has(file.clientId));
       if (!matches) return;
       current.completed = true;
+      current.clientIds ??= new Set(batch.files.map((file) => file.clientId));
       setBatchId(undefined);
       setCompletedStampId(batch.stampId);
     });
@@ -119,6 +120,13 @@ export function PostEditorScreen() {
     validateMediaSelection(picked);
     setFiles(picked);
   }, MAX_POST_PHOTOS);
+  const mediaCount =
+    batchId || completedStampId
+      ? (batches.find((batch) => batch.clientRequestId === batchId)?.files
+          .length ??
+        submission.current?.clientIds?.size ??
+        0)
+      : files.length;
   return (
     <FormPage
       title="写真・動画を追加"
@@ -229,49 +237,51 @@ export function PostEditorScreen() {
       ) : null}
       <View className="gap-3">
         <AppText variant="heading">
-          写真・動画 {files.length} / {MAX_POST_PHOTOS}
+          写真・動画 {mediaCount} / {MAX_POST_PHOTOS}
         </AppText>
         <AppText tone="textSecondary">
           写真は1枚50 MBまで。動画は5本まで、1本1 GB・5分以内です。
         </AppText>
-        {files.length ? (
-          <>
-            <SelectedMediaGrid files={files} />
-            <Button
-              label="選び直す"
-              icon="reload"
-              variant="secondary"
-              disabled={locked || picker.pending}
-              onPress={() => {
-                setFiles([]);
-                task.clearError();
-                picker.clearError();
-              }}
-            />
-          </>
-        ) : (
-          <>
-            <Button
-              label="ライブラリから選ぶ"
-              icon="image-multiple-outline"
-              variant="secondary"
-              disabled={locked || picker.pending}
-              onPress={picker.library}
-            />
-            <Button
-              label="カメラで撮影"
-              icon="camera-outline"
-              variant="secondary"
-              disabled={locked || picker.pending}
-              onPress={picker.camera}
-            />
-          </>
-        )}
+        {!batchId && !completedStampId ? (
+          files.length ? (
+            <>
+              <SelectedMediaGrid files={files} />
+              <Button
+                label="選び直す"
+                icon="reload"
+                variant="secondary"
+                disabled={locked || picker.pending}
+                onPress={() => {
+                  setFiles([]);
+                  task.clearError();
+                  picker.clearError();
+                }}
+              />
+            </>
+          ) : (
+            <>
+              <Button
+                label="ライブラリから選ぶ"
+                icon="image-multiple-outline"
+                variant="secondary"
+                disabled={locked || picker.pending}
+                onPress={picker.library}
+              />
+              <Button
+                label="カメラで撮影"
+                icon="camera-outline"
+                variant="secondary"
+                disabled={locked || picker.pending}
+                onPress={picker.camera}
+              />
+            </>
+          )
+        ) : null}
+        {picker.pending ? (
+          <AppText tone="textSecondary">原本を準備しています…</AppText>
+        ) : null}
+        <UploadList stampId={stampId} batchId={batchId} />
       </View>
-      {picker.pending ? (
-        <AppText tone="textSecondary">原本を準備しています…</AppText>
-      ) : null}
-      <UploadList stampId={stampId} batchId={batchId} />
     </FormPage>
   );
 }

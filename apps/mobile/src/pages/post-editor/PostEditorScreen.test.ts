@@ -70,6 +70,10 @@ let pick: (files: PickedMedia[]) => void;
 let initialStatus: UploadStatus;
 let request: ReturnType<typeof vi.fn>;
 const form = () => view!.root.findByType('FormPage' as never);
+const labels = () =>
+  view!.root
+    .findAllByType('AppText' as never)
+    .map((node) => [node.props.children].flat().join(''));
 
 beforeEach(async () => {
   vi.resetAllMocks();
@@ -261,7 +265,10 @@ describe('post media selection', () => {
     const batch = await submit([photo('new')]);
     expect(batch.files.map((file) => file.clientId)).toEqual(['new']);
     expect(previews()).toHaveLength(0);
-    expect(buttons().every((button) => button.props.disabled)).toBe(true);
+    expect(buttons()).toHaveLength(0);
+    expect(view!.root.findByType('UploadList' as never).props.batchId).toBe(
+      batch.clientRequestId,
+    );
     expect(form().props.disabled).toBe(true);
   });
 
@@ -272,6 +279,35 @@ describe('post media selection', () => {
     expect(
       previews()[0].props.files.map((file: PickedMedia) => file.clientId),
     ).toEqual(['one', 'three']);
+  });
+
+  it('keeps the destination, selected count and limits visible throughout upload and completion', async () => {
+    native.params.mockReturnValue({ initialStampId: 'stamp' });
+    await mount();
+    const batch = await submit([photo('one'), photo('two')]);
+    const fields = view!.root.findAllByType('SelectField' as never);
+    expect(fields.map((field) => field.props.label)).toEqual([
+      '旅行',
+      'ジャンル',
+      'スタンプ',
+    ]);
+    expect(fields.map((field) => field.props.value)).toEqual([
+      'trip',
+      'genre',
+      'stamp',
+    ]);
+    expect(fields.every((field) => field.props.disabled)).toBe(true);
+    expect(labels()).toContain('写真・動画 2 / 30');
+    expect(labels()).toContain(
+      '写真は1枚50 MBまで。動画は5本まで、1本1 GB・5分以内です。',
+    );
+    expect(previews()).toHaveLength(0);
+    expect(buttons()).toHaveLength(0);
+    await reconcile(batch, ['READY', 'FAILED']);
+    expect(labels()).toContain('写真・動画 2 / 30');
+    await reconcile(batch, ['READY', 'READY']);
+    expect(labels()).toContain('写真・動画 2 / 30');
+    expect(native.finish).toHaveBeenCalledOnce();
   });
 
   it('keeps the selection on upload failure and clears the error when reselecting', async () => {
@@ -481,7 +517,9 @@ describe('post upload completion', () => {
       batchId: batch.clientRequestId,
     });
     await mount();
+    expect(labels()).toContain('写真・動画 1 / 30');
     await reconcile(batch, ['READY']);
+    expect(labels()).toContain('写真・動画 1 / 30');
     expect(native.finish).toHaveBeenCalledExactlyOnceWith({
       target: { type: 'stamp', stampId: 'resumed-stamp' },
     });
