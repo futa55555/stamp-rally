@@ -7,6 +7,7 @@ import { AppText } from '../../shared/ui/AppText';
 import { EmptyState } from '../../shared/ui/EmptyState';
 import { ListScreen } from '../../shared/ui/ListScreen';
 import { QueryState } from '../../shared/ui/QueryState';
+import { usePullToRefresh } from '../../shared/hooks/usePullToRefresh';
 import { SectionHeading } from '../../shared/ui/SectionHeading';
 import { TripCard } from './components/TripCard';
 import { CreateTripButton } from './components/CreateTripButton';
@@ -24,6 +25,7 @@ function tripRows(trips: Trip[], heading: string): TripListRow[] {
 
 export function TripListScreen() {
   const query = useTrips();
+  const refresh = usePullToRefresh(query.refetch);
   const { trips, today } = query;
   const { active, upcoming, past } = groupTrips(trips, today);
   if (query.isPending || query.error) return <QueryState query={query} />;
@@ -42,10 +44,7 @@ export function TripListScreen() {
       keyExtractor={(row) =>
         row.type === 'create' ? 'create' : `trip-${row.trip.id}`
       }
-      refreshing={query.isFetching}
-      onRefresh={() => {
-        void query.refetch();
-      }}
+      {...refresh}
       ListEmptyComponent={
         <EmptyState
           title="次の旅を、ここから。"

@@ -7,6 +7,7 @@ import { resolveApiTarget } from '../../features/trips/navigation/targets';
 import { QueryState } from '../../shared/ui/QueryState';
 import { Button } from '../../shared/ui/Button';
 import { useTask } from '../../shared/hooks/useTask';
+import { usePullToRefresh } from '../../shared/hooks/usePullToRefresh';
 import { timestampLabel } from '../../shared/lib/dates';
 import { AppText } from '../../shared/ui/AppText';
 import { EmptyState } from '../../shared/ui/EmptyState';
@@ -18,6 +19,7 @@ import { UnreadBadge } from '../../shared/ui/UnreadBadge';
 export function NotificationsScreen() {
   const navigation = useNavigation();
   const query = useNotifications();
+  const refresh = usePullToRefresh(query.refetch);
   const { notifications } = query;
   const { client, userId, actions } = useData();
   const task = useTask();
@@ -63,10 +65,7 @@ export function NotificationsScreen() {
   return (
     <ListScreen
       data={notifications}
-      refreshing={query.isRefetching}
-      onRefresh={() => {
-        void query.refetch();
-      }}
+      {...refresh}
       ListFooterComponent={loadMore}
       keyExtractor={(notification) => notification.id}
       ListHeaderComponent={

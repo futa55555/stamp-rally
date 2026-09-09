@@ -1,5 +1,6 @@
 import { UploadList } from '../../features/uploads/UploadList';
 import { QueryState } from '../../shared/ui/QueryState';
+import { usePullToRefresh } from '../../shared/hooks/usePullToRefresh';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FlatList } from 'react-native';
 import { PhotoTile } from '../../features/photos/ui/PhotoTile';
@@ -12,6 +13,7 @@ export function StampDetailScreen() {
   const router = useRouter();
   const { stampId } = useLocalSearchParams<{ stampId: string }>();
   const query = useStamp(stampId);
+  const refresh = usePullToRefresh(query.refetch);
   const { stamp, trip, photos } = query;
   const openPost = () =>
     router.push({ pathname: '/editor/post', params: { stampId } });
@@ -26,10 +28,7 @@ export function StampDetailScreen() {
   return (
     <>
       <FlatList
-        refreshing={query.isFetching}
-        onRefresh={() => {
-          void query.refetch();
-        }}
+        {...refresh}
         data={photos.length ? [...photos, null] : photos}
         numColumns={2}
         keyExtractor={(photo) => (photo ? `post-${photo.id}` : 'create-post')}
