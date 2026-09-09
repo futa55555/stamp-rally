@@ -1,5 +1,4 @@
 import {
-  Body,
   Controller,
   Get,
   Param,
@@ -17,7 +16,6 @@ import {
   JwtAuthGuard,
 } from '../auth/jwt-auth/jwt-auth.guard.js';
 import { PaginationQueryDto } from '../common/pagination.js';
-import { CreateInvitationDto } from './dto/create-invitation.dto.js';
 import { InvitationsService } from './invitations.service.js';
 
 @UseGuards(JwtAuthGuard, ActiveUserGuard)
@@ -28,25 +26,33 @@ import { InvitationsService } from './invitations.service.js';
     forbidNonWhitelisted: true,
   }),
 )
-@Controller('trips/:tripId/invitations')
+@Controller('trips/:tripId')
 export class TripInvitationsController {
   constructor(private readonly invitations: InvitationsService) {}
 
-  @Post()
+  @Post('invitation-links')
   create(
-    @Req() request: AuthenticatedRequest,
+    @Req() req: AuthenticatedRequest,
     @Param('tripId', ParseUUIDPipe) tripId: string,
-    @Body() dto: CreateInvitationDto,
   ) {
-    return this.invitations.create(request.auth.userId, tripId, dto);
+    return this.invitations.createLink(tripId, req.auth.userId);
   }
 
-  @Get()
-  list(
-    @Req() request: AuthenticatedRequest,
+  @Get('invitation-links')
+  links(
+    @Req() req: AuthenticatedRequest,
     @Param('tripId', ParseUUIDPipe) tripId: string,
     @Query() query: PaginationQueryDto,
   ) {
-    return this.invitations.listForTrip(request.auth.userId, tripId, query);
+    return this.invitations.listLinks(tripId, req.auth.userId, query);
+  }
+
+  @Get('invitations')
+  list(
+    @Req() req: AuthenticatedRequest,
+    @Param('tripId', ParseUUIDPipe) tripId: string,
+    @Query() query: PaginationQueryDto,
+  ) {
+    return this.invitations.listForTrip(tripId, req.auth.userId, query);
   }
 }

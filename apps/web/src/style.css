@@ -1,0 +1,169 @@
+:root {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans JP', sans-serif;
+  color: #202c29;
+  background: #f7f8f5;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+}
+header {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px 40px;
+}
+.brand {
+  color: #286448;
+  font-size: 25px;
+  font-weight: 750;
+  letter-spacing: -1px;
+  text-decoration: none;
+}
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 52px 24px 64px;
+  text-align: center;
+}
+h1 {
+  font-size: clamp(26px, 4vw, 38px);
+  line-height: 1.5;
+  letter-spacing: -0.025em;
+  margin: 14px 0;
+  text-wrap: balance;
+}
+p {
+  color: #65706a;
+  font-size: 15px;
+  line-height: 1.9;
+}
+.eyebrow {
+  color: #286448;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+.intro {
+  margin: 12px auto 36px;
+}
+.stores {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  max-width: 688px;
+  margin: auto;
+}
+.store {
+  background: #fff;
+  border: 1px solid #e3e8e1;
+  border-radius: 24px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+h2 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0 0 16px;
+}
+.badge-link {
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+.badge.ios {
+  height: 48px;
+  width: auto;
+}
+.badge.android {
+  height: 64px;
+  width: auto;
+}
+.qr {
+  display: block;
+  margin-top: 20px;
+  max-width: 100%;
+  height: auto;
+}
+.coming-soon {
+  background: #e8f0e7;
+  color: #286448;
+  padding: 12px 28px;
+  border-radius: 999px;
+  margin: 24px 0;
+}
+.footnote {
+  font-size: 13px;
+  margin: 28px auto 0;
+  max-width: 580px;
+}
+.message {
+  max-width: 620px;
+  margin: 32px auto;
+}
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px 28px;
+  margin-top: 24px;
+  background: #286448;
+  color: white;
+  border: 0;
+  border-radius: 14px;
+  text-decoration: none;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.button:hover {
+  background: #1d4c37;
+}
+.text-link {
+  display: block;
+  width: fit-content;
+  margin: 24px auto;
+  color: #286448;
+}
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid #966817;
+  outline-offset: 5px;
+}
+.noscript {
+  text-align: center;
+  padding: 24px;
+}
+@media (max-width: 600px) {
+  header {
+    padding: 24px;
+  }
+  main {
+    padding-top: 24px;
+  }
+  .stores {
+    grid-template-columns: 1fr;
+    max-width: 340px;
+    gap: 16px;
+  }
+  .store {
+    padding: 24px;
+  }
+  .qr {
+    width: 160px;
+  }
+  .message {
+    margin-top: 20px;
+  }
+}

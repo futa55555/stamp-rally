@@ -39,7 +39,7 @@ remoteの必須値検証はEASの `eas-build-pre-install` と `start:remote` で
 
 ## データ・認証の構成
 
-- `src/app/`：Expo Router、NativeTabs、認証状態に応じた `Stack.Protected`。`ONBOARDING` のユーザーは名前設定成功後にMainへ進みます。
+- `src/app/`：Expo Router、NativeTabs、認証状態に応じた `Stack.Protected`。`ONBOARDING` のユーザーは名前設定成功後にMainへ進みます。招待リンクからの遷移では招待画面へ戻ります。
 - `src/pages/`：画面と画面専用コンポーネント。旅行・ジャンル・スタンプのフォームは `entity-editor/` に集約します。
 - `src/features/app-data/api/`：axiosクライアント、セッション管理、TanStack Query、全ページ取得、mutation。`AppDataProvider` は認証と操作を公開し、全旅行データをContextには保持しません。
 - `src/features/{trips,photos,notifications}/`：画面に必要なリソース取得、ドメイン型、代表画像の選択、通知・保存後の階層付き遷移。
@@ -67,7 +67,7 @@ Queryのキーにはユーザー・リソース・条件を含めます。旅行
 - 写真詳細は1〜4倍のピンチズーム、拡大中のパン、ダブルタップによる1倍／2倍切り替えに対応します。
 - カバー画像の追加と変更は準備中表示です。既存カバーの解除は利用できます。
 
-アップロードにはAPI側のR2設定と変換ワーカーが必要です。[アップロード仕様・起動手順](../../docs/media-uploads.md)を参照してください。端末で原本を保持して直接送信し、変換済みの項目から公開します。署名付きURLと認証トークンを送信キューへ永続化しません。招待UI・プッシュ通知・リアルタイム配信は後続です。
+アップロードにはAPI側のR2設定と変換ワーカーが必要です。[アップロード仕様・起動手順](../../docs/media-uploads.md)を参照してください。端末で原本を保持して直接送信し、変換済みの項目から公開します。署名付きURLと認証トークンを送信キューへ永続化しません。招待リンク・参加申請・最終承認は[招待仕様](../../docs/invitations.md)を参照してください。プッシュ通知・リアルタイム配信は後続です。
 
 ## 検証
 

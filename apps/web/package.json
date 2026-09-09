@@ -1,0 +1,27 @@
+{
+  "name": "web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --mode localhost --host localhost --port 5173 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "build:development": "tsc --noEmit && vite build --mode development",
+    "build:staging": "tsc --noEmit && vite build --mode staging",
+    "preview": "vite preview --host localhost",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/qrcode": "^1.5.5",
+    "@types/pngjs": "^6.0.5",
+    "jsdom": "^29.0.0",
+    "jsqr": "^1.4.0",
+    "pngjs": "^7.0.0",
+    "qrcode": "^1.5.4",
+    "typescript": "~6.0.3",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  }
+}

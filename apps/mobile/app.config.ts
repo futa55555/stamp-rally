@@ -31,6 +31,25 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const isDevelopment = variant === 'local' || variant === 'development';
   const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim();
 
+  const invitationOrigin = process.env.EXPO_PUBLIC_INVITATION_ORIGIN?.trim();
+  let invitationHost: string | undefined;
+  if (invitationOrigin) {
+    const url = new URL(invitationOrigin);
+    if (
+      url.protocol !== 'https:' ||
+      url.username ||
+      url.password ||
+      url.port ||
+      url.pathname !== '/' ||
+      url.search ||
+      url.hash
+    )
+      throw new Error(
+        'EXPO_PUBLIC_INVITATION_ORIGIN must be an HTTPS origin without a path',
+      );
+    invitationHost = url.hostname;
+  }
+
   // EAS reads this config before fetching server-side environment variables.
   // Validate required values in the build hook / remote Metro launcher instead.
 
@@ -39,14 +58,33 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     name: app.name,
     slug: config.slug ?? 'stamp-rally',
     scheme: app.scheme,
+    extra: { ...config.extra, appVariant: variant },
     ios: {
       ...config.ios,
       bundleIdentifier: identifier,
+      associatedDomains: invitationHost ? ['applinks:' + invitationHost] : [],
       appleTeamId: process.env.APPLE_TEAM_ID?.trim() || undefined,
     },
     android: {
       ...config.android,
       package: identifier,
+      intentFilters: invitationHost
+        ? [
+            {
+              action: 'VIEW',
+              autoVerify: true,
+              data: [
+                { scheme: 'https', host: invitationHost, path: '/' },
+                {
+                  scheme: 'https',
+                  host: invitationHost,
+                  pathPrefix: '/invite/',
+                },
+              ],
+              category: ['BROWSABLE', 'DEFAULT'],
+            },
+          ]
+        : [],
     },
     plugins: [
       ...(config.plugins ?? []),

@@ -1,4 +1,6 @@
 export type NotificationTarget =
+  | { type: 'invitation-link'; linkId: string }
+  | { type: 'invitation'; invitationId: string }
   | { type: 'trip'; tripId: string }
   | { type: 'genre'; genreId: string }
   | { type: 'stamp'; stampId: string }

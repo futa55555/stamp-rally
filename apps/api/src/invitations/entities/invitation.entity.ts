@@ -1,29 +1,25 @@
 import type { InvitationStatus } from '../../generated/prisma/enums.js';
 
-export class InvitationConflictError extends Error {}
-export class InvitationNotFoundError extends Error {}
+export type InvitationAction = 'confirm' | 'decline' | 'cancel';
+export const decisionStatus = {
+  confirm: 'ACCEPTED',
+  decline: 'DECLINED',
+  cancel: 'CANCELLED',
+} as const satisfies Record<InvitationAction, InvitationStatus>;
 
-export function assertCanInvite(
-  inviterId: string,
-  inviteeId: string,
+export function allowedActions(
+  invitation: {
+    status: InvitationStatus;
+    inviteeId: string;
+    invitedById: string;
+  },
+  userId: string,
   isMember: boolean,
-): void {
-  if (inviterId === inviteeId) {
-    throw new InvitationConflictError('You cannot invite yourself');
-  }
-  if (isMember) {
-    throw new InvitationConflictError('User is already a trip member');
-  }
-}
-
-export function decideInvitation(
-  current: InvitationStatus,
-  decision: 'ACCEPTED' | 'DECLINED',
-): InvitationStatus {
-  if (current !== 'PENDING' && current !== decision) {
-    throw new InvitationConflictError(
-      'This invitation has already been answered',
-    );
-  }
-  return decision;
+): InvitationAction[] {
+  if (invitation.status !== 'PENDING_CONFIRMATION') return [];
+  if (invitation.inviteeId === userId) return ['decline'];
+  if (!isMember) return [];
+  return invitation.invitedById === userId
+    ? ['confirm', 'cancel']
+    : ['confirm'];
 }

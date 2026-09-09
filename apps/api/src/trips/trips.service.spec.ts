@@ -4,7 +4,6 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 import { PaginationQueryDto } from '../common/pagination.js';
 import { TripAccessService } from './trip-access.service.js';
-import { InvitationRepository } from '../invitations/invitation.repository.js';
 import { Trip } from './entities/trip.entity.js';
 import { TripRepository } from './trip.repository.js';
 import { TripsService } from './trips.service.js';
@@ -19,12 +18,10 @@ describe('TripsService', () => {
     members: vi.fn(),
   };
   const access = { requireTrip: vi.fn() };
-  const invitations = { createInitial: vi.fn() };
   const prisma = { $transaction: vi.fn() };
   const service = new TripsService(
     repo as unknown as TripRepository,
     access as unknown as TripAccessService,
-    invitations as unknown as InvitationRepository,
     prisma as unknown as PrismaService,
     {} as CoverAssetsService,
     { present: async (value: unknown) => value } as CoverPresenter,
@@ -33,7 +30,6 @@ describe('TripsService', () => {
     name: '  旅行  ',
     startDate: '2026-09-07',
     endDate: '2026-09-10',
-    inviteeNames: ['友達'],
   };
   let trip: Trip;
 
@@ -59,31 +55,16 @@ describe('TripsService', () => {
     repo.save.mockImplementation(async (value: Trip) => value);
   });
 
-  it('creates the trip and initial invitations in the same serializable transaction', async () => {
+  it('creates the trip in a serializable transaction', async () => {
     expect(await service.create('owner', input)).toEqual(trip.toJSON());
     expect(repo.create).toHaveBeenCalledWith(
       'owner',
       expect.objectContaining({ name: '旅行' }),
       tx,
     );
-    expect(invitations.createInitial).toHaveBeenCalledWith(
-      tx,
-      'trip',
-      'owner',
-      ['友達'],
-    );
     expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: 'Serializable',
     });
-  });
-
-  it('propagates an invitation failure through the transaction', async () => {
-    invitations.createInitial.mockRejectedValue(
-      new NotFoundException('Invitee not found'),
-    );
-    await expect(service.create('owner', input)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
   });
 
   it.each([
