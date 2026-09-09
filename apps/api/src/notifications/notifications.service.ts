@@ -16,15 +16,9 @@ export class NotificationsService {
     // A single snapshot keeps the page and the global badge count consistent.
     return this.prisma.$transaction(
       async (tx) => {
-        const where = {
-          recipientId: userId,
-          AND: [
-            { OR: [{ postId: null }, { post: { status: 'READY' as const } }] },
-          ],
-          trip: { members: { some: { userId } } },
-        };
+        const where = notificationAccess(userId);
         const rows = await tx.notification.findMany({
-          where: { ...where, ...paginationWhere(query, 'desc') },
+          where: { AND: [where, paginationWhere(query, 'desc')] },
           orderBy: paginationOrder('desc'),
           take: query.limit + 1,
         });
@@ -40,14 +34,7 @@ export class NotificationsService {
   markRead(userId: string, id: string) {
     return serializable(this.prisma, async (tx) => {
       const current = await tx.notification.findFirst({
-        where: {
-          id,
-          recipientId: userId,
-          AND: [
-            { OR: [{ postId: null }, { post: { status: 'READY' as const } }] },
-          ],
-          trip: { members: { some: { userId } } },
-        },
+        where: { id, ...notificationAccess(userId) },
       });
       if (!current) throw new NotFoundException('Notification not found');
       if (current.readAt) return current;
@@ -57,4 +44,29 @@ export class NotificationsService {
       });
     });
   }
+}
+
+// Invitation recipients can read their own links and requests before joining.
+// Ordinary notifications still require membership and ready media.
+function notificationAccess(userId: string) {
+  return {
+    recipientId: userId,
+    OR: [
+      {
+        invitationId: null,
+        invitationLinkId: null,
+        OR: [{ postId: null }, { post: { status: 'READY' as const } }],
+        trip: { members: { some: { userId } } },
+      },
+      { invitationLinkId: { not: null } },
+      {
+        invitation: {
+          OR: [
+            { inviteeId: userId },
+            { trip: { members: { some: { userId } } } },
+          ],
+        },
+      },
+    ],
+  };
 }

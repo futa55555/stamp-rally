@@ -1,6 +1,7 @@
 import {
-  Get,
+  Body,
   Controller,
+  Get,
   HttpCode,
   Param,
   ParseUUIDPipe,
@@ -16,7 +17,11 @@ import {
   type AuthenticatedRequest,
   JwtAuthGuard,
 } from '../auth/jwt-auth/jwt-auth.guard.js';
-import { PaginationQueryDto } from '../common/pagination.js';
+import {
+  InvitationDecisionDto,
+  InvitationQueryDto,
+  InvitationTokenDto,
+} from './dto/create-invitation.dto.js';
 import { InvitationsService } from './invitations.service.js';
 
 @UseGuards(JwtAuthGuard, ActiveUserGuard)
@@ -32,28 +37,65 @@ export class InvitationsController {
   constructor(private readonly invitations: InvitationsService) {}
 
   @Get()
-  listReceived(
-    @Req() request: AuthenticatedRequest,
-    @Query() query: PaginationQueryDto,
-  ) {
-    return this.invitations.listReceived(request.auth.userId, query);
+  list(@Req() req: AuthenticatedRequest, @Query() query: InvitationQueryDto) {
+    return this.invitations.listReceived(req.auth.userId, query);
   }
 
-  @Post(':id/accept')
-  @HttpCode(200)
-  accept(
-    @Req() request: AuthenticatedRequest,
+  @Post()
+  request(@Req() req: AuthenticatedRequest, @Body() dto: InvitationTokenDto) {
+    return this.invitations.request(dto.token, req.auth.userId);
+  }
+
+  @Get(':id')
+  detail(
+    @Req() req: AuthenticatedRequest,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.invitations.decide(request.auth.userId, id, 'ACCEPTED');
+    return this.invitations.detail(id, req.auth.userId);
+  }
+
+  @Post(':id/confirm')
+  @HttpCode(200)
+  confirm(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: InvitationDecisionDto,
+  ) {
+    return this.invitations.decide(
+      id,
+      req.auth.userId,
+      'confirm',
+      dto.generation,
+    );
   }
 
   @Post(':id/decline')
   @HttpCode(200)
   decline(
-    @Req() request: AuthenticatedRequest,
+    @Req() req: AuthenticatedRequest,
     @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: InvitationDecisionDto,
   ) {
-    return this.invitations.decide(request.auth.userId, id, 'DECLINED');
+    return this.invitations.decide(
+      id,
+      req.auth.userId,
+      'decline',
+      dto.generation,
+    );
+  }
+
+  @Post(':id/cancel')
+  @HttpCode(200)
+  cancel(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: InvitationDecisionDto,
+  ) {
+    return this.invitations.decide(
+      id,
+      req.auth.userId,
+      'cancel',
+      dto.generation,
+    );
   }
 }

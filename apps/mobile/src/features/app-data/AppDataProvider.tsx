@@ -1,3 +1,4 @@
+import { pendingInvitation } from '../invitations/runtime';
 import {
   QueryClientProvider,
   focusManager,
@@ -29,7 +30,10 @@ function useStore() {
       ...createActions(sessionClient, queryClient, userId),
       signIn: (provider: LoginProvider) =>
         sessionClient.signIn(() => identityCredentials(provider)),
-      signOut: sessionClient.signOut,
+      signOut: async () => {
+        const cleared = pendingInvitation.clear();
+        await Promise.all([sessionClient.signOut(), cleared]);
+      },
     }),
     [userId],
   );

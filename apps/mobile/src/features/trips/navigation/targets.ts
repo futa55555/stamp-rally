@@ -7,6 +7,8 @@ export function resolveTarget(
   target: NotificationTarget,
   userId: string,
 ): TripRoute[] | null {
+  if (target.type === 'invitation' || target.type === 'invitation-link')
+    return null;
   const post =
     target.type === 'photo' || target.type === 'video'
       ? data.posts.find((p) => p.id === target.postId)
@@ -49,6 +51,8 @@ export async function resolveApiTarget(
   >,
   target: NotificationTarget,
 ): Promise<TripRoute[]> {
+  if (target.type === 'invitation' || target.type === 'invitation-link')
+    throw new Error('参加申請の画面から確認してください。');
   const post =
     target.type === 'photo' || target.type === 'video'
       ? await client.request<import('../../photos/model/types').Post>({

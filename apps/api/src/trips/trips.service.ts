@@ -11,7 +11,6 @@ import { PrismaService } from '../database/prisma.service.js';
 import { type PaginationQueryDto } from '../common/pagination.js';
 import { serializable } from '../database/transaction.js';
 import { TripAccessService } from './trip-access.service.js';
-import { InvitationRepository } from '../invitations/invitation.repository.js';
 import { CreateTripDto } from './dto/create-trip.dto.js';
 import { UpdateTripDto } from './dto/update-trip.dto.js';
 import { InvalidTripError, Trip } from './entities/trip.entity.js';
@@ -22,7 +21,6 @@ export class TripsService {
   constructor(
     private readonly trips: TripRepository,
     private readonly access: TripAccessService,
-    private readonly invitations: InvitationRepository,
     private readonly prisma: PrismaService,
     private readonly covers: CoverAssetsService,
     private readonly presenter: CoverPresenter,
@@ -47,12 +45,6 @@ export class TripsService {
           if (dto.coverAssetId)
             await this.covers.assertAttachable(tx, userId, dto.coverAssetId);
           const trip = await this.trips.create(userId, input, tx);
-          await this.invitations.createInitial(
-            tx,
-            trip.id,
-            userId,
-            dto.inviteeNames ?? [],
-          );
           return trip;
         });
         return this.presenter.present(result.toJSON());

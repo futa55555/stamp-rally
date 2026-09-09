@@ -137,3 +137,55 @@ describe('app variants', () => {
     expect(configure(oldContext).ios?.appleTeamId).toBe('NEWTEAM123');
   });
 });
+
+describe('Invitation link app associations', () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it.each(['local', 'development', 'staging', 'production'])(
+    'associates only the configured host in %s',
+    (variant) => {
+      vi.stubEnv('APP_VARIANT', variant);
+      vi.stubEnv(
+        'EXPO_PUBLIC_INVITATION_ORIGIN',
+        'https://' + variant + '.invite.example.com',
+      );
+      const config = configure(context);
+      expect(config.ios?.associatedDomains).toEqual([
+        'applinks:' + variant + '.invite.example.com',
+      ]);
+      expect(config.android?.intentFilters).toEqual([
+        {
+          action: 'VIEW',
+          autoVerify: true,
+          data: [
+            {
+              scheme: 'https',
+              host: variant + '.invite.example.com',
+              pathPrefix: '/invite/',
+            },
+          ],
+          category: ['BROWSABLE', 'DEFAULT'],
+        },
+      ]);
+      expect(config.extra?.appVariant).toBe(variant);
+    },
+  );
+  it('keeps public sharing disabled until a domain is configured and verifies the flag', () => {
+    setRemoteEnvironment('production');
+    vi.stubEnv('EXPO_PUBLIC_INVITATION_ORIGIN', '');
+    vi.stubEnv('EXPO_PUBLIC_INVITATION_LINKS_ENABLED', 'true');
+    expect(() => validateRemoteEnvironment()).toThrow(
+      'EXPO_PUBLIC_INVITATION_ORIGIN',
+    );
+    vi.stubEnv('EXPO_PUBLIC_INVITATION_LINKS_ENABLED', 'false');
+    expect(() => validateRemoteEnvironment()).not.toThrow();
+    expect(configure(context).ios?.associatedDomains).toEqual([]);
+  });
+  it.each([
+    'http://example.com',
+    'https://example.com/invite',
+    'https://user@example.com',
+  ])('rejects an invalid origin %s', (origin) => {
+    vi.stubEnv('EXPO_PUBLIC_INVITATION_ORIGIN', origin);
+    expect(() => configure(context)).toThrow('HTTPS origin');
+  });
+});

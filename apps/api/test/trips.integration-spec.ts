@@ -202,20 +202,33 @@ describe('Trip API integration', () => {
     return { trip, genre, stamp };
   }
 
-  async function join(tripId: string, invitee = member, inviter = owner) {
-    const invitation = await http(
+  async function apply(tripId: string, invitee = member, inviter = owner) {
+    const link = await http<Resource & { token: string }>(
       'post',
-      `/trips/${tripId}/invitations`,
+      '/trips/' + tripId + '/invitation-links',
       inviter,
-      { inviteeName: invitee.name },
     );
+    return http<Resource & { generation: number }>(
+      'post',
+      '/invitations',
+      invitee,
+      { token: link.token },
+    );
+  }
+  async function join(tripId: string, invitee = member, inviter = owner) {
+    const invitation = await apply(tripId, invitee, inviter);
     await http(
       'post',
-      `/invitations/${invitation.id}/accept`,
-      invitee,
-      undefined,
+      '/invitations/' + invitation.id + '/confirm',
+      inviter,
+      { generation: invitation.generation },
       200,
     );
+    // Isolate domain notification assertions from setup. The invitation suite
+    // separately verifies all request notifications.
+    await prisma.notification.deleteMany({
+      where: { invitationId: invitation.id },
+    });
     return invitation;
   }
 
@@ -293,29 +306,17 @@ describe('Trip API integration', () => {
     expect(persisted.endDate.toISOString()).toBe('2026-09-09T00:00:00.000Z');
   });
 
-  it('creates initial invitations atomically and hides content until acceptance', async () => {
+  it('rejects name invitations and hides content until final confirmation', async () => {
     await http(
       'post',
       '/trips',
       owner,
-      { ...tripInput, inviteeNames: ['Member', 'Missing'] },
-      404,
-    );
-    await http(
-      'post',
-      '/trips',
-      owner,
-      { ...tripInput, inviteeNames: ['Member', 'Owner'] },
-      409,
+      { ...tripInput, inviteeNames: ['Member'] },
+      400,
     );
     expect(await prisma.trip.count()).toBe(0);
-    expect(await prisma.tripMember.count()).toBe(0);
-    expect(await prisma.tripInvitation.count()).toBe(0);
-
-    const trip = await http('post', '/trips', owner, {
-      ...tripInput,
-      inviteeNames: ['  Member  ', 'Member'],
-    });
+    const trip = await http('post', '/trips', owner, tripInput);
+    await apply(trip.id);
     const genre = await http('post', '/genres', owner, {
       tripId: trip.id,
       name: 'Genre',
@@ -350,16 +351,16 @@ describe('Trip API integration', () => {
     }
     await http(
       'post',
-      `/invitations/${pending.items[0].id}/accept`,
+      `/invitations/${pending.items[0].id}/confirm`,
       outsider,
-      undefined,
+      { generation: 1 },
       404,
     );
     await http(
       'post',
-      `/invitations/${pending.items[0].id}/accept`,
-      member,
-      undefined,
+      `/invitations/${pending.items[0].id}/confirm`,
+      owner,
+      { generation: 1 },
       200,
     );
     expect(
@@ -457,7 +458,7 @@ describe('Trip API integration', () => {
         },
       ],
       ['get', '/invitations'],
-      ['post', `/trips/${trip.id}/invitations`, { inviteeName: 'Member' }],
+      ['post', `/trips/${trip.id}/invitation-links`],
     ];
     for (const [method, path, body] of requests) {
       await http(method, path, null, body, 401);
@@ -491,18 +492,13 @@ describe('Trip API integration', () => {
       stampId: stamp.id,
       ...mediaInput,
     });
-    const invitation = await http(
-      'post',
-      `/trips/${trip.id}/invitations`,
-      owner,
-      { inviteeName: member.name },
-    );
+    const invitation = await apply(trip.id);
     const requests: [Method, string, Input?][] = [
       ['get', `/trips/${trip.id}`],
       ['patch', `/trips/${trip.id}`, { name: 'Intrusion' }],
       ['get', `/trips/${trip.id}/members`],
       ['get', `/trips/${trip.id}/invitations`],
-      ['post', `/trips/${trip.id}/invitations`, { inviteeName: 'Outsider' }],
+      ['post', `/trips/${trip.id}/invitation-links`],
       ['get', `/genres?tripId=${trip.id}`],
       ['get', `/genres/${genre.id}`],
       ['post', '/genres', { tripId: trip.id, name: 'Intrusion' }],
@@ -520,8 +516,8 @@ describe('Trip API integration', () => {
       ['get', `/posts?stampId=${stamp.id}&favoritesOnly=true`],
       ['post', '/posts', { stampId: stamp.id, ...mediaInput }],
       ['patch', `/posts/${post.id}/favorite`, { isFavorite: true }],
-      ['post', `/invitations/${invitation.id}/accept`],
-      ['post', `/invitations/${invitation.id}/decline`],
+      ['post', `/invitations/${invitation.id}/confirm`, { generation: 1 }],
+      ['post', `/invitations/${invitation.id}/decline`, { generation: 1 }],
     ];
     for (const [method, path, body] of requests)
       await http(method, path, outsider, body, 404);
@@ -1600,7 +1596,6 @@ describe('Trip API integration', () => {
       ...tripInput,
       coverAssetId: id,
       clientRequestId: randomUUID(),
-      inviteeNames: ['Member'],
     };
     const [trip, retry] = await Promise.all([
       http('post', '/trips', owner, input),
@@ -1616,6 +1611,7 @@ describe('Trip API integration', () => {
     expect((await get<Page>('/trips', owner)).items[0].coverImageUrl).toBe(
       trip.coverImageUrl,
     );
+    await apply(trip.id);
     const invitations = await get<Page<{ trip: Resource }>>(
       '/invitations',
       member,

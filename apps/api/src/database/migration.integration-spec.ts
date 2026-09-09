@@ -33,6 +33,21 @@ const mediaMigration = readFileSync(
   'utf8',
 );
 
+const invitationStatesMigration = readFileSync(
+  new URL(
+    '../../prisma/migrations/20260910020000_invitation_states/migration.sql',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const invitationLinksMigration = readFileSync(
+  new URL(
+    '../../prisma/migrations/20260910020100_invitation_links/migration.sql',
+    import.meta.url,
+  ),
+  'utf8',
+);
+
 describe('Trip domain migration integration', () => {
   let client: Client;
   let schema: string;
@@ -277,5 +292,47 @@ describe('Trip domain migration integration', () => {
       (await client.query('SELECT COUNT(*)::int AS count FROM photo_reads'))
         .rows,
     ).toEqual([{ count: 0 }]);
+  });
+  it('retires unanswered name invitations without changing accepted members', async () => {
+    const owner = randomUUID(),
+      pending = randomUUID(),
+      accepted = randomUUID(),
+      trip = randomUUID();
+    await client.query(
+      'INSERT INTO users (id, name) VALUES ($1, $4), ($2, $5), ($3, $6)',
+      [owner, pending, accepted, 'Owner', 'Pending', 'Accepted'],
+    );
+    await client.query(migration);
+    await client.query(removeCommentsMigration);
+    await client.query(mobileMigration);
+    await client.query(
+      "INSERT INTO trips (id,name,start_date,end_date,created_by_id,updated_at) VALUES ($1,'Trip','2026-09-10','2026-09-11',$2,CURRENT_TIMESTAMP)",
+      [trip, owner],
+    );
+    await client.query(
+      'INSERT INTO trip_members (id,trip_id,user_id) VALUES ($1,$3,$4),($2,$3,$5)',
+      [randomUUID(), randomUUID(), trip, owner, accepted],
+    );
+    await client.query(
+      "INSERT INTO trip_invitations (id,trip_id,invitee_id,invited_by_id,status,updated_at) VALUES ($1,$3,$4,$6,'PENDING',CURRENT_TIMESTAMP), ($2,$3,$5,$6,'ACCEPTED',CURRENT_TIMESTAMP)",
+      [randomUUID(), randomUUID(), trip, pending, accepted, owner],
+    );
+    const before = (
+      await client.query('SELECT * FROM trip_members ORDER BY id')
+    ).rows;
+    await client.query(invitationStatesMigration);
+    await client.query(invitationLinksMigration);
+    expect(
+      (await client.query('SELECT * FROM trip_members ORDER BY id')).rows,
+    ).toEqual(before);
+    const states = (
+      await client.query(
+        'SELECT status, generation, link_id FROM trip_invitations ORDER BY status::text',
+      )
+    ).rows;
+    expect(states).toEqual([
+      { status: 'ACCEPTED', generation: 1, link_id: null },
+      { status: 'CANCELLED', generation: 1, link_id: null },
+    ]);
   });
 });
