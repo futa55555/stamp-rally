@@ -1,5 +1,5 @@
 import { useNavigation } from 'expo-router';
-import { FlatList, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useData } from '../../features/app-data/AppDataProvider';
 import { useNotifications } from '../../features/notifications/hooks';
 import type { AppNotification } from '../../features/notifications/model/types';
@@ -9,9 +9,10 @@ import { Button } from '../../shared/ui/Button';
 import { useTask } from '../../shared/hooks/useTask';
 import { timestampLabel } from '../../shared/lib/dates';
 import { AppText } from '../../shared/ui/AppText';
+import { EmptyState } from '../../shared/ui/EmptyState';
 import { ErrorMessage } from '../../shared/ui/ErrorMessage';
 import { Icon } from '../../shared/ui/Icon';
-import { StateView } from '../../shared/ui/StateView';
+import { ListScreen } from '../../shared/ui/ListScreen';
 import { UnreadBadge } from '../../shared/ui/UnreadBadge';
 
 export function NotificationsScreen() {
@@ -49,36 +50,34 @@ export function NotificationsScreen() {
     });
   if (query.isPending || (query.error && !query.data))
     return <QueryState query={query} />;
+  const errorMessage = task.error ?? query.error?.message ?? null;
+  const loadMore = query.hasNextPage ? (
+    <Button
+      label="さらに読み込む"
+      pending={query.isFetchingNextPage}
+      onPress={() => {
+        void query.fetchNextPage();
+      }}
+    />
+  ) : null;
   return (
-    <FlatList
+    <ListScreen
       data={notifications}
       refreshing={query.isRefetching}
       onRefresh={() => {
         void query.refetch();
       }}
-      ListFooterComponent={
-        query.hasNextPage ? (
-          <Button
-            label="さらに読み込む"
-            pending={query.isFetchingNextPage}
-            onPress={() => {
-              void query.fetchNextPage();
-            }}
-          />
-        ) : null
-      }
+      ListFooterComponent={loadMore}
       keyExtractor={(notification) => notification.id}
-      className="flex-1 bg-background"
-      contentContainerClassName="grow px-4 pt-6 pb-12 gap-3 w-full max-w-page self-center"
       ListHeaderComponent={
-        <ErrorMessage message={task.error ?? query.error?.message ?? null} />
+        errorMessage ? <ErrorMessage message={errorMessage} /> : null
       }
       ListEmptyComponent={
-        <StateView
-          compact
-          title="新しいお知らせはありません"
-          description="旅の更新が届くと、ここに表示されます。"
+        <EmptyState
+          title="お知らせはまだありません"
+          description="旅の更新や仲間の投稿など、新しいお知らせがここに届きます。"
           icon="bell-outline"
+          accentIcon="check"
         />
       }
       renderItem={({ item }) => (
