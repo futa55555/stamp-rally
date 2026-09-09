@@ -88,9 +88,18 @@ URLは `<scheme>://invite/<token>`。開発ビルドで確認します。ログ�
 
 ## Phase 3 — 静的Webと公開用HTTPSリンク
 
-Webは `apps/web` のVite＋TypeScriptアプリを **Cloudflare Pages** で配信します。ビルドコマンドは `pnpm --filter web build`、配信先は `apps/web/dist` です。Pages Functionsは使いません。APIでのHTMLと関連付けJSONの配信は廃止しました。
+Webは `apps/web` のVite＋TypeScriptアプリを **Cloudflare Pages** で配信します。ビルドコマンドは環境ごとに後述のとおり指定し、配信先はいずれも `apps/web/dist` です。Pages Functionsは使いません。APIでのHTMLと関連付けJSONの配信は廃止しました。
 
-公開URLは `https://<Webホスト>/` と `https://<Webホスト>/invite/<token>`。環境ごとにWebホストを分けます。トップと招待リンクのアプリ起動はOSの関連付けに従います。
+公開URLは `https://<Webホスト>/` と `https://<Webホスト>/invite/<token>`。トップと招待リンクのアプリ起動はOSの関連付けに従います。
+
+| 環境  | Web origin                          | アプリのBundle ID / package | EAS profile / environment     |
+| ----- | ----------------------------------- | --------------------------- | ----------------------------- |
+| local | `http://localhost:5173`             | `com.futa.stamprally.local` | —（ローカル開発）             |
+| dev   | `https://stamp-rally-dev.pages.dev` | `com.futa.stamprally.dev`   | `development` / `development` |
+| stg   | `https://stamp-rally-stg.pages.dev` | `com.futa.stamprally.stg`   | `staging` / `preview`         |
+| prod  | `https://stamp-rally.pages.dev`     | `com.futa.stamprally`       | `production` / `production`   |
+
+ローカルは `pnpm web:dev` でWebを起動します。アプリの `EXPO_PUBLIC_INVITATION_ORIGIN` は空欄にして、`stamp-rally-local://invite/<token>` で招待を検証します。HTTPSリンクからの実機起動はremote devのdevelopmentビルドとstgで検証します。
 
 ### 公開状態確認API
 
@@ -128,7 +137,7 @@ Webのビルド環境（`apps/web/.env.example`）：
 
 設定値はビルド時に確定します。変更後はWebを再ビルド・再配信してください。不正なURLはビルドエラーにします。`WEB_API_URL` はWebで招待の有効性を確認するための接続先です。トップのダウンロード画面だけなら不要ですが、招待URLを処理するには設定が必要です。
 
-関連付け情報は環境変数にせず、`apps/web/public/.well-known/` のJSONを直接編集します。Viteがそのまま `dist/.well-known/` にコピーします。署名情報が未確定の間は関連付け先を空にしています。
+関連付け情報は環境変数にせず、`apps/web/associations/development/`、`associations/staging/`、`associations/production/` のJSONを直接編集します。ビルドはViteのmodeに対応するファイルだけを、そのまま `dist/.well-known/` にコピーします。ローカルの `pnpm web:dev` は `localhost` modeで動作し、`associations/local/` の関連付け先なしのJSONを使います。署名情報が未確定の間はdev/stg/prodの関連付け先も空にしています。mode別の環境変数ファイルについては [WebのREADME](../apps/web/README.md) を参照してください。
 
 `apple-app-site-association` の `applinks.details` に、対象アプリの次の項目を追加します。
 
@@ -160,10 +169,13 @@ Web自身のドメイン指定は不要です。ページ内のリンクやア�
 
 APIの招待Web用設定は `INVITATION_PUBLIC_ORIGIN` のみです。アプリ識別子・配布署名はWeb側の静的JSON、ストアURLはWebの上記環境変数で管理します。
 
-mobile / EASの対象環境：
+mobile / EASの対象環境（上表のEAS environmentに設定）：
 
 ```dotenv
-EXPO_PUBLIC_INVITATION_ORIGIN=https://<Webホスト>
+# development: https://stamp-rally-dev.pages.dev
+# staging: https://stamp-rally-stg.pages.dev
+# production: https://stamp-rally.pages.dev
+EXPO_PUBLIC_INVITATION_ORIGIN=https://stamp-rally-stg.pages.dev
 EXPO_PUBLIC_INVITATION_LINKS_ENABLED=false
 ```
 
@@ -173,8 +185,8 @@ originから `ios.associatedDomains` とAndroidの `autoVerify` 付き `intentFi
 
 ### Pagesへの配信手順
 
-1. Pagesのプロジェクトを作り、このリポジトリを接続する。ビルドルートはリポジトリルート、ビルドコマンドは `pnpm --filter web build`、出力は `apps/web/dist`。Node.js 24と `package.json` のpnpmバージョンを使う。Webの公開環境変数を設定する。
-2. Pagesが発行する固定の本番URL `https://<プロジェクト名>.pages.dev` を使う。APIは別ホストで配信し、`INVITATION_PUBLIC_ORIGIN` をそのWeb originに合わせる。
+1. Pagesに `stamp-rally-dev`、`stamp-rally-stg`、`stamp-rally` の3プロジェクトを作り、同じリポジトリを接続する。それぞれ配信するブランチをProduction branchに指定する。ビルドルートはリポジトリルート、devのビルドコマンドは `pnpm --filter web build:development`、stgは `pnpm --filter web build:staging`、prodは `pnpm --filter web build`、出力はすべて `apps/web/dist`。Node.js 24と `package.json` のpnpmバージョンを使う。
+2. 各プロジェクトのProduction用環境変数に、その環境の `WEB_API_URL` とストアURLを設定する。dev/stg用プロジェクトも、その固定URLへ配信する設定はProductionを使う。各環境のAPIの `INVITATION_PUBLIC_ORIGIN` とmobileの `EXPO_PUBLIC_INVITATION_ORIGIN` を上表のWeb originに合わせる。実際のURLはPagesプロジェクト作成時に確定する。
 3. 次の2ファイルが認証・リダイレクトなしで200、`Content-Type: application/json` を返すことを確認する。ビルド生成される `_redirects` は `/invite/*` だけを書き換え、関連付けファイルを対象に含めない。`404.html` も生成し、存在しない関連付けパスのHTMLへのSPAフォールバックを防ぐ。
    - `/.well-known/apple-app-site-association`
    - `/.well-known/assetlinks.json`
@@ -184,7 +196,7 @@ originから `ios.associatedDomains` とAndroidの `autoVerify` 付き `intentFi
 
 インストール後は元の招待リンクをもう一度開きます。インストールをまたぐ自動引き継ぎは実装していません。ブラウザやユーザー設定がWebを優先する場合まで、アプリの自動起動は保証しません。
 
-参考：[Apple Universal Links](https://developer.apple.com/library/archive/documentation/General/Conceptual/AppSearch/UniversalLinks.html)、[Expo SDK 57設定](https://docs.expo.dev/versions/v57.0.0/config/app/)、[Cloudflare Pagesの配信](https://developers.cloudflare.com/pages/configuration/serving-pages/)、[Pagesの書き換え](https://developers.cloudflare.com/pages/configuration/redirects/)。
+参考：[Apple Universal Links](https://developer.apple.com/library/archive/documentation/General/Conceptual/AppSearch/UniversalLinks.html)、[Expo SDK 57設定](https://docs.expo.dev/versions/v57.0.0/config/app/)、[Cloudflare Pagesの配信](https://developers.cloudflare.com/pages/configuration/serving-pages/)、[Pagesの書き換え](https://developers.cloudflare.com/pages/configuration/redirects/)、[同じリポジトリから複数のPagesプロジェクトを作る](https://developers.cloudflare.com/pages/configuration/monorepos/)。
 
 ## 自動チェック
 
@@ -193,6 +205,8 @@ pnpm --filter api test
 pnpm --filter api test:database
 pnpm --filter mobile test
 pnpm --filter web test
+pnpm --filter web build:development
+pnpm --filter web build:staging
 pnpm --filter web build
 pnpm typecheck
 pnpm lint

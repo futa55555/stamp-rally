@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "vite --mode localhost --host localhost --port 5173 --strictPort",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 127.0.0.1",
+    "build:development": "tsc --noEmit && vite build --mode development",
+    "build:staging": "tsc --noEmit && vite build --mode staging",
+    "preview": "vite preview --host localhost",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
