@@ -28,6 +28,8 @@ const repository = {
   list: vi.fn(),
   findById: vi.fn(),
   setFavorite: vi.fn(),
+  delete: vi.fn(),
+  markRead: vi.fn(),
 };
 
 describe('PostsController', () => {
@@ -136,6 +138,7 @@ describe('PostsController', () => {
           favoritesOnly: true,
           limit: 5,
         }),
+        'user',
       );
     },
   );
@@ -150,6 +153,7 @@ describe('PostsController', () => {
     expect(repository.list).toHaveBeenCalledWith(
       { type: 'stamp', id: stampId },
       expect.objectContaining({ favoritesOnly: false, limit: 20 }),
+      'user',
     );
   });
 
@@ -191,7 +195,7 @@ describe('PostsController', () => {
       .send({ isFavorite: false })
       .expect(200)
       .expect({ id: postId, isFavorite: false });
-    expect(repository.setFavorite).toHaveBeenCalledWith(postId, false);
+    expect(repository.setFavorite).toHaveBeenCalledWith(postId, false, 'user');
   });
 
   it.each([
@@ -246,7 +250,7 @@ describe('PostsController', () => {
     expect(repository.setFavorite).not.toHaveBeenCalled();
   });
 
-  it('rejects invalid path IDs and has no content edit or delete route', async () => {
+  it('rejects invalid path IDs, disallows content edits and supports deletion', async () => {
     await request(app.getHttpServer())
       .get('/posts/invalid')
       .set('Authorization', 'Bearer token')
@@ -259,6 +263,7 @@ describe('PostsController', () => {
     await request(app.getHttpServer())
       .delete(`/posts/${postId}`)
       .set('Authorization', 'Bearer token')
-      .expect(404);
+      .expect(204);
+    expect(repository.delete).toHaveBeenCalledWith(postId);
   });
 });

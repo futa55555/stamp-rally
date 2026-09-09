@@ -26,6 +26,7 @@ export class TripRepository {
   ): Promise<Trip> {
     const row = await tx.trip.create({
       data: {
+        locations: input.locations ?? [],
         name: input.name,
         startDate: calendarDate(input.startDate),
         endDate: calendarDate(input.endDate),
@@ -67,6 +68,7 @@ export class TripRepository {
     const row = await tx.trip.update({
       where: { id: trip.id },
       data: {
+        locations: trip.locations,
         name: trip.name,
         startDate: calendarDate(trip.startDate),
         endDate: calendarDate(trip.endDate),
@@ -121,6 +123,7 @@ export class TripRepository {
       row.updatedAt,
       progress?.totalGenreCount ?? 0,
       progress?.completedGenreCount ?? 0,
+      row.locations,
     );
   }
 }

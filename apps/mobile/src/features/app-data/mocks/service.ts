@@ -126,6 +126,7 @@ export function createMockService(
         totalStampCount: 0,
         completedStampCount: 0,
         isCompleted: false,
+        hasUnreadPhotos: false,
       };
       commit({ type: 'genreSaved', genre });
       return copy(genre);
@@ -153,6 +154,8 @@ export function createMockService(
         createdAt: now,
         updatedAt: now,
         isCompleted: false,
+        hasUnreadPhotos: false,
+        photoCount: 0,
       };
       commit({ type: 'stampSaved', stamp });
       return copy(stamp);
@@ -183,6 +186,7 @@ export function createMockService(
         tripId: genre.tripId,
         author: { id: user.id, name: user.name },
         mediaType: 'IMAGE',
+        readAt: null,
         mediaUrl,
         isFavorite: false,
         createdAt: now,

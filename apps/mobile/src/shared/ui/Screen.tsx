@@ -1,10 +1,16 @@
 import type { PropsWithChildren } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, RefreshControl } from 'react-native';
 
 export function Screen({
   children,
   contentContainerClassName = '',
-}: PropsWithChildren<{ contentContainerClassName?: string }>) {
+  refreshing = false,
+  onRefresh,
+}: PropsWithChildren<{
+  contentContainerClassName?: string;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+}>) {
   return (
     <ScrollView
       className="flex-1 bg-background"
@@ -13,6 +19,11 @@ export function Screen({
         contentContainerClassName,
       ].join(' ')}
       keyboardShouldPersistTaps="handled"
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        ) : undefined
+      }
     >
       {children}
     </ScrollView>

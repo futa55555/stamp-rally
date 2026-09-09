@@ -3,6 +3,7 @@ import { isURL } from 'class-validator';
 export class InvalidTripError extends Error {}
 
 export interface TripInput {
+  locations?: string[];
   name: string;
   startDate: string;
   endDate: string;
@@ -36,6 +37,7 @@ export class Trip {
     public readonly updatedAt: Date,
     public readonly totalGenreCount = 0,
     public readonly completedGenreCount = 0,
+    public locations: string[] = [],
   ) {}
 
   get isCompleted(): boolean {
@@ -75,11 +77,23 @@ export class Trip {
         );
       }
     }
-    return { ...input, name, coverImageUrl };
+    if (
+      input.locations !== undefined &&
+      (!Array.isArray(input.locations) ||
+        input.locations.some((value) => typeof value !== 'string'))
+    ) {
+      throw new InvalidTripError('Locations must be an array of strings');
+    }
+    const locations = (input.locations ?? [])
+      .map((value) => value.trim())
+      .filter(Boolean);
+    return { ...input, name, coverImageUrl, locations };
   }
 
   update(input: Partial<TripInput>): void {
     const next = Trip.validate({
+      locations:
+        input.locations === undefined ? this.locations : input.locations,
       name: input.name === undefined ? this.name : input.name,
       startDate:
         input.startDate === undefined ? this.startDate : input.startDate,
@@ -89,6 +103,7 @@ export class Trip {
           ? this.coverImageUrl
           : input.coverImageUrl,
     });
+    this.locations = next.locations ?? [];
     this.name = next.name;
     this.startDate = next.startDate;
     this.endDate = next.endDate;

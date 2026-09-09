@@ -1,73 +1,99 @@
-import { useToday } from '../../shared/hooks/useToday';
+import { useQueries } from '@tanstack/react-query';
 import { useData } from '../app-data/AppDataProvider';
-import { hasUnreadPhotos, selectPhotos } from '../photos/model/selectors';
+import { resourceKey } from '../app-data/api/queries';
+import { useToday } from '../../shared/hooks/useToday';
+import { combineQueries, useDetail, useList } from '../app-data/api/queries';
+import type { Post } from '../photos/model/types';
+import type { User } from '../auth/model/types';
+import type { Genre, Stamp, Trip } from './model/types';
 import { sortTrips } from './model/selectors';
 
 export function useTrips() {
-  const { data, userId } = useData();
   const today = useToday();
-  const memberTripIds = new Set(
-    data.memberships.filter((m) => m.userId === userId).map((m) => m.tripId),
-  );
-  return {
-    today,
-    trips: sortTrips(
-      data.trips.filter((t) => memberTripIds.has(t.id)),
-      today,
-    ),
-  };
+  const query = useList<Trip>('/trips', {});
+  return { ...query, today, trips: sortTrips(query.data ?? [], today) };
 }
-
 export function useTrip(tripId: string) {
-  const { data, userId } = useData();
-  const accessible = data.memberships.some(
-    (m) => m.tripId === tripId && m.userId === userId,
+  const { client, userId } = useData();
+  const trip = useDetail<Trip>(`/trips/${tripId}`, !!tripId);
+  const genres = useList<Genre>('/genres', { tripId }, !!trip.data);
+  const favorites = useList<Post>(
+    '/posts',
+    { tripId, mediaType: 'IMAGE', favoritesOnly: true },
+    !!trip.data,
   );
+  const members = useList<{ user: User }>(
+    `/trips/${tripId}/members`,
+    {},
+    !!trip.data,
+  );
+  const stampIds = [
+    ...new Set((favorites.data ?? []).map((photo) => photo.stampId)),
+  ];
+  const stamps = useQueries({
+    queries: stampIds.map((id) => ({
+      queryKey: resourceKey(userId ?? '', `/stamps/${id}`),
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        client.request<Stamp>({ url: `/stamps/${id}`, signal }),
+      enabled: !!userId,
+    })),
+  });
   return {
-    trip: accessible ? data.trips.find((t) => t.id === tripId) : undefined,
-    genres: data.genres
-      .filter((g) => g.tripId === tripId)
-      .map((g) => ({
-        ...g,
-        unread: hasUnreadPhotos(data, userId!, { genreId: g.id }),
-      })),
-    favorites: selectPhotos(data, { tripId }, true),
-    members: data.users.filter((u) =>
-      data.memberships.some((m) => m.tripId === tripId && m.userId === u.id),
-    ),
+    ...combineQueries(trip, genres, favorites, members, ...stamps),
+    trip: trip.data,
+    genres: (genres.data ?? []).map((genre) => ({
+      ...genre,
+      unread: genre.hasUnreadPhotos,
+    })),
+    favorites: (favorites.data ?? []).map((photo) => ({
+      ...photo,
+      genreName:
+        genres.data?.find((genre) => genre.id === photo.genreId)?.name ?? '',
+      stampName:
+        stamps.find((query) => query.data?.id === photo.stampId)?.data?.name ??
+        '',
+    })),
+    members: (members.data ?? []).map((member) => member.user),
   };
 }
-
 export function useGenre(genreId: string) {
-  const { data, userId } = useData();
-  const genre = data.genres.find((g) => g.id === genreId);
-  const accessible = data.memberships.some(
-    (m) => m.tripId === genre?.tripId && m.userId === userId,
+  const genre = useDetail<Genre>(`/genres/${genreId}`, !!genreId);
+  const trip = useDetail<Trip>(`/trips/${genre.data?.tripId}`, !!genre.data);
+  const stamps = useList<Stamp>('/stamps', { genreId }, !!genre.data);
+  // Finish every page before exposing candidates to the representative selector.
+  const photos = useList<Post>(
+    '/posts',
+    { genreId, mediaType: 'IMAGE' },
+    !!genre.data,
   );
   return {
-    genre: accessible ? genre : undefined,
-    trip: accessible
-      ? data.trips.find((t) => t.id === genre?.tripId)
-      : undefined,
-    stamps: data.stamps
-      .filter((s) => s.genreId === genreId)
-      .map((s) => ({
-        ...s,
-        unread: hasUnreadPhotos(data, userId!, { stampId: s.id }),
-        photoCount: selectPhotos(data, { stampId: s.id }).length,
-        photos: selectPhotos(data, { stampId: s.id }),
-      })),
+    ...combineQueries(genre, trip, stamps, photos),
+    genre: genre.data,
+    trip: trip.data,
+    stamps: (stamps.data ?? []).map((stamp) => ({
+      ...stamp,
+      unread: stamp.hasUnreadPhotos,
+      photos: (photos.data ?? []).filter((photo) => photo.stampId === stamp.id),
+    })),
   };
 }
-
 export function useStamp(stampId: string) {
-  const { data } = useData();
-  const stamp = data.stamps.find((s) => s.id === stampId);
-  const { genre } = useGenre(stamp?.genreId ?? '');
+  const stamp = useDetail<Stamp>(`/stamps/${stampId}`, !!stampId);
+  const genre = useDetail<Genre>(
+    `/genres/${stamp.data?.genreId}`,
+    !!stamp.data,
+  );
+  const trip = useDetail<Trip>(`/trips/${genre.data?.tripId}`, !!genre.data);
+  const photos = useList<Post>(
+    '/posts',
+    { stampId, mediaType: 'IMAGE' },
+    !!stamp.data,
+  );
   return {
-    stamp: genre ? stamp : undefined,
-    genre,
-    trip: data.trips.find((t) => t.id === genre?.tripId),
-    photos: selectPhotos(data, { stampId }),
+    ...combineQueries(stamp, genre, trip, photos),
+    stamp: stamp.data,
+    genre: genre.data,
+    trip: trip.data,
+    photos: photos.data ?? [],
   };
 }

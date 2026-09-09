@@ -43,14 +43,26 @@ export class PostsService {
     else if (scope.type === 'genre')
       await this.access.requireGenre(userId, scope.id);
     else await this.access.requireStamp(userId, scope.id);
-    return this.posts.list(scope, query);
+    return this.posts.list(scope, query, userId);
   }
 
   async findOne(userId: string, id: string): Promise<Post> {
     await this.access.requirePost(userId, id);
-    const post = await this.posts.findById(id);
+    const post = await this.posts.findById(id, userId);
     if (!post) throw new NotFoundException('Post not found');
     return post;
+  }
+
+  async markRead(userId: string, id: string): Promise<Post> {
+    const post = await this.findOne(userId, id);
+    if (post.mediaType !== 'IMAGE')
+      throw new BadRequestException('Only photos can be marked read');
+    return this.posts.markRead(id, userId);
+  }
+
+  async delete(userId: string, id: string): Promise<void> {
+    await this.access.requirePost(userId, id);
+    await this.posts.delete(id);
   }
 
   async setFavorite(
@@ -62,6 +74,6 @@ export class PostsService {
     if (typeof isFavorite !== 'boolean') {
       throw new BadRequestException('isFavorite must be a boolean');
     }
-    return this.posts.setFavorite(id, isFavorite);
+    return this.posts.setFavorite(id, isFavorite, userId);
   }
 }

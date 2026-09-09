@@ -22,6 +22,7 @@ export class Post {
     public readonly isFavorite: boolean,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
+    public readonly readAt: Date | null = null,
   ) {}
 
   static validateMedia(mediaType: MediaType, mediaUrl: string): string {

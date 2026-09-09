@@ -1,3 +1,4 @@
+import { QueryState } from '../../shared/ui/QueryState';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTrip } from '../../features/trips/hooks';
 import { PhotoImage } from '../../shared/ui/PhotoImage';
@@ -10,7 +11,9 @@ import { TripDetailHeader } from './sections/TripDetailHeader';
 export function TripDetailScreen() {
   const router = useRouter();
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
-  const { trip, genres, favorites, members } = useTrip(tripId);
+  const query = useTrip(tripId);
+  const { trip, genres, favorites, members } = query;
+  if (query.isPending || query.error) return <QueryState query={query} />;
   if (!trip)
     return (
       <StateView
@@ -24,7 +27,12 @@ export function TripDetailScreen() {
     );
   return (
     <>
-      <Screen>
+      <Screen
+        refreshing={query.isFetching}
+        onRefresh={() => {
+          void query.refetch();
+        }}
+      >
         <PhotoImage
           url={trip.coverImageUrl}
           label={trip.name}

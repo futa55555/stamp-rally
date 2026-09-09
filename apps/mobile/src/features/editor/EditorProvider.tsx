@@ -1,27 +1,26 @@
 import { useNavigation } from 'expo-router';
 import type { PropsWithChildren } from 'react';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { useData } from '../app-data/AppDataProvider';
 import type { NotificationTarget } from '../notifications/model/types';
-import { resolveTarget } from '../trips/navigation/targets';
-import type { PostDraft } from './model/draft';
+import { resolveApiTarget } from '../trips/navigation/targets';
 
 function useEditorFlow() {
   const navigation = useNavigation('/');
-  const { data, userId } = useData();
-  const [draft, setDraft] = useState<PostDraft | null>(null);
-  const [completion, finish] = useState<{ target?: NotificationTarget } | null>(
-    null,
-  );
-
-  useEffect(() => {
-    if (!completion) return;
-    const routes = completion.target
-      ? resolveTarget(data, completion.target, userId!)
-      : null;
-    // Wait until newly created entities have reached the store before navigating.
-    if (completion.target && !routes) return;
-    const frame = requestAnimationFrame(() => {
+  const { client, userId } = useData();
+  const [finishing, setFinishing] = useState(false);
+  const finish = async ({ target }: { target?: NotificationTarget }) => {
+    const assertCurrent = client.sessionGuard();
+    setFinishing(true);
+    try {
+      const routes = target ? await resolveApiTarget(client, target) : null;
+      assertCurrent();
+      if (client.snapshot().user?.id !== userId) return;
+      // Let the removal guard observe finishing before dispatching the reset.
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve()),
+      );
+      assertCurrent();
       if (!routes) {
         if (navigation.canGoBack()) navigation.goBack();
         else
@@ -32,7 +31,7 @@ function useEditorFlow() {
         return;
       }
       navigation.dispatch((state) => {
-        const main = state.routes.find((r) => r.name === '(main)');
+        const main = state.routes.find((route) => route.name === '(main)');
         const tabs = main?.state?.routes ?? [
           { name: 'trips' },
           { name: 'notifications' },
@@ -49,11 +48,14 @@ function useEditorFlow() {
                 name: '(main)',
                 state: {
                   ...main?.state,
-                  index: tabs.findIndex((r) => r.name === 'trips'),
-                  routes: tabs.map((r) =>
-                    r.name === 'trips'
-                      ? { ...r, state: { index: routes.length - 1, routes } }
-                      : r,
+                  index: tabs.findIndex((route) => route.name === 'trips'),
+                  routes: tabs.map((route) =>
+                    route.name === 'trips'
+                      ? {
+                          ...route,
+                          state: { index: routes.length - 1, routes },
+                        }
+                      : route,
                   ),
                 },
               },
@@ -61,23 +63,22 @@ function useEditorFlow() {
           },
         };
       });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [completion, data, userId, navigation]);
-  return { draft, setDraft, finishing: !!completion, finish };
+    } catch (error) {
+      setFinishing(false);
+      throw error;
+    }
+  };
+  return { finishing, finish };
 }
-
 const EditorContext = createContext<ReturnType<typeof useEditorFlow> | null>(
   null,
 );
-
 export function EditorProvider({ children }: PropsWithChildren) {
   const flow = useEditorFlow();
   return (
     <EditorContext.Provider value={flow}>{children}</EditorContext.Provider>
   );
 }
-
 export function useEditor() {
   const flow = useContext(EditorContext);
   if (!flow) throw new Error('EditorProvider is required');

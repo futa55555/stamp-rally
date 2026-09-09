@@ -1,25 +1,27 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useData } from '../../app-data/AppDataProvider';
+import { combineQueries, useDetail } from '../../app-data/api/queries';
 import { useStamp } from '../../trips/hooks';
+import type { Post } from '../model/types';
 
 export function usePhoto(postId: string) {
-  const { data } = useData();
-  const post = data.posts.find(
-    (p) => p.id === postId && p.mediaType === 'IMAGE',
+  const { userId } = useData();
+  const cache = useQueryClient();
+  // Swiping uses photos already fetched for this user while refreshing the
+  // detail, so the mounted gallery and its scroll position remain stable.
+  const cached = cache
+    .getQueriesData<Post[]>({ queryKey: ['user', userId, '/posts'] })
+    .flatMap(([, data]) => data ?? [])
+    .find((photo) => photo.id === postId);
+  const post = useDetail<Post>(`/posts/${postId}`, !!postId, cached);
+  const parent = useStamp(
+    post.data?.mediaType === 'IMAGE' ? post.data.stampId : '',
   );
-  const { stamp } = useStamp(post?.stampId ?? '');
   return {
-    photo:
-      stamp && post
-        ? {
-            ...post,
-            author: {
-              id: post.author.id,
-              name:
-                data.users.find((u) => u.id === post.author.id)?.name ??
-                post.author.name,
-            },
-          }
-        : undefined,
-    stamp,
+    ...combineQueries(post, parent),
+    photo: post.data?.mediaType === 'IMAGE' ? post.data : undefined,
+    stamp: parent.stamp,
+    trip: parent.trip,
+    photos: parent.photos,
   };
 }

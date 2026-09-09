@@ -1,5 +1,7 @@
 import {
   Get,
+  Delete,
+  HttpCode,
   Post,
   Body,
   Controller,
@@ -50,6 +52,23 @@ export class PostsController {
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     return this.postsService.findOne(request.auth.userId, id);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  delete(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.postsService.delete(request.auth.userId, id);
+  }
+
+  @Patch(':id/read')
+  markRead(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.postsService.markRead(request.auth.userId, id);
   }
 
   @Patch(':id/favorite')

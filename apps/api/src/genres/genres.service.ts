@@ -19,17 +19,20 @@ export class GenresService {
 
   async create(userId: string, dto: CreateGenreDto): Promise<Genre> {
     await this.access.requireTrip(userId, dto.tripId);
-    return this.genres.create({ tripId: dto.tripId, ...this.validate(dto) });
+    return this.genres.create(
+      { tripId: dto.tripId, ...this.validate(dto) },
+      userId,
+    );
   }
 
   async findAll(userId: string, query: ListGenresDto) {
     await this.access.requireTrip(userId, query.tripId);
-    return this.genres.findAll(query);
+    return this.genres.findAll(query, userId);
   }
 
   async findOne(userId: string, id: string): Promise<Genre> {
     await this.access.requireGenre(userId, id);
-    const genre = await this.genres.findById(id);
+    const genre = await this.genres.findById(id, userId);
     if (!genre) throw new NotFoundException('Genre not found');
     return genre;
   }
@@ -48,11 +51,15 @@ export class GenresService {
       description:
         dto.description === undefined ? current.description : dto.description,
     });
-    return this.genres.update(id, {
-      name: dto.name === undefined ? undefined : values.name,
-      description:
-        dto.description === undefined ? undefined : values.description,
-    });
+    return this.genres.update(
+      id,
+      {
+        name: dto.name === undefined ? undefined : values.name,
+        description:
+          dto.description === undefined ? undefined : values.description,
+      },
+      userId,
+    );
   }
 
   private validate(input: { name: string; description?: string }) {

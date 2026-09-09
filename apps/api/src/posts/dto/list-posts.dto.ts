@@ -1,7 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsUUID } from 'class-validator';
+import { IsBoolean, IsEnum, IsUUID } from 'class-validator';
 import { PaginationQueryDto } from '../../common/pagination.js';
+import { MediaType } from '../../generated/prisma/enums.js';
 import { OptionalField } from '../../common/validation.js';
 
 export type PostScope =
@@ -10,6 +11,10 @@ export type PostScope =
   | { type: 'stamp'; id: string };
 
 export class ListPostsDto extends PaginationQueryDto {
+  @OptionalField()
+  @IsEnum(MediaType)
+  mediaType?: MediaType;
+
   @OptionalField()
   @IsUUID()
   tripId?: string;

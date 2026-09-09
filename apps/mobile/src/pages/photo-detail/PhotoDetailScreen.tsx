@@ -13,10 +13,7 @@ import {
   savePhotoToLibrary,
   sharePhoto,
 } from '../../features/photos/lib/photoTransfer';
-import {
-  isUnreadPhoto,
-  selectPhotos,
-} from '../../features/photos/model/selectors';
+import { QueryState } from '../../shared/ui/QueryState';
 import type { TripStackParamList } from '../../features/trips/navigation/types';
 import { useTask } from '../../shared/hooks/useTask';
 import { PageHeader } from '../../shared/ui/Header';
@@ -35,9 +32,10 @@ function PhotoDetail({ postId, source, ...origin }: PhotoDetailParams) {
   const router = useRouter();
   const navigation = useNavigation();
   const isFocused = useIsFocused();
-  const { data, userId, actions } = useData();
+  const { userId, actions } = useData();
   const [activeId, setActiveId] = useState(postId);
-  const { photo, stamp } = usePhoto(activeId);
+  const query = usePhoto(activeId);
+  const { photo, stamp, trip } = query;
   const [displayedIds, setDisplayedIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -45,20 +43,13 @@ function PhotoDetail({ postId, source, ...origin }: PhotoDetailParams) {
   const task = useTask();
   const tripId = origin.tripId ?? photo?.tripId;
   const stampId = origin.stampId ?? stamp?.id;
-  const trip = data.trips.find((item) => item.id === tripId);
-  const parentStamp = data.stamps.find((item) => item.id === stampId);
   const title =
-    source === 'trip'
-      ? (trip?.name ?? '旅行')
-      : (parentStamp?.name ?? 'スタンプ');
+    source === 'trip' ? (trip?.name ?? '旅行') : (stamp?.name ?? 'スタンプ');
   // Notifications without a source use the stamp gallery and its parent stack.
-  const photos = !photo
-    ? []
-    : source === 'trip'
-      ? [photo]
-      : selectPhotos(data, { stampId: photo.stampId });
+  const photos = !photo ? [] : source === 'trip' ? [photo] : query.photos;
   const displayed = displayedIds.has(activeId);
-  const unread = !!photo && !!userId && isUnreadPhoto(data, userId, photo);
+  const unread =
+    !!photo && !!userId && photo.author.id !== userId && !photo.readAt;
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
@@ -99,7 +90,9 @@ function PhotoDetail({ postId, source, ...origin }: PhotoDetailParams) {
     <View className="flex-1 bg-background">
       <PageHeader title={title} onBack={goBack} />
       <SafeAreaView edges={['left', 'right']} className="flex-1">
-        {photo ? (
+        {query.isPending || (query.error && !task.pending) ? (
+          <QueryState query={query} />
+        ) : photo ? (
           <PhotoGallery
             photos={photos}
             activeId={activeId}

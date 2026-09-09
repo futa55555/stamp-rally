@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { notifyMembers } from '../notifications/notify.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { type PaginationQueryDto } from '../common/pagination.js';
 import { serializable } from '../database/transaction.js';
@@ -62,8 +63,19 @@ export class TripsService {
       return await serializable(this.prisma, async (tx) => {
         const trip = await this.trips.findById(id, tx);
         if (!trip) throw new NotFoundException('Trip not found');
+        const before = JSON.stringify(trip);
         trip.update(dto);
-        return this.trips.save(trip, tx);
+        if (JSON.stringify(trip) === before) return trip;
+        const saved = await this.trips.save(trip, tx);
+        await notifyMembers(
+          tx,
+          userId,
+          id,
+          '旅行が更新されました',
+          saved.name,
+          { type: 'trip', tripId: id },
+        );
+        return saved;
       });
     } catch (error) {
       if (error instanceof InvalidTripError)

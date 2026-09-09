@@ -14,6 +14,7 @@ export type Trip = {
 };
 
 export type Genre = {
+  hasUnreadPhotos: boolean;
   id: string;
   tripId: string;
   name: string;
@@ -26,6 +27,8 @@ export type Genre = {
 };
 
 export type Stamp = {
+  hasUnreadPhotos: boolean;
+  photoCount: number;
   id: string;
   genreId: string;
   name: string;

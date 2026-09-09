@@ -24,7 +24,10 @@ function RootNavigation() {
   return (
     <NavigationThemeProvider value={navigationTheme(theme)}>
       <StatusBar style={theme.dark ? 'light' : 'dark'} />
-      {fontError || !fontsLoaded || !store.data ? (
+      {fontError ||
+      !fontsLoaded ||
+      store.status === 'loading' ||
+      store.status === 'error' ? (
         <AppLoadingState
           fontError={fontError}
           error={store.error}
@@ -32,7 +35,7 @@ function RootNavigation() {
         />
       ) : (
         <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-          <Stack.Protected guard={!!store.userId}>
+          <Stack.Protected guard={store.user?.status === 'ACTIVE'}>
             <Stack.Screen name="(main)" />
             <Stack.Screen name="index" />
             <Stack.Screen
@@ -43,6 +46,9 @@ function RootNavigation() {
                 gestureEnabled: false,
               }}
             />
+          </Stack.Protected>
+          <Stack.Protected guard={store.user?.status === 'ONBOARDING'}>
+            <Stack.Screen name="onboarding" />
           </Stack.Protected>
           <Stack.Protected guard={!store.userId}>
             <Stack.Screen name="login" />

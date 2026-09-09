@@ -1,3 +1,4 @@
+import { QueryState } from '../../shared/ui/QueryState';
 import { View } from 'react-native';
 import { useTrips } from '../../features/trips/hooks';
 import { groupTrips } from '../../features/trips/model/selectors';
@@ -8,10 +9,18 @@ import { TripCard } from './components/TripCard';
 import { CreateTripButton } from './components/CreateTripButton';
 
 export function TripListScreen() {
-  const { trips, today } = useTrips();
+  const query = useTrips();
+  const { trips, today } = query;
   const { active, upcoming, past } = groupTrips(trips, today);
+  if (query.isPending || query.error) return <QueryState query={query} />;
   return (
-    <Screen contentContainerClassName="pt-6">
+    <Screen
+      refreshing={query.isFetching}
+      onRefresh={() => {
+        void query.refetch();
+      }}
+      contentContainerClassName="pt-6"
+    >
       {active.length ? (
         <View className="gap-4 px-4">
           <SectionHeading title="旅行中" />

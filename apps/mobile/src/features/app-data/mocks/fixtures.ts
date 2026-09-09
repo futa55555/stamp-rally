@@ -58,6 +58,7 @@ export function createDemoData(now = new Date()): AppData {
     totalStampCount: 0,
     completedStampCount: 0,
     isCompleted: false,
+    hasUnreadPhotos: false,
   });
   const genres = [
     genre(1, 1, '景色とまち歩き', '路地の先で見つけた、忘れたくない景色。'),
@@ -78,6 +79,8 @@ export function createDemoData(now = new Date()): AppData {
     createdAt: time(-8 + index / 10),
     updatedAt: time(-1),
     isCompleted: false,
+    hasUnreadPhotos: false,
+    photoCount: 0,
   });
   const stamps = [
     stamp(
@@ -107,6 +110,7 @@ export function createDemoData(now = new Date()): AppData {
       tripId: genres.find((g) => g.id === parent.genreId)!.tripId,
       author: { id: users[userIndex].id, name: users[userIndex].name },
       mediaType: 'IMAGE',
+      readAt: null,
       mediaUrl,
       isFavorite,
       createdAt: time(-0.5 + index / 100),

@@ -45,7 +45,8 @@
           "savePhotosPermission": "投稿の写真を端末の写真ライブラリに保存します。",
           "granularPermissions": []
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

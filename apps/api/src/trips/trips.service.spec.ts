@@ -8,7 +8,7 @@ import { TripRepository } from './trip.repository.js';
 import { TripsService } from './trips.service.js';
 
 describe('TripsService', () => {
-  const tx = {};
+  const tx = { tripMember: { findMany: vi.fn() } };
   const repo = {
     create: vi.fn(),
     findAll: vi.fn(),
@@ -35,6 +35,7 @@ describe('TripsService', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    tx.tripMember.findMany.mockResolvedValue([]);
     trip = new Trip(
       'trip',
       '旅行',

@@ -1,4 +1,5 @@
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
+import { demoPhotoUrls } from '../../../assets/demoPhotoUrls';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useData } from '../../features/app-data/AppDataProvider';
 import { useTask } from '../../shared/hooks/useTask';
@@ -11,7 +12,7 @@ import { PhotoImage } from '../../shared/ui/PhotoImage';
 import { Screen } from '../../shared/ui/Screen';
 
 export function LoginScreen() {
-  const { data, actions } = useData();
+  const { actions } = useData();
   const task = useTask();
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -24,7 +25,7 @@ export function LoginScreen() {
         </View>
         <View>
           <PhotoImage
-            url={data.trips[0]?.coverImageUrl ?? null}
+            url={demoPhotoUrls.kyoto}
             label="旅先の風景"
             className="h-64 rounded-3xl"
           />
@@ -53,24 +54,18 @@ export function LoginScreen() {
               void task.run(() => actions.signIn('google'));
             }}
           />
-          <Button
-            label="Apple で続ける"
-            icon="apple"
-            variant="secondary"
-            disabled={task.pending}
-            onPress={() => {
-              void task.run(() => actions.signIn('apple'));
-            }}
-          />
+          {Platform.OS === 'ios' ? (
+            <Button
+              label="Apple で続ける"
+              icon="apple"
+              variant="secondary"
+              disabled={task.pending}
+              onPress={() => {
+                void task.run(() => actions.signIn('apple'));
+              }}
+            />
+          ) : null}
           <ErrorMessage message={task.error} />
-          <AppText
-            variant="caption"
-            tone="textMuted"
-            className="text-center mt-2"
-          >
-            サンプルアカウントで体験できます。{'\n'}
-            実際のアカウントへの接続は行いません。
-          </AppText>
         </View>
       </Screen>
     </SafeAreaView>

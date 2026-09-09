@@ -1,6 +1,7 @@
 import type { User } from '../../auth/model/types';
 
 export type Post = {
+  readAt: string | null;
   id: string;
   tripId: string;
   genreId: string;

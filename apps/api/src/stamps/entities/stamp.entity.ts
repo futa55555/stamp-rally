@@ -9,6 +9,8 @@ export class Stamp {
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
     public readonly isCompleted: boolean,
+    public readonly hasUnreadPhotos = false,
+    public readonly photoCount = 0,
   ) {}
 
   static validate(input: { name: string; description?: string }) {

@@ -1,140 +1,92 @@
-import type { PropsWithChildren } from 'react';
+import {
+  QueryClientProvider,
+  focusManager,
+  onlineManager,
+} from '@tanstack/react-query';
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
-  useReducer,
-  useState,
+  useSyncExternalStore,
+  type PropsWithChildren,
 } from 'react';
+import { AppState } from 'react-native';
+import * as Network from 'expo-network';
+import { queryClient, sessionClient } from './api/runtime';
+import { identityCredentials } from '../auth/providers';
 import type { LoginProvider } from '../auth/model/types';
-import type { CreatePostsInput } from '../photos/model/inputs';
-import type {
-  CreateGenreInput,
-  CreateStampInput,
-  NamedInput,
-  TripInput,
-} from '../trips/model/inputs';
-import type { DataService } from './api/DataService';
-import { createMockService } from './mocks/service';
-import { initialState, reducer } from './model/reducer';
+import { createActions } from './api/actions';
 
-function useStore(service: DataService) {
-  const [state, dispatch] = useReducer(reducer, initialState);
-  const load = useCallback(async () => {
-    dispatch({ type: 'failed', message: null });
-    try {
-      dispatch({ type: 'loaded', data: await service.load() });
-    } catch (error) {
-      dispatch({
-        type: 'failed',
-        message:
-          error instanceof Error ? error.message : '読み込みに失敗しました。',
-      });
-    }
-  }, [service]);
-  useEffect(() => {
-    void load();
-  }, [load]);
+function useStore() {
+  const session = useSyncExternalStore(
+    sessionClient.subscribe,
+    sessionClient.snapshot,
+  );
+  const userId = session.user?.id ?? null;
   const actions = useMemo(
     () => ({
-      async signIn(provider: LoginProvider) {
-        dispatch({ type: 'signedIn', userId: await service.signIn(provider) });
-      },
-      async signOut() {
-        await service.signOut();
-        dispatch({ type: 'signedOut' });
-      },
-      async setFavorite(postId: string, isFavorite: boolean) {
-        dispatch({
-          type: 'favoriteUpdated',
-          post: await service.setFavorite(postId, isFavorite),
-        });
-      },
-      async markPhotoRead(userId: string, postId: string) {
-        await service.markPhotoRead(userId, postId);
-        dispatch({ type: 'photoRead', userId, postId });
-      },
-      async markNotificationRead(id: string) {
-        dispatch({
-          type: 'notificationRead',
-          notification: await service.markNotificationRead(id),
-        });
-      },
-      async updateName(userId: string, name: string) {
-        dispatch({
-          type: 'nameUpdated',
-          user: await service.updateName(userId, name),
-        });
-      },
-      async createTrip(userId: string, input: TripInput) {
-        const trip = await service.createTrip(userId, input);
-        dispatch({ type: 'tripSaved', trip, memberId: userId });
-        return trip;
-      },
-      async updateTrip(userId: string, id: string, input: TripInput) {
-        const trip = await service.updateTrip(userId, id, input);
-        dispatch({ type: 'tripSaved', trip });
-        return trip;
-      },
-      async createGenre(userId: string, input: CreateGenreInput) {
-        const genre = await service.createGenre(userId, input);
-        dispatch({ type: 'genreSaved', genre });
-        return genre;
-      },
-      async updateGenre(userId: string, id: string, input: NamedInput) {
-        const genre = await service.updateGenre(userId, id, input);
-        dispatch({ type: 'genreSaved', genre });
-        return genre;
-      },
-      async createStamp(userId: string, input: CreateStampInput) {
-        const stamp = await service.createStamp(userId, input);
-        dispatch({ type: 'stampSaved', stamp });
-        return stamp;
-      },
-      async updateStamp(userId: string, id: string, input: NamedInput) {
-        const stamp = await service.updateStamp(userId, id, input);
-        dispatch({ type: 'stampSaved', stamp });
-        return stamp;
-      },
-      async createPosts(userId: string, input: CreatePostsInput) {
-        const posts = await service.createPosts(userId, input);
-        dispatch({ type: 'postsCreated', posts });
-        return posts;
-      },
-      async deletePost(userId: string, postId: string) {
-        await service.deletePost(userId, postId);
-        dispatch({ type: 'postDeleted', postId });
-      },
+      ...createActions(sessionClient, queryClient, userId),
+      signIn: (provider: LoginProvider) =>
+        sessionClient.signIn(() => identityCredentials(provider)),
+      signOut: sessionClient.signOut,
     }),
-    [service],
+    [userId],
   );
-  return { ...state, actions, reload: load };
+  return {
+    ...session,
+    userId,
+    actions,
+    client: sessionClient,
+    reload: sessionClient.restore,
+  };
 }
-
 const StoreContext = createContext<ReturnType<typeof useStore> | null>(null);
-
-export function AppDataProvider({
-  children,
-  service,
-}: PropsWithChildren<{ service?: DataService }>) {
-  const [adapter] = useState(() => service ?? createMockService());
-  const store = useStore(adapter);
+function SessionProvider({ children }: PropsWithChildren) {
+  const store = useStore();
+  useEffect(() => {
+    void sessionClient.restore();
+  }, []);
+  useEffect(() => {
+    focusManager.setFocused(AppState.currentState === 'active');
+    const app = AppState.addEventListener('change', (state) =>
+      focusManager.setFocused(state === 'active'),
+    );
+    let received = false;
+    const network = Network.addNetworkStateListener((state) => {
+      received = true;
+      onlineManager.setOnline(
+        state.isConnected !== false && state.isInternetReachable !== false,
+      );
+    });
+    void Network.getNetworkStateAsync()
+      .then((state) => {
+        if (!received)
+          onlineManager.setOnline(
+            state.isConnected !== false && state.isInternetReachable !== false,
+          );
+      })
+      .catch(() => {});
+    return () => {
+      received = true;
+      app.remove();
+      network.remove();
+    };
+  }, []);
   return (
     <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
   );
 }
-
-export function useAppStore() {
+export function AppDataProvider({ children }: PropsWithChildren) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <SessionProvider>{children}</SessionProvider>
+    </QueryClientProvider>
+  );
+}
+export function useData() {
   const store = useContext(StoreContext);
   if (!store) throw new Error('AppDataProvider is required');
   return store;
 }
-
-export function useData() {
-  const store = useAppStore();
-  if (!store.data)
-    throw new Error('Data must be loaded before mounting a screen');
-  return { ...store, data: store.data };
-}
+export const useAppStore = useData;
