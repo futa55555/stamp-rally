@@ -80,6 +80,11 @@ export function UploadList({
           ) : null}
         </View>
       </View>
+      {working ? (
+        <AppText tone="textSecondary">
+          このページを離れても、投稿は続きます。
+        </AppText>
+      ) : null}
       <ErrorMessage
         message={
           error ??

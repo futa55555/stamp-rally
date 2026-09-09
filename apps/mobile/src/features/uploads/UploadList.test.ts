@@ -107,7 +107,11 @@ describe('upload progress', () => {
       batch('unrelated', [file('other', 'READY')], 'other-stamp'),
     ];
     await render({ stampId: 'stamp' });
-    expect(labels()).toEqual(['アップロード', '投稿完了 1 / 3']);
+    expect(labels()).toEqual([
+      'アップロード',
+      '投稿完了 1 / 3',
+      'このページを離れても、投稿は続きます。',
+    ]);
     expect(previews()).toHaveLength(0);
     expect(buttons()).toHaveLength(0);
     expect(spinners()).toHaveLength(1);
@@ -115,7 +119,11 @@ describe('upload progress', () => {
     await render({ stampId: 'stamp' });
     expect(labels()).toContain('投稿完了 2 / 3');
     await render({ stampId: 'stamp', batchId: 'two' });
-    expect(labels()).toEqual(['アップロード', '投稿完了 0 / 1']);
+    expect(labels()).toEqual([
+      'アップロード',
+      '投稿完了 0 / 1',
+      'このページを離れても、投稿は続きます。',
+    ]);
   });
 
   it('shows only failed local media and retries them together without retrying successful or active files', async () => {
@@ -164,14 +172,17 @@ describe('upload progress', () => {
     );
     await render();
     expect(spinners()).toHaveLength(0);
+    expect(labels()).not.toContain('このページを離れても、投稿は続きます。');
     await act(async () => buttons()[0].props.onPress());
     expect(buttons()[0].props.disabled).toBe(true);
     expect(spinners()).toHaveLength(1);
+    expect(labels()).toContain('このページを離れても、投稿は続きます。');
     expect(native.retry).toHaveBeenCalledTimes(2);
     await act(async () => rejectRetry(new Error('再接続してください。')));
     expect(error()).toBe('再接続してください。');
     expect(buttons()[0].props.disabled).toBe(false);
     expect(spinners()).toHaveLength(0);
+    expect(labels()).not.toContain('このページを離れても、投稿は続きます。');
     expect(previews()[0].props.files).toHaveLength(2);
   });
 
