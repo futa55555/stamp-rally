@@ -3,4 +3,8 @@ packages:
   - 'packages/*'
 allowBuilds:
   '@prisma/engines': true
+  # Optional EAS logging probe; the JavaScript fallback is sufficient.
+  dtrace-provider: false
   prisma: true
+  # Only prints dependency version recommendations; no generated assets.
+  protobufjs: false

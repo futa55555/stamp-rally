@@ -7,7 +7,12 @@
   "scripts": {
     "api:dev": "pnpm --filter api start:dev",
     "mobile:start": "pnpm --filter mobile start",
+    "mobile:start:remote": "pnpm --filter mobile start:remote",
     "mobile:ios": "pnpm --filter mobile ios",
+    "mobile:android": "pnpm --filter mobile android",
+    "mobile:build:development": "pnpm --filter mobile build:development",
+    "mobile:build:staging": "pnpm --filter mobile build:staging",
+    "mobile:build:production": "pnpm --filter mobile build:production",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "oxlint .",
