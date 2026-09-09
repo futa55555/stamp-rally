@@ -1,3 +1,8 @@
+import type {
+  Invitation,
+  InvitationAction,
+  InvitationLink,
+} from '../../invitations/types';
 import type { QueryClient } from '@tanstack/react-query';
 import type { SessionClient } from './SessionClient';
 import type { Trip, Genre, Stamp } from '../../trips/model/types';
@@ -40,7 +45,14 @@ export function createActions(
           const match = url.match(
             /^\/(trips|genres|stamps|posts)(?:\/([^/]+))?/,
           );
-          if (match && result && typeof result === 'object' && 'id' in result) {
+          if (
+            match &&
+            !url.includes('/invitation-links') &&
+            !url.includes('/invitations') &&
+            result &&
+            typeof result === 'object' &&
+            'id' in result
+          ) {
             cache.setQueryData(
               ['user', userId, `/${match[1]}/${result.id}`, {}],
               result,
@@ -63,6 +75,25 @@ export function createActions(
       : {}),
   });
   return {
+    createInvitationLink: (tripId: string) =>
+      mutate<InvitationLink & { token: string }>(
+        'POST',
+        '/trips/' + tripId + '/invitation-links',
+      ),
+    revokeInvitationLink: (id: string) =>
+      mutate('POST', '/invitation-links/' + id + '/revoke'),
+    requestInvitation: (token: string) =>
+      mutate<Invitation>('POST', '/invitations', { token }),
+    requestReceivedInvitation: (linkId: string) =>
+      mutate<Invitation>('POST', '/invitation-links/' + linkId + '/request'),
+    decideInvitation: (
+      id: string,
+      action: InvitationAction,
+      generation: number,
+    ) =>
+      mutate<Invitation>('POST', '/invitations/' + id + '/' + action, {
+        generation,
+      }),
     async updateName(_userId: string, name: string) {
       const assertCurrent = client.sessionGuard();
       const user = await client.updateName(name);

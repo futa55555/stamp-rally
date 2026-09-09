@@ -1,6 +1,7 @@
-import { useNavigation } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { useData } from '../../features/app-data/AppDataProvider';
+import type { Invitation } from '../../features/invitations/types';
 import { useNotifications } from '../../features/notifications/hooks';
 import type { AppNotification } from '../../features/notifications/model/types';
 import { resolveApiTarget } from '../../features/trips/navigation/targets';
@@ -18,6 +19,7 @@ import { UnreadBadge } from '../../shared/ui/UnreadBadge';
 
 export function NotificationsScreen() {
   const navigation = useNavigation();
+  const router = useRouter();
   const query = useNotifications();
   const refresh = usePullToRefresh(query.invalidate);
   const { notifications } = query;
@@ -26,6 +28,39 @@ export function NotificationsScreen() {
   const openNotification = (notification: AppNotification) =>
     task.run(async () => {
       const assertCurrent = client.sessionGuard();
+      if (notification.target.type === 'invitation-link') {
+        await client.request({
+          url: '/invitation-links/' + notification.target.linkId,
+        });
+        assertCurrent();
+        await actions.markNotificationRead(notification.id);
+        assertCurrent();
+        router.push({
+          pathname: '/invitations/received/[linkId]',
+          params: { linkId: notification.target.linkId },
+        });
+        return;
+      }
+      if (notification.target.type === 'invitation') {
+        const invitation = await client.request<Invitation>({
+          url: '/invitations/' + notification.target.invitationId,
+        });
+        assertCurrent();
+        await actions.markNotificationRead(notification.id);
+        assertCurrent();
+        router.push(
+          invitation.inviteeId === userId
+            ? {
+                pathname: '/invitations/[id]',
+                params: { id: invitation.id },
+              }
+            : {
+                pathname: '/invitations/trip/[tripId]',
+                params: { tripId: invitation.tripId },
+              },
+        );
+        return;
+      }
       const routes = await resolveApiTarget(client, notification.target);
       if (!routes)
         throw new Error(

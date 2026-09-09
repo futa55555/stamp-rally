@@ -15,7 +15,6 @@ describe('TripsController', () => {
     name: '  旅行  ',
     startDate: '2026-09-07',
     endDate: '2026-09-10',
-    inviteeNames: ['  友達  '],
   };
   const service = {
     create: vi.fn(),
@@ -66,7 +65,7 @@ describe('TripsController', () => {
       .expect(201);
     expect(service.create).toHaveBeenCalledWith(
       'participant',
-      expect.objectContaining({ name: '旅行', inviteeNames: ['友達'] }),
+      expect.objectContaining({ name: '旅行' }),
     );
   });
 

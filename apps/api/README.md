@@ -121,34 +121,29 @@ domain APIには `Authorization: Bearer <accessToken>` と `ACTIVE` が必要で
 
 作成は201、取得・更新・招待の承認と辞退は200を返します。未知のbody/query項目はDTOを持つAPIで拒否します。
 
-| Method / Path                 | 内容                                                                          |
-| ----------------------------- | ----------------------------------------------------------------------------- |
-| GET /users/me                 | 自分のプロフィール                                                            |
-| PATCH /users/me               | `{ name }` で名前設定・変更                                                   |
-| GET /users/lookup?name=...    | trim後の完全一致検索。返却は `{ id, name }` のみ                              |
-| POST /trips                   | `{ name, startDate, endDate, coverImageUrl?, locations?, inviteeNames? }`     |
-| GET /trips                    | 参加中のtrip一覧と達成集計                                                    |
-| GET /trips/:id                | trip詳細と達成集計                                                            |
-| PATCH /trips/:id              | name・startDate・endDate・coverImageUrlの部分更新                             |
-| GET /trips/:id/members        | 参加者一覧。各項目に `user: { id, name }` を含む                              |
-| POST /trips/:id/invitations   | `{ inviteeName }` で登録済みユーザーを招待                                    |
-| GET /trips/:id/invitations    | 参加者向けの招待一覧（全状態）                                                |
-| GET /invitations              | 自分宛ての保留中招待一覧                                                      |
-| POST /invitations/:id/accept  | 本人による承認                                                                |
-| POST /invitations/:id/decline | 本人による辞退                                                                |
-| POST /genres                  | `{ tripId, name, description? }`                                              |
-| GET /genres?tripId=...        | trip内のgenre一覧と達成集計                                                   |
-| GET /genres/:id               | genre詳細と達成集計                                                           |
-| PATCH /genres/:id             | name・descriptionの部分更新                                                   |
-| POST /stamps                  | `{ genreId, name, description? }`                                             |
-| GET /stamps?genreId=...       | genre内のstamp一覧と達成状態                                                  |
-| GET /stamps/:id               | stamp詳細と達成状態                                                           |
-| PATCH /stamps/:id             | name・descriptionの部分更新                                                   |
-| POST /uploads/batches         | 写真・動画の追加を予約。詳細は[アップロード仕様](../../docs/media-uploads.md) |
-| GET /posts/:id/original       | 権限確認後、共有・保存用の原本URLを発行                                       |
-| GET /posts                    | `tripId / genreId / stampId` のいずれか1つで一覧                              |
-| GET /posts/:id                | 投稿詳細                                                                      |
-| PATCH /posts/:id/favorite     | `{ isFavorite: true }` または `false`                                         |
+| Method / Path              | 内容                                                                          |
+| -------------------------- | ----------------------------------------------------------------------------- |
+| GET /users/me              | 自分のプロフィール                                                            |
+| PATCH /users/me            | `{ name }` で名前設定・変更                                                   |
+| GET /users/lookup?name=... | trim後の完全一致検索。返却は `{ id, name }` のみ                              |
+| POST /trips                | `{ name, startDate, endDate, coverImageUrl?, locations? }`                    |
+| GET /trips                 | 参加中のtrip一覧と達成集計                                                    |
+| GET /trips/:id             | trip詳細と達成集計                                                            |
+| PATCH /trips/:id           | name・startDate・endDate・coverImageUrlの部分更新                             |
+| GET /trips/:id/members     | 参加者一覧。各項目に `user: { id, name }` を含む                              |
+| POST /genres               | `{ tripId, name, description? }`                                              |
+| GET /genres?tripId=...     | trip内のgenre一覧と達成集計                                                   |
+| GET /genres/:id            | genre詳細と達成集計                                                           |
+| PATCH /genres/:id          | name・descriptionの部分更新                                                   |
+| POST /stamps               | `{ genreId, name, description? }`                                             |
+| GET /stamps?genreId=...    | genre内のstamp一覧と達成状態                                                  |
+| GET /stamps/:id            | stamp詳細と達成状態                                                           |
+| PATCH /stamps/:id          | name・descriptionの部分更新                                                   |
+| POST /uploads/batches      | 写真・動画の追加を予約。詳細は[アップロード仕様](../../docs/media-uploads.md) |
+| GET /posts/:id/original    | 権限確認後、共有・保存用の原本URLを発行                                       |
+| GET /posts                 | `tripId / genreId / stampId` のいずれか1つで一覧                              |
+| GET /posts/:id             | 投稿詳細                                                                      |
+| PATCH /posts/:id/favorite  | `{ isFavorite: true }` または `false`                                         |
 
 リソースIDはUUIDです。genre・stampの親は変更できません。postの内容編集、trip・genre・stampの削除、退出・除名は今回のAPIには含みません。
 
@@ -162,7 +157,7 @@ trip・genre・stampの名前は前後空白を除去した1〜100文字。descr
 
 trip作成と作成者の参加、指定された初期招待の作成は同一transactionです。初期招待の名前重複はtrim後にまとめ、不明な名前が含まれる場合はtripごと作成しません。
 
-招待の状態は `PENDING / ACCEPTED / DECLINED`。本人が承認すると参加者に追加されます。保留中の重複招待・同じ判断の再送は冪等です。承認済みを辞退するなどの変更は409ですが、辞退された相手を再招待することは可能です。自動期限はありません。
+招待はリンク方式です。リンク共有 → 本人が参加申請 → 既存参加者が最終承認すると参加者に追加されます。リンクは複数人に共有可能で7日間有効です。API・移行・公開ドメイン設定は[招待仕様](../../docs/invitations.md)を参照してください。
 
 招待先はユーザーIDで保持するので、改名しても宛先は変わりません。招待一覧にはtripの基本情報と招待者・受信者を含めます。承認前はtrip内コンテンツにアクセスできません。
 

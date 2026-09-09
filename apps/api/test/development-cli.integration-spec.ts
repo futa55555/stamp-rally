@@ -306,14 +306,23 @@ describe('Development seeder and token CLI integration', () => {
       .get(`/trips/${tripId}`)
       .set('Authorization', `Bearer ${invitee.accessToken}`)
       .expect(404);
+    const link = await request(app.getHttpServer())
+      .post('/trips/' + tripId + '/invitation-links')
+      .set('Authorization', 'Bearer ' + owner.accessToken)
+      .expect(201);
     const invitation = await request(app.getHttpServer())
-      .post(`/trips/${tripId}/invitations`)
-      .set('Authorization', `Bearer ${owner.accessToken}`)
-      .send({ inviteeName: invitee.user.name })
+      .post('/invitations')
+      .set('Authorization', 'Bearer ' + invitee.accessToken)
+      .send({ token: link.body.token })
       .expect(201);
     await request(app.getHttpServer())
-      .post(`/invitations/${invitation.body.id}/accept`)
-      .set('Authorization', `Bearer ${invitee.accessToken}`)
+      .get('/trips/' + tripId)
+      .set('Authorization', 'Bearer ' + invitee.accessToken)
+      .expect(404);
+    await request(app.getHttpServer())
+      .post('/invitations/' + invitation.body.id + '/confirm')
+      .set('Authorization', 'Bearer ' + owner.accessToken)
+      .send({ generation: invitation.body.generation })
       .expect(200);
     await request(app.getHttpServer())
       .get(`/trips/${tripId}`)

@@ -1,10 +1,8 @@
-import { Transform } from 'class-transformer';
 import {
   IsArray,
   IsUUID,
   IsDateString,
   IsString,
-  Length,
   Matches,
   ValidateIf,
 } from 'class-validator';
@@ -34,17 +32,4 @@ export class CreateTripDto {
   @ValidateIf((_, value) => value !== undefined && value !== null)
   @IsUUID()
   coverAssetId?: string | null;
-
-  @OptionalField()
-  @Transform(({ value }: { value: unknown }) =>
-    Array.isArray(value)
-      ? value.map((name: unknown) =>
-          typeof name === 'string' ? name.trim() : name,
-        )
-      : value,
-  )
-  @IsArray()
-  @IsString({ each: true })
-  @Length(1, 20, { each: true })
-  inviteeNames?: string[];
 }
