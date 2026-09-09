@@ -30,7 +30,7 @@ export function StampDetailScreen() {
         onRefresh={() => {
           void query.refetch();
         }}
-        data={[...photos, null]}
+        data={photos.length ? [...photos, null] : photos}
         numColumns={2}
         keyExtractor={(photo) => (photo ? `post-${photo.id}` : 'create-post')}
         className="flex-1 bg-background"
@@ -46,7 +46,8 @@ export function StampDetailScreen() {
           <StateView
             compact
             title="最初の一枚を楽しみに"
-            description="旅の写真・動画を追加しましょう。"
+            description="最初の写真・動画を投稿して、スタンプを達成しましょう。"
+            action={{ label: '写真・動画を投稿', onPress: openPost }}
             icon="camera-outline"
           />
         }
