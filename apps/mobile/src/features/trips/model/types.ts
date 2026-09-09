@@ -5,6 +5,8 @@ export type Trip = {
   startDate: string;
   endDate: string;
   coverImageUrl: string | null;
+  coverAssetId?: string | null;
+  coverBlurhash?: string | null;
   createdById: string;
   createdAt: string;
   updatedAt: string;
@@ -15,6 +17,7 @@ export type Trip = {
 
 export type Genre = {
   hasUnreadPhotos: boolean;
+  hasUnreadMedia?: boolean;
   id: string;
   tripId: string;
   name: string;
@@ -28,7 +31,10 @@ export type Genre = {
 
 export type Stamp = {
   hasUnreadPhotos: boolean;
+  hasUnreadMedia?: boolean;
   photoCount: number;
+  videoCount?: number;
+  mediaCount?: number;
   id: string;
   genreId: string;
   name: string;

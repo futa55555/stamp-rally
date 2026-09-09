@@ -1,6 +1,5 @@
-import { useCallback, useRef } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { useQuery, type QueryKey } from '@tanstack/react-query';
+import { useIsFocused } from 'expo-router';
+import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { useData } from '../AppDataProvider';
 
 import { allPages, type Filters } from './pagination';
@@ -11,16 +10,6 @@ export const resourceKey = (
   filters: Filters = {},
 ) => ['user', userId, path, filters] as const;
 
-export function useRefetchOnFocus(refetch: () => unknown, enabled = true) {
-  const latest = useRef(refetch);
-  latest.current = refetch;
-  useFocusEffect(
-    useCallback(() => {
-      if (enabled) void latest.current();
-    }, [enabled]),
-  );
-}
-
 export function useResource<T>(
   path: string,
   filters: Filters = {},
@@ -29,21 +18,30 @@ export function useResource<T>(
   initialData?: T,
 ) {
   const { userId, client, user } = useData();
+  const cache = useQueryClient();
+  const focused = useIsFocused();
   const active = enabled && !!userId && user?.status === 'ACTIVE';
+  const queryKey = resourceKey(userId ?? '', path, filters);
   const query = useQuery<T | T[]>({
-    queryKey: resourceKey(userId ?? '', path, filters),
+    queryKey,
     queryFn: ({ signal }) =>
       list
         ? allPages<T>(client, path, filters, signal)
         : client.request<T>({ url: path, params: filters, signal }),
-    enabled: active,
+    // Re-enabling a visible screen lets Query fetch only stale/missing data.
+    enabled: active && focused,
     initialData,
   });
-  useRefetchOnFocus(() => query.refetch({ cancelRefetch: false }), active);
   return {
     ...query,
     isPending: active && query.isPending,
-    refetch: () => (active ? query.refetch() : Promise.resolve(query)),
+    invalidate: () =>
+      active
+        ? cache.invalidateQueries(
+            { queryKey, exact: true },
+            { cancelRefetch: false },
+          )
+        : Promise.resolve(),
   };
 }
 
@@ -60,14 +58,14 @@ type QueryState = {
   isPending: boolean;
   isFetching: boolean;
   error: Error | null;
-  refetch: () => Promise<unknown>;
+  invalidate: () => Promise<unknown>;
 };
 export function combineQueries(...queries: QueryState[]) {
   return {
     isPending: queries.some((query) => query.isPending),
     isFetching: queries.some((query) => query.isFetching),
     error: queries.find((query) => query.error)?.error ?? null,
-    refetch: () => Promise.all(queries.map((query) => query.refetch())),
+    invalidate: () => Promise.all(queries.map((query) => query.invalidate())),
   };
 }
 export type { QueryKey };

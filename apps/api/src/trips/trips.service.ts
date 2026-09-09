@@ -1,3 +1,6 @@
+import { Prisma } from '../generated/prisma/client.js';
+import { CoverAssetsService } from '../covers/cover-assets.service.js';
+import { CoverPresenter } from '../covers/cover-presenter.service.js';
 import {
   BadRequestException,
   Injectable,
@@ -21,48 +24,81 @@ export class TripsService {
     private readonly access: TripAccessService,
     private readonly invitations: InvitationRepository,
     private readonly prisma: PrismaService,
+    private readonly covers: CoverAssetsService,
+    private readonly presenter: CoverPresenter,
   ) {}
 
-  async create(userId: string, dto: CreateTripDto): Promise<Trip> {
-    try {
-      const input = Trip.validate(dto);
-      return await serializable(this.prisma, async (tx) => {
-        const trip = await this.trips.create(userId, input, tx);
-        await this.invitations.createInitial(
-          tx,
-          trip.id,
-          userId,
-          dto.inviteeNames ?? [],
-        );
-        return trip;
-      });
-    } catch (error) {
-      if (error instanceof InvalidTripError)
-        throw new BadRequestException(error.message);
-      throw error;
+  async create(userId: string, dto: CreateTripDto) {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const input = Trip.validate(dto);
+        const result = await serializable(this.prisma, async (tx) => {
+          if (dto.clientRequestId) {
+            const existing = await this.trips.findByRequestId(
+              userId,
+              dto.clientRequestId,
+              tx,
+            );
+            if (existing) {
+              await this.access.requireTrip(userId, existing.id);
+              return existing;
+            }
+          }
+          if (dto.coverAssetId)
+            await this.covers.assertAttachable(tx, userId, dto.coverAssetId);
+          const trip = await this.trips.create(userId, input, tx);
+          await this.invitations.createInitial(
+            tx,
+            trip.id,
+            userId,
+            dto.inviteeNames ?? [],
+          );
+          return trip;
+        });
+        return this.presenter.present(result.toJSON());
+      } catch (error) {
+        if (
+          attempt < 4 &&
+          dto.clientRequestId &&
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        )
+          continue;
+        if (error instanceof InvalidTripError)
+          throw new BadRequestException(error.message);
+        throw error;
+      }
     }
   }
 
-  findAll(userId: string, query: PaginationQueryDto) {
-    return this.trips.findAll(userId, query);
+  async findAll(userId: string, query: PaginationQueryDto) {
+    const page = await this.trips.findAll(userId, query);
+    return {
+      ...page,
+      items: await Promise.all(
+        page.items.map((trip) => this.presenter.present(trip.toJSON())),
+      ),
+    };
   }
 
-  async findOne(userId: string, id: string): Promise<Trip> {
+  async findOne(userId: string, id: string) {
     await this.access.requireTrip(userId, id);
     const trip = await this.trips.findById(id);
     if (!trip) throw new NotFoundException('Trip not found');
-    return trip;
+    return this.presenter.present(trip.toJSON());
   }
 
-  async update(userId: string, id: string, dto: UpdateTripDto): Promise<Trip> {
+  async update(userId: string, id: string, dto: UpdateTripDto) {
     await this.access.requireTrip(userId, id);
     if (Object.values(dto).every((value) => value === undefined)) {
       throw new BadRequestException('At least one field is required');
     }
     try {
-      return await serializable(this.prisma, async (tx) => {
+      const result = await serializable(this.prisma, async (tx) => {
         const trip = await this.trips.findById(id, tx);
         if (!trip) throw new NotFoundException('Trip not found');
+        if (dto.coverAssetId)
+          await this.covers.assertAttachable(tx, userId, dto.coverAssetId, id);
         const before = JSON.stringify(trip);
         trip.update(dto);
         if (JSON.stringify(trip) === before) return trip;
@@ -77,6 +113,7 @@ export class TripsService {
         );
         return saved;
       });
+      return this.presenter.present(result.toJSON());
     } catch (error) {
       if (error instanceof InvalidTripError)
         throw new BadRequestException(error.message);

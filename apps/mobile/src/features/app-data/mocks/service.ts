@@ -89,6 +89,7 @@ export function createMockService(
       const values = validateTripInput(input);
       const now = new Date().toISOString();
       const trip: Trip = {
+        coverImageUrl: null,
         ...values,
         id: id(),
         createdById: userId,
@@ -107,6 +108,13 @@ export function createMockService(
       const trip = {
         ...current,
         ...validateTripInput(input),
+        ...(input.coverAssetId !== undefined
+          ? {
+              coverImageUrl: input.coverAssetId
+                ? `https://media.example.test/covers/${input.coverAssetId}.webp`
+                : null,
+            }
+          : {}),
         updatedAt: new Date().toISOString(),
       };
       commit({ type: 'tripSaved', trip });

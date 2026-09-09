@@ -4,7 +4,7 @@ export type NotificationTarget =
   | { type: 'trip'; tripId: string }
   | { type: 'genre'; genreId: string }
   | { type: 'stamp'; stampId: string }
-  | { type: 'photo'; postId: string };
+  | { type: 'photo' | 'video'; postId: string };
 
 // Must be called in the transaction that changes the target.
 export async function notifyMembers(
@@ -27,7 +27,10 @@ export async function notifyMembers(
       title,
       body,
       target,
-      postId: target.type === 'photo' ? target.postId : null,
+      postId:
+        target.type === 'photo' || target.type === 'video'
+          ? target.postId
+          : null,
     })),
   });
 }

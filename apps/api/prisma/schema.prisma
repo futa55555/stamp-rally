@@ -25,6 +25,8 @@ model User {
   photoReads          PhotoRead[]
   notifications       Notification[]
   posts               Post[]
+  uploadBatches       UploadBatch[]
+  coverAssets         CoverAsset[]
   createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -73,11 +75,14 @@ model Session {
 
 model Trip {
   id            String   @id @default(uuid()) @db.Uuid
+  clientRequestId String? @map("client_request_id") @db.Uuid
   name          String   @db.VarChar(100)
   locations     String[] @default([])
   startDate     DateTime @map("start_date") @db.Date
   endDate       DateTime @map("end_date") @db.Date
   coverImageUrl String?  @map("cover_image_url") @db.VarChar(2048)
+  coverAssetId  String?  @unique @map("cover_asset_id") @db.Uuid
+  coverAsset    CoverAsset? @relation(fields: [coverAssetId], references: [id], onDelete: SetNull)
   createdById   String   @map("created_by_id") @db.Uuid
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -88,6 +93,7 @@ model Trip {
   genres        Genre[]
   notifications Notification[]
 
+  @@unique([createdById, clientRequestId])
   @@index([createdById])
   @@index([createdAt, id])
   @@map("trips")
@@ -169,21 +175,108 @@ enum MediaType {
   VIDEO
 }
 
+enum MediaStatus {
+  LEGACY
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+  CANCELLED
+}
+
+model CoverAsset {
+  id String @id @default(uuid()) @db.Uuid
+  authorId String? @map("author_id") @db.Uuid
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  clientRequestId String @map("client_request_id") @db.Uuid
+  status MediaStatus @default(PENDING)
+  byteSize Int @map("byte_size")
+  mimeType String @map("mime_type") @db.VarChar(127)
+  stagingKey String? @map("staging_key")
+  imageKey String? @map("image_key")
+  blurhash String?
+  width Int?
+  height Int?
+  errorCode String? @map("error_code")
+  processingAttempts Int @default(0) @map("processing_attempts")
+  processingStartedAt DateTime? @map("processing_started_at") @db.Timestamptz(3)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  trip Trip?
+
+  @@unique([authorId, clientRequestId])
+  @@index([status, expiresAt])
+  @@map("cover_assets")
+}
+
+model UploadBatch {
+  id              String @id @default(uuid()) @db.Uuid
+  authorId        String @map("author_id") @db.Uuid
+  clientRequestId String? @map("client_request_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  author          User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  posts           Post[]
+
+  @@unique([authorId, clientRequestId])
+  @@index([createdAt])
+  @@map("upload_batches")
+}
+
+// Durable cleanup outbox: it survives deletion of a post, stamp, or trip.
+model MediaCleanup {
+  id                String @id @default(uuid()) @db.Uuid
+  keys              String[]
+  multipartKey      String? @map("multipart_key")
+  multipartUploadId String? @map("multipart_upload_id")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([createdAt])
+  @@map("media_cleanup")
+}
+
 model Post {
   id         String    @id @default(uuid()) @db.Uuid
   stampId    String    @map("stamp_id") @db.Uuid
   authorId   String    @map("author_id") @db.Uuid
   mediaType  MediaType @map("media_type")
-  mediaUrl   String    @map("media_url") @db.VarChar(2048)
+  // Retained only as an import source for legacy records, never a display URL.
+  mediaUrl   String?   @map("media_url") @db.VarChar(2048)
+  status MediaStatus @default(PENDING)
+  originalKey String? @map("original_key")
+  largeKey String? @map("large_key")
+  smallKey String? @map("small_key")
+  playbackKey String? @map("playback_key")
+  blurhash String?
+  fileName String? @map("file_name") @db.VarChar(255)
+  mimeType String? @map("mime_type") @db.VarChar(127)
+  byteSize Int? @map("byte_size")
+  width Int?
+  height Int?
+  duration Float?
+  uploadBatchId String? @map("upload_batch_id") @db.Uuid
+  clientId String? @map("client_id") @db.VarChar(128)
+  stagingKey String? @map("staging_key")
+  multipartUploadId String? @map("multipart_upload_id")
+  uploadExpiresAt DateTime? @map("upload_expires_at") @db.Timestamptz(3)
+  errorCode String? @map("error_code") @db.VarChar(100)
+  processingVersion Int @default(0) @map("processing_version")
+  processingAttempts Int @default(0) @map("processing_attempts")
+  processingStartedAt DateTime? @map("processing_started_at") @db.Timestamptz(3)
+  readyAt DateTime? @map("ready_at") @db.Timestamptz(3)
+  isLegacy Boolean @default(false) @map("is_legacy")
   isFavorite Boolean   @default(false) @map("is_favorite")
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  uploadBatch   UploadBatch?   @relation(fields: [uploadBatchId], references: [id], onDelete: SetNull)
   stamp         Stamp          @relation(fields: [stampId], references: [id], onDelete: Cascade)
   author        User           @relation(fields: [authorId], references: [id], onDelete: Restrict)
   reads         PhotoRead[]
   notifications Notification[]
 
+  @@index([status, uploadExpiresAt])
+  @@index([uploadBatchId])
+  @@index([stampId, status, createdAt, id])
   @@index([stampId, createdAt, id])
   @@index([stampId, isFavorite, createdAt, id])
   @@index([authorId])

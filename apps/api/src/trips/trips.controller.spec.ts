@@ -165,12 +165,12 @@ describe('TripsController', () => {
     await request(app.getHttpServer())
       .patch('/trips/' + id)
       .set('Authorization', 'Bearer token')
-      .send({ coverImageUrl: null })
+      .send({ coverAssetId: null })
       .expect(200);
     expect(service.update).toHaveBeenCalledWith(
       'participant',
       id,
-      expect.objectContaining({ coverImageUrl: null }),
+      expect.objectContaining({ coverAssetId: null }),
     );
   });
 

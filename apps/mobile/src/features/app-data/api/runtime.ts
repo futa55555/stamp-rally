@@ -1,20 +1,8 @@
-import { QueryClient } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
-import { shouldRetry } from '../../../shared/api/errors';
 import { SessionClient } from './SessionClient';
+import { createQueryClient } from './queryClient';
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: shouldRetry,
-      staleTime: 30000,
-      refetchOnMount: 'always',
-      refetchOnReconnect: 'always',
-      refetchOnWindowFocus: 'always',
-    },
-    mutations: { retry: false },
-  },
-});
+export const queryClient = createQueryClient();
 const key = 'stamp-rally.refresh-token';
 const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 if (!apiUrl) throw new Error('EXPO_PUBLIC_API_URL is required.');

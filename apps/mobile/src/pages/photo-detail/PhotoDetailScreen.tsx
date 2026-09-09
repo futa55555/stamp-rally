@@ -12,6 +12,7 @@ import { usePhoto } from '../../features/photos/hooks/usePhoto';
 import {
   savePhotoToLibrary,
   sharePhoto,
+  type OriginalMedia,
 } from '../../features/photos/lib/photoTransfer';
 import { QueryState } from '../../shared/ui/QueryState';
 import type { TripStackParamList } from '../../features/trips/navigation/types';
@@ -32,7 +33,7 @@ function PhotoDetail({ postId, source, ...origin }: PhotoDetailParams) {
   const router = useRouter();
   const navigation = useNavigation();
   const isFocused = useIsFocused();
-  const { userId, actions } = useData();
+  const { userId, actions, client } = useData();
   const [activeId, setActiveId] = useState(postId);
   const query = usePhoto(activeId);
   const { photo, stamp, trip } = query;
@@ -48,6 +49,15 @@ function PhotoDetail({ postId, source, ...origin }: PhotoDetailParams) {
   // Notifications without a source use the stamp gallery and its parent stack.
   const photos = !photo ? [] : source === 'trip' ? [photo] : query.photos;
   const displayed = displayedIds.has(activeId);
+  const mediaLabel = photo?.mediaType === 'VIDEO' ? '動画' : '写真';
+  const original = async (id: string) => {
+    const guard = client.sessionGuard();
+    const result = await client.request<OriginalMedia>({
+      url: `/posts/${id}/original`,
+    });
+    guard();
+    return result;
+  };
   const unread =
     !!photo && !!userId && photo.author.id !== userId && !photo.readAt;
 
@@ -95,6 +105,7 @@ function PhotoDetail({ postId, source, ...origin }: PhotoDetailParams) {
         ) : photo ? (
           <PhotoGallery
             photos={photos}
+            focused={isFocused}
             activeId={activeId}
             stampName={stamp?.name ?? '旅'}
             scrollEnabled={source !== 'trip' && !task.pending}
@@ -107,8 +118,8 @@ function PhotoDetail({ postId, source, ...origin }: PhotoDetailParams) {
           />
         ) : !task.pending ? (
           <StateView
-            title="写真が見つかりません"
-            description="写真一覧から選び直してください。"
+            title="投稿が見つかりません"
+            description="一覧から選び直してください。"
             action={{ label: '戻る', onPress: goBack }}
           />
         ) : null}
@@ -120,10 +131,11 @@ function PhotoDetail({ postId, source, ...origin }: PhotoDetailParams) {
         <View className="flex-row items-center justify-around border-t border-border px-4 py-2">
           <IconButton
             icon="share-variant-outline"
-            label="写真を共有"
+            label={`${mediaLabel}を共有`}
             disabled={!photo || task.pending}
             onPress={() => {
-              if (photo) void task.run(() => sharePhoto(photo.mediaUrl));
+              if (photo)
+                void task.run(async () => sharePhoto(await original(photo.id)));
             }}
           />
           <IconButton
@@ -141,27 +153,27 @@ function PhotoDetail({ postId, source, ...origin }: PhotoDetailParams) {
           />
           <IconButton
             icon="download-outline"
-            label="写真をダウンロード"
+            label={`${mediaLabel}をダウンロード`}
             disabled={!photo || task.pending}
             onPress={() => {
               if (!photo) return;
               void task
-                .run(() => savePhotoToLibrary(photo.mediaUrl))
+                .run(async () => savePhotoToLibrary(await original(photo.id)))
                 .then((saved) => {
                   if (saved && navigation.isFocused())
-                    Alert.alert('写真を保存しました');
+                    Alert.alert(`${mediaLabel}を保存しました`);
                 });
             }}
           />
           <IconButton
             icon="trash-can-outline"
-            label="写真を削除"
+            label={`${mediaLabel}を削除`}
             tone="error"
             disabled={!photo || !userId || task.pending}
             onPress={() => {
               if (!photo || !userId) return;
               Alert.alert(
-                'この写真を削除しますか？',
+                `この${mediaLabel}を削除しますか？`,
                 '旅行の仲間の一覧とお気に入りからも削除されます。',
                 [
                   { text: 'キャンセル', style: 'cancel' },

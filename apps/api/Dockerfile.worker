@@ -1,0 +1,53 @@
+# Build from the repository root: docker build -f apps/api/Dockerfile.worker -t stamp-media-worker .
+FROM node:24.14.0-bookworm-slim
+
+ARG VIPS_VERSION=8.18.6
+ARG VIPS_SHA256=3c41e1d5458081bfa4a5bc54e116c46259c75c6760a18027764555632b9dda3e
+ARG HEIF_VERSION=1.23.2
+ARG HEIF_SHA256=8bd5d41d19dc84536d118b04774709f244df6104ef66d623dad5fa4650143405
+
+# Sharp's bundled libvips cannot decode HEVC/HEIC. Build the native chain explicitly.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl build-essential pkg-config cmake python3 python3-venv \
+    ffmpeg libglib2.0-dev libexpat1-dev libjpeg62-turbo-dev libpng-dev libwebp-dev \
+    libtiff-dev libexif-dev librsvg2-dev liblcms2-dev libaom-dev libde265-dev libx265-dev \
+    && rm -rf /var/lib/apt/lists/*
+RUN python3 -m venv /opt/native-python \
+    && /opt/native-python/bin/pip install --no-cache-dir meson==1.9.2 ninja==1.13.0
+ENV PATH="/opt/native-python/bin:/opt/native-node/node_modules/.bin:${PATH}"
+ENV NODE_PATH=/opt/native-node/node_modules
+ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+ENV LD_LIBRARY_PATH=/usr/local/lib
+ENV SHARP_FORCE_GLOBAL_LIBVIPS=1
+
+RUN curl -fsSL "https://github.com/strukturag/libheif/releases/download/v${HEIF_VERSION}/libheif-${HEIF_VERSION}.tar.gz" -o /tmp/heif.tar.gz \
+    && echo "${HEIF_SHA256}  /tmp/heif.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/heif.tar.gz -C /tmp \
+    && cmake -S "/tmp/libheif-${HEIF_VERSION}" -B /tmp/heif-build \
+       -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local \
+       -DBUILD_TESTING=OFF -DWITH_EXAMPLES=OFF -DWITH_GDK_PIXBUF=OFF \
+       -DENABLE_PLUGIN_LOADING=OFF -DWITH_LIBDE265=ON -DWITH_X265=ON -DWITH_AOM_DECODER=ON -DWITH_AOM_ENCODER=ON \
+    && cmake --build /tmp/heif-build -j2 && cmake --install /tmp/heif-build \
+    && rm -rf /tmp/heif* /tmp/libheif*
+RUN curl -fsSL "https://github.com/libvips/libvips/releases/download/v${VIPS_VERSION}/vips-${VIPS_VERSION}.tar.xz" -o /tmp/vips.tar.xz \
+    && echo "${VIPS_SHA256}  /tmp/vips.tar.xz" | sha256sum -c - \
+    && tar -xf /tmp/vips.tar.xz -C /tmp \
+    && meson setup /tmp/vips-build "/tmp/vips-${VIPS_VERSION}" --prefix=/usr/local --libdir=lib \
+       -Dbuildtype=release -Dheif=enabled -Dintrospection=disabled -Dexamples=false \
+    && meson compile -C /tmp/vips-build -j2 && meson install -C /tmp/vips-build \
+    && ldconfig && rm -rf /tmp/vips*
+
+RUN npm install --global pnpm@11.25.0 \
+    && npm install --prefix /opt/native-node --ignore-scripts node-gyp@12.4.0 node-addon-api@8.9.2
+WORKDIR /workspace
+COPY . .
+RUN pnpm install --filter api... --frozen-lockfile --ignore-scripts \
+    && cd apps/api/node_modules/sharp && npm run build
+RUN pnpm --filter api exec node --input-type=module -e "import sharp from 'sharp'; const input = await sharp({create:{width:128,height:96,channels:3,background:'#4477aa'}}).heif({compression:'hevc',quality:50,chromaSubsampling:'4:2:0',tune:'ssim'}).toBuffer(); const result = await sharp(input).webp().toBuffer({resolveWithObject:true}); if(result.info.width!==128||result.info.height!==96)throw new Error('HEIC decode unavailable'); console.log('HEIC decode verified, libvips',sharp.versions.vips);"
+RUN DATABASE_URL=postgresql://build:build@localhost:5432/build pnpm api:generate \
+    && pnpm --filter api build
+ENV NODE_ENV=production
+ENV VIPS_CONCURRENCY=2
+WORKDIR /workspace/apps/api
+USER node
+CMD ["node", "dist/media-worker.js"]

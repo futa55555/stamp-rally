@@ -14,12 +14,10 @@ export function usePhoto(postId: string) {
     .flatMap(([, data]) => data ?? [])
     .find((photo) => photo.id === postId);
   const post = useDetail<Post>(`/posts/${postId}`, !!postId, cached);
-  const parent = useStamp(
-    post.data?.mediaType === 'IMAGE' ? post.data.stampId : '',
-  );
+  const parent = useStamp(post.data?.stampId ?? '');
   return {
     ...combineQueries(post, parent),
-    photo: post.data?.mediaType === 'IMAGE' ? post.data : undefined,
+    photo: post.data,
     stamp: parent.stamp,
     trip: parent.trip,
     photos: parent.photos,

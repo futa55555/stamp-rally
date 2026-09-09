@@ -1,7 +1,9 @@
 import { useCallback, useState } from 'react';
 import { FlatList, View, type ViewToken } from 'react-native';
 import type { Post } from '../../../features/photos/model/types';
-import { PhotoImage } from '../../../shared/ui/PhotoImage';
+import { PostImage } from '../../../features/photos/ui/PostImage';
+import { ZoomPhoto } from './ZoomPhoto';
+import { PostVideo } from './PostVideo';
 
 export function PhotoGallery({
   photos,
@@ -10,6 +12,7 @@ export function PhotoGallery({
   scrollEnabled,
   onActiveChange,
   onDisplayed,
+  focused = true,
 }: {
   photos: Post[];
   activeId: string;
@@ -17,7 +20,9 @@ export function PhotoGallery({
   scrollEnabled: boolean;
   onActiveChange: (id: string) => void;
   onDisplayed: (id: string) => void;
+  focused?: boolean;
 }) {
+  const [zoomed, setZoomed] = useState(false);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [viewabilityConfig] = useState({ itemVisiblePercentThreshold: 95 });
   const onViewableItemsChanged = useCallback(
@@ -46,7 +51,7 @@ export function PhotoGallery({
           horizontal
           pagingEnabled
           bounces={false}
-          scrollEnabled={scrollEnabled && photos.length > 1}
+          scrollEnabled={scrollEnabled && !zoomed && photos.length > 1}
           showsHorizontalScrollIndicator={false}
           contentInsetAdjustmentBehavior="never"
           className="flex-1"
@@ -66,15 +71,32 @@ export function PhotoGallery({
           viewabilityConfig={viewabilityConfig}
           onViewableItemsChanged={onViewableItemsChanged}
           renderItem={({ item }) => (
-            <View style={size}>
-              <PhotoImage
-                url={item.mediaUrl}
-                label={`${item.author.name ?? '旅の仲間'}が投稿した${stampName}の写真`}
-                fit="contain"
-                background="background"
-                className="flex-1"
-                onDisplayed={() => onDisplayed(item.id)}
-              />
+            <View style={[size, { overflow: 'hidden' }]}>
+              {item.mediaType === 'VIDEO' ? (
+                item.id === activeId && focused ? (
+                  <PostVideo
+                    key={item.id}
+                    post={item}
+                    onDisplayed={() => onDisplayed(item.id)}
+                  />
+                ) : (
+                  <PostImage
+                    post={item}
+                    variant="large"
+                    fit="contain"
+                    className="flex-1"
+                  />
+                )
+              ) : (
+                <ZoomPhoto
+                  post={item}
+                  active={item.id === activeId}
+                  size={size}
+                  label={`${item.author.name ?? '旅の仲間'}が投稿した${stampName}の写真`}
+                  onDisplayed={() => onDisplayed(item.id)}
+                  onZoomChange={setZoomed}
+                />
+              )}
             </View>
           )}
         />

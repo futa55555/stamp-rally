@@ -1,7 +1,8 @@
 import { QueryState } from '../../shared/ui/QueryState';
+import { usePullToRefresh } from '../../shared/hooks/usePullToRefresh';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTrip } from '../../features/trips/hooks';
-import { PhotoImage } from '../../shared/ui/PhotoImage';
+import { TripCoverImage } from '../../features/trip-covers/TripCoverImage';
 import { Screen } from '../../shared/ui/Screen';
 import { StateView } from '../../shared/ui/StateView';
 import { FavoritePhotosSection } from './sections/FavoritePhotosSection';
@@ -12,6 +13,7 @@ export function TripDetailScreen() {
   const router = useRouter();
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
   const query = useTrip(tripId);
+  const refresh = usePullToRefresh(query.invalidate);
   const { trip, genres, favorites, members } = query;
   if (query.isPending || query.error) return <QueryState query={query} />;
   if (!trip)
@@ -28,16 +30,16 @@ export function TripDetailScreen() {
   return (
     <>
       <Screen
-        refreshing={query.isFetching}
-        onRefresh={() => {
-          void query.refetch();
-        }}
+        {...refresh}
+        contentContainerClassName={trip.coverImageUrl ? '' : 'pt-6'}
       >
-        <PhotoImage
-          url={trip.coverImageUrl}
-          label={trip.name}
-          className="w-full aspect-[1.6]"
-        />
+        {trip.coverImageUrl ? (
+          <TripCoverImage
+            trip={trip}
+            label={trip.name}
+            className="w-full aspect-[1.6]"
+          />
+        ) : null}
         <TripDetailHeader trip={trip} members={members} />
         <FavoritePhotosSection favorites={favorites} />
         <GenresSection tripId={tripId} genres={genres} />

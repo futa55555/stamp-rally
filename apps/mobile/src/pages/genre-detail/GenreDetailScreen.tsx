@@ -1,4 +1,5 @@
 import { QueryState } from '../../shared/ui/QueryState';
+import { usePullToRefresh } from '../../shared/hooks/usePullToRefresh';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FlatList, View } from 'react-native';
 import { useGenre } from '../../features/trips/hooks';
@@ -11,6 +12,7 @@ export function GenreDetailScreen() {
   const router = useRouter();
   const { genreId } = useLocalSearchParams<{ genreId: string }>();
   const query = useGenre(genreId);
+  const refresh = usePullToRefresh(query.invalidate);
   const { genre, stamps } = query;
   const representatives = useRepresentativePhotos(stamps);
   if (query.isPending || query.error) return <QueryState query={query} />;
@@ -24,16 +26,13 @@ export function GenreDetailScreen() {
   return (
     <>
       <FlatList
-        refreshing={query.isFetching}
-        onRefresh={() => {
-          void query.refetch();
-        }}
+        {...refresh}
         data={stamps.length % 2 ? [...stamps, null] : stamps}
         numColumns={2}
         columnWrapperClassName="gap-4"
         keyExtractor={(stamp) => stamp?.id ?? 'empty-cell'}
         className="flex-1 bg-background"
-        contentContainerClassName="px-4 pt-6 pb-12 gap-6 w-full grow"
+        contentContainerClassName="px-4 pt-6 pb-12 gap-6 w-full"
         ListHeaderComponent={
           <GenreDetailHeader
             genre={genre}
@@ -56,10 +55,7 @@ export function GenreDetailScreen() {
         }
         renderItem={({ item }) =>
           item ? (
-            <StampCard
-              stamp={item}
-              imageUrl={representatives[item.id]?.mediaUrl}
-            />
+            <StampCard stamp={item} photo={representatives[item.id]} />
           ) : (
             <View className="flex-1" />
           )

@@ -1,4 +1,5 @@
-import { useQueries } from '@tanstack/react-query';
+import { useIsFocused } from 'expo-router';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useData } from '../app-data/AppDataProvider';
 import { resourceKey } from '../app-data/api/queries';
 import { useToday } from '../../shared/hooks/useToday';
@@ -15,11 +16,13 @@ export function useTrips() {
 }
 export function useTrip(tripId: string) {
   const { client, userId } = useData();
+  const cache = useQueryClient();
+  const focused = useIsFocused();
   const trip = useDetail<Trip>(`/trips/${tripId}`, !!tripId);
   const genres = useList<Genre>('/genres', { tripId }, !!trip.data);
   const favorites = useList<Post>(
     '/posts',
-    { tripId, mediaType: 'IMAGE', favoritesOnly: true },
+    { tripId, favoritesOnly: true },
     !!trip.data,
   );
   const members = useList<{ user: User }>(
@@ -35,15 +38,31 @@ export function useTrip(tripId: string) {
       queryKey: resourceKey(userId ?? '', `/stamps/${id}`),
       queryFn: ({ signal }: { signal: AbortSignal }) =>
         client.request<Stamp>({ url: `/stamps/${id}`, signal }),
-      enabled: !!userId,
+      enabled: !!userId && focused,
     })),
   });
   return {
-    ...combineQueries(trip, genres, favorites, members, ...stamps),
+    ...combineQueries(
+      trip,
+      genres,
+      favorites,
+      members,
+      ...stamps.map((query, index) => ({
+        ...query,
+        invalidate: () =>
+          cache.invalidateQueries(
+            {
+              queryKey: resourceKey(userId ?? '', `/stamps/${stampIds[index]}`),
+              exact: true,
+            },
+            { cancelRefetch: false },
+          ),
+      })),
+    ),
     trip: trip.data,
     genres: (genres.data ?? []).map((genre) => ({
       ...genre,
-      unread: genre.hasUnreadPhotos,
+      unread: genre.hasUnreadMedia ?? genre.hasUnreadPhotos,
     })),
     favorites: (favorites.data ?? []).map((photo) => ({
       ...photo,
@@ -61,18 +80,14 @@ export function useGenre(genreId: string) {
   const trip = useDetail<Trip>(`/trips/${genre.data?.tripId}`, !!genre.data);
   const stamps = useList<Stamp>('/stamps', { genreId }, !!genre.data);
   // Finish every page before exposing candidates to the representative selector.
-  const photos = useList<Post>(
-    '/posts',
-    { genreId, mediaType: 'IMAGE' },
-    !!genre.data,
-  );
+  const photos = useList<Post>('/posts', { genreId }, !!genre.data);
   return {
     ...combineQueries(genre, trip, stamps, photos),
     genre: genre.data,
     trip: trip.data,
     stamps: (stamps.data ?? []).map((stamp) => ({
       ...stamp,
-      unread: stamp.hasUnreadPhotos,
+      unread: stamp.hasUnreadMedia ?? stamp.hasUnreadPhotos,
       photos: (photos.data ?? []).filter((photo) => photo.stampId === stamp.id),
     })),
   };
@@ -84,11 +99,7 @@ export function useStamp(stampId: string) {
     !!stamp.data,
   );
   const trip = useDetail<Trip>(`/trips/${genre.data?.tripId}`, !!genre.data);
-  const photos = useList<Post>(
-    '/posts',
-    { stampId, mediaType: 'IMAGE' },
-    !!stamp.data,
-  );
+  const photos = useList<Post>('/posts', { stampId }, !!stamp.data);
   return {
     ...combineQueries(stamp, genre, trip, photos),
     stamp: stamp.data,

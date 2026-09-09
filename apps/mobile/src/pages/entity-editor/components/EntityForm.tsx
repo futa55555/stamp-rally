@@ -1,3 +1,4 @@
+import { useCoverUpload } from '../../../features/trip-covers/useCoverUpload';
 import { useState } from 'react';
 import type { NotificationTarget } from '../../../features/notifications/model/types';
 import { useData } from '../../../features/app-data/AppDataProvider';
@@ -10,11 +11,13 @@ import { LocationsField } from './LocationsField';
 import type {
   NamedInput,
   TripInput,
+  TripFormValues,
 } from '../../../features/trips/model/inputs';
 import { useTask } from '../../../shared/hooks/useTask';
 import { AppText } from '../../../shared/ui/AppText';
 import { DateField } from './DateField';
 import { TextField } from './TextField';
+import { validateTripInput } from '../../../features/trips/model/validation';
 
 const labels = { trip: '旅行', genre: 'ジャンル', stamp: 'スタンプ' };
 
@@ -30,7 +33,7 @@ export function EntityForm({
   id?: string;
   tripId?: string;
   genreId?: string;
-  initial: TripInput & NamedInput;
+  initial: TripFormValues & NamedInput;
   parentLabel: string;
 }) {
   const { actions, userId } = useData();
@@ -41,10 +44,13 @@ export function EntityForm({
   );
   const [values, setValues] = useState(initial);
   const task = useTask();
-  const pending = task.pending || flow.finishing;
+  const [coverPicking, setCoverPicking] = useState(false);
+  const cover = useCoverUpload(initial.coverImageUrl);
+  const pending = task.pending || flow.finishing || coverPicking;
   const dirty =
     !savedTarget &&
-    (JSON.stringify(values.locations) !== JSON.stringify(original.locations) ||
+    (cover.changed ||
+      JSON.stringify(values.locations) !== JSON.stringify(original.locations) ||
       (
         [
           'name',
@@ -56,41 +62,51 @@ export function EntityForm({
       ).some((key) => values[key] !== original[key]));
   useEditorGuard(dirty, pending);
   const save = () => {
-    void task.run(async () => {
-      if (savedTarget) {
-        await flow.finish({ target: savedTarget });
-        return;
-      }
-      let target: NotificationTarget;
-      if (kind === 'trip') {
-        const input: TripInput = {
-          name: values.name,
-          startDate: values.startDate,
-          endDate: values.endDate,
-          coverImageUrl: values.coverImageUrl,
-          locations: values.locations,
-        };
-        const trip = id
-          ? await actions.updateTrip(userId!, id, input)
-          : await actions.createTrip(userId!, input);
-        target = { type: 'trip', tripId: trip.id };
-      } else if (kind === 'genre') {
-        const input = { name: values.name, description: values.description };
-        const genre = id
-          ? await actions.updateGenre(userId!, id, input)
-          : await actions.createGenre(userId!, { ...input, tripId: tripId! });
-        target = { type: 'genre', genreId: genre.id };
-      } else {
-        const input = { name: values.name, description: values.description };
-        const stamp = id
-          ? await actions.updateStamp(userId!, id, input)
-          : await actions.createStamp(userId!, { ...input, genreId: genreId! });
-        target = { type: 'stamp', stampId: stamp.id };
-      }
-      // A failed ancestor fetch can be retried without creating the entity twice.
-      setSavedTarget(target);
-      await flow.finish({ target });
-    });
+    if (coverPicking) return;
+    void task
+      .run(async () => {
+        if (savedTarget) {
+          await flow.finish({ target: savedTarget });
+          return;
+        }
+        let target: NotificationTarget;
+        if (kind === 'trip') {
+          const input: TripInput = validateTripInput({
+            name: values.name,
+            startDate: values.startDate,
+            endDate: values.endDate,
+            locations: values.locations,
+          });
+          Object.assign(input, await cover.prepare());
+          const trip = id
+            ? await actions.updateTrip(userId!, id, input)
+            : await actions.createTrip(userId!, {
+                ...input,
+                clientRequestId: cover.requestId,
+              });
+          cover.saved();
+          target = { type: 'trip', tripId: trip.id };
+        } else if (kind === 'genre') {
+          const input = { name: values.name, description: values.description };
+          const genre = id
+            ? await actions.updateGenre(userId!, id, input)
+            : await actions.createGenre(userId!, { ...input, tripId: tripId! });
+          target = { type: 'genre', genreId: genre.id };
+        } else {
+          const input = { name: values.name, description: values.description };
+          const stamp = id
+            ? await actions.updateStamp(userId!, id, input)
+            : await actions.createStamp(userId!, {
+                ...input,
+                genreId: genreId!,
+              });
+          target = { type: 'stamp', stampId: stamp.id };
+        }
+        // A failed ancestor fetch can be retried without creating the entity twice.
+        setSavedTarget(target);
+        await flow.finish({ target });
+      })
+      .finally(cover.finish);
   };
   return (
     <FormPage
@@ -99,7 +115,15 @@ export function EntityForm({
       error={task.error}
       onSave={save}
       saveLabel={
-        savedTarget ? '保存した画面を開く' : id ? '変更を保存' : '作成する'
+        coverPicking
+          ? '画像を準備中…'
+          : pending && cover.message
+            ? cover.message
+            : savedTarget
+              ? '保存した画面を開く'
+              : id
+                ? '変更を保存'
+                : '作成する'
       }
     >
       {parentLabel ? <AppText tone="primary">{parentLabel}</AppText> : null}
@@ -124,8 +148,11 @@ export function EntityForm({
             disabled={pending || !!savedTarget}
           />
           <CoverField
-            uri={values.coverImageUrl}
-            onRemove={() => setValues((v) => ({ ...v, coverImageUrl: null }))}
+            uri={cover.uri}
+            tripId={id}
+            onSelect={cover.select}
+            onRemove={cover.remove}
+            onPendingChange={setCoverPicking}
             disabled={pending || !!savedTarget}
           />
         </>

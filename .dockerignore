@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/.dev-dist
+**/coverage
+**/.expo
+**/ios
+**/android
+**/*.tsbuildinfo
+.git
+**/.secret.key.json
+**/.env
+**/.env.*
+!**/.env.example

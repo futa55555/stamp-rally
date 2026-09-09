@@ -1,4 +1,3 @@
-import { validateMediaUri } from '../../../shared/lib/media';
 import type { NamedInput, TripInput } from './inputs';
 
 export function validateDomainName(value: string) {
@@ -29,14 +28,24 @@ export function validateTripInput(input: TripInput): TripInput {
   }
   if (input.startDate > input.endDate)
     throw new Error('終了日は開始日以降にしてください。');
+  if (
+    input.coverAssetId != null &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      input.coverAssetId,
+    )
+  )
+    throw new Error('カバー画像を選び直してください。');
   return {
-    ...input,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    ...(input.coverAssetId !== undefined
+      ? { coverAssetId: input.coverAssetId }
+      : {}),
+    ...(input.clientRequestId
+      ? { clientRequestId: input.clientRequestId }
+      : {}),
     name,
     locations: normalizeLocations(input.locations),
-    coverImageUrl:
-      input.coverImageUrl === null
-        ? null
-        : validateMediaUri(input.coverImageUrl),
   };
 }
 

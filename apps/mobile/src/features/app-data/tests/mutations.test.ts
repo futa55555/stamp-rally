@@ -17,7 +17,7 @@ const tripInput = {
   name: ' 新しい旅 ',
   startDate: '2026-09-08',
   endDate: '2026-09-10',
-  coverImageUrl: null,
+  coverAssetId: null,
   locations: [],
 };
 
@@ -151,7 +151,7 @@ describe('domain creation and shared progress', () => {
       name: '更新した旅',
       startDate: '2030-01-01',
       endDate: '2030-01-02',
-      coverImageUrl: 'file:///cover.jpg',
+      coverAssetId: '12345678-1234-4234-8234-123456789abc',
     });
     const newGenre = await service.updateGenre(DEMO_USER_ID, genre.id, {
       name: '新ジャンル',
@@ -169,7 +169,7 @@ describe('domain creation and shared progress', () => {
     expect((await service.load()).trips[0].name).toBe('更新した旅');
     await service.updateTrip(DEMO_USER_ID, trip.id, {
       ...updated,
-      coverImageUrl: null,
+      coverAssetId: null,
     });
     await service.signOut();
     await service.signIn('google');
@@ -288,7 +288,7 @@ describe('editor validation', () => {
     expect(() =>
       validateTripInput({
         ...tripInput,
-        coverImageUrl: 'http://insecure.test/a.jpg',
+        coverAssetId: 'invalid',
       }),
     ).toThrow();
   });

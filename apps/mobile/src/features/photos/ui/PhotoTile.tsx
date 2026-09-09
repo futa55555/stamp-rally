@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { useTask } from '../../../shared/hooks/useTask';
 import { IconButton } from '../../../shared/ui/IconButton';
-import { PhotoImage } from '../../../shared/ui/PhotoImage';
+import { PostImage } from './PostImage';
+import { Icon } from '../../../shared/ui/Icon';
 import { useData } from '../../app-data/AppDataProvider';
 import type { Post } from '../model/types';
 
@@ -23,10 +24,18 @@ export function PhotoTile({
       <Pressable
         onPress={onOpen}
         accessibilityRole="button"
-        accessibilityLabel={(photo.author.name ?? '旅の仲間') + 'の写真を開く'}
+        accessibilityLabel={
+          (photo.author.name ?? '旅の仲間') +
+          (photo.mediaType === 'VIDEO' ? 'の動画を開く' : 'の写真を開く')
+        }
         className="active:opacity-pressed"
       >
-        <PhotoImage url={photo.mediaUrl} className="aspect-square" />
+        <PostImage post={photo} fit="cover" className="aspect-square" />
+        {photo.mediaType === 'VIDEO' ? (
+          <View className="absolute bottom-2 left-2">
+            <Icon name="play-circle" tone="onPhoto" />
+          </View>
+        ) : null}
       </Pressable>
       <IconButton
         icon={photo.isFavorite ? 'heart' : 'heart-outline'}

@@ -1,4 +1,6 @@
+import { UploadList } from '../../features/uploads/UploadList';
 import { QueryState } from '../../shared/ui/QueryState';
+import { usePullToRefresh } from '../../shared/hooks/usePullToRefresh';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FlatList } from 'react-native';
 import { PhotoTile } from '../../features/photos/ui/PhotoTile';
@@ -11,6 +13,7 @@ export function StampDetailScreen() {
   const router = useRouter();
   const { stampId } = useLocalSearchParams<{ stampId: string }>();
   const query = useStamp(stampId);
+  const refresh = usePullToRefresh(query.invalidate);
   const { stamp, trip, photos } = query;
   const openPost = () =>
     router.push({ pathname: '/editor/post', params: { stampId } });
@@ -25,24 +28,25 @@ export function StampDetailScreen() {
   return (
     <>
       <FlatList
-        refreshing={query.isFetching}
-        onRefresh={() => {
-          void query.refetch();
-        }}
+        {...refresh}
         data={photos.length ? [...photos, null] : photos}
         numColumns={2}
         keyExtractor={(photo) => (photo ? `post-${photo.id}` : 'create-post')}
         className="flex-1 bg-background"
-        contentContainerClassName="pb-12 w-full grow"
+        contentContainerClassName="pb-12 w-full"
         columnWrapperClassName="gap-0"
         ListHeaderComponent={
-          <StampDetailHeader stamp={stamp} tripName={trip?.name} />
+          <>
+            <StampDetailHeader stamp={stamp} tripName={trip?.name} />
+            <UploadList stampId={stampId} />
+          </>
         }
         ListEmptyComponent={
           <StateView
             compact
             title="最初の一枚を楽しみに"
-            description="写真投稿は準備中です。"
+            description="最初の写真・動画を投稿して、スタンプを達成しましょう。"
+            action={{ label: '写真・動画を投稿', onPress: openPost }}
             icon="camera-outline"
           />
         }

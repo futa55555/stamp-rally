@@ -2,8 +2,10 @@ import type { Genre, Trip } from './types';
 
 export type TripInput = Pick<
   Trip,
-  'name' | 'locations' | 'startDate' | 'endDate' | 'coverImageUrl'
->;
+  'name' | 'locations' | 'startDate' | 'endDate'
+> & { clientRequestId?: string; coverAssetId?: string | null };
+
+export type TripFormValues = TripInput & { coverImageUrl: string | null };
 
 export type NamedInput = Pick<Genre, 'name' | 'description'>;
 

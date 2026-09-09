@@ -60,27 +60,15 @@ describe('PostsController', () => {
   });
 
   it.each(['IMAGE', 'VIDEO'])(
-    'creates a %s post with a normalized URL and current author',
+    'rejects direct %s URL registration with upload instructions',
     async (mediaType) => {
-      repository.create.mockResolvedValue({
-        id: postId,
-        stampId,
-        genreId,
-        tripId,
-        isFavorite: false,
-      });
-      await request(app.getHttpServer())
+      const result = await request(app.getHttpServer())
         .post('/posts')
         .set('Authorization', 'Bearer token')
-        .send({ stampId, mediaType, mediaUrl: '  https://example.com/media  ' })
-        .expect(201)
-        .expect({ id: postId, stampId, genreId, tripId, isFavorite: false });
-      expect(repository.create).toHaveBeenCalledWith({
-        stampId,
-        authorId: 'user',
-        mediaType,
-        mediaUrl: 'https://example.com/media',
-      });
+        .send({ stampId, mediaType, mediaUrl: 'https://example.com/media' })
+        .expect(400);
+      expect(result.body.message).toContain('POST /uploads/batches');
+      expect(repository.create).not.toHaveBeenCalled();
     },
   );
 

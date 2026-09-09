@@ -5,7 +5,7 @@ import type { Trip } from '../../../features/trips/model/types';
 import { TripMetadata } from '../../../features/trips/ui/TripMetadata';
 import { AppText } from '../../../shared/ui/AppText';
 import { Icon } from '../../../shared/ui/Icon';
-import { PhotoImage } from '../../../shared/ui/PhotoImage';
+import { TripCoverImage } from '../../../features/trip-covers/TripCoverImage';
 
 export function TripCard({ trip }: { trip: Trip }) {
   const router = useRouter();
@@ -21,7 +21,9 @@ export function TripCard({ trip }: { trip: Trip }) {
       }
       className="overflow-hidden rounded-3xl border border-border bg-surface active:opacity-pressed"
     >
-      <PhotoImage url={trip.coverImageUrl} className="h-[204px]" />
+      {trip.coverImageUrl ? (
+        <TripCoverImage trip={trip} className="aspect-[1.6]" />
+      ) : null}
       <View className="gap-3 p-4">
         <View className="flex-row items-center gap-3">
           <AppText variant="heading" className="flex-1">

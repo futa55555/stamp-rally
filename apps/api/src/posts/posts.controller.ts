@@ -46,6 +46,14 @@ export class PostsController {
     return this.postsService.findAll(request.auth.userId, query);
   }
 
+  @Get(':id/original')
+  original(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.postsService.original(request.auth.userId, id);
+  }
+
   @Get(':id')
   findOne(
     @Req() request: AuthenticatedRequest,

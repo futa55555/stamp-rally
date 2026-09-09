@@ -53,11 +53,15 @@ export function createActions(
       })
       .execute();
   };
-  const tripInput = (input: TripInput) => {
-    if (input.coverImageUrl && !input.coverImageUrl.startsWith('https://'))
-      throw new Error('カバー画像の追加・変更はまだ利用できません。');
-    return input;
-  };
+  const tripInput = (input: TripInput) => ({
+    name: input.name,
+    locations: input.locations,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    ...(input.coverAssetId !== undefined
+      ? { coverAssetId: input.coverAssetId }
+      : {}),
+  });
   return {
     async updateName(_userId: string, name: string) {
       const assertCurrent = client.sessionGuard();
@@ -67,7 +71,12 @@ export function createActions(
       return user;
     },
     createTrip: (_userId: string, input: TripInput) =>
-      mutate<Trip>('POST', '/trips', tripInput(input)),
+      mutate<Trip>('POST', '/trips', {
+        ...tripInput(input),
+        ...(input.clientRequestId
+          ? { clientRequestId: input.clientRequestId }
+          : {}),
+      }),
     updateTrip: (_userId: string, id: string, input: TripInput) =>
       mutate<Trip>('PATCH', `/trips/${id}`, tripInput(input)),
     createGenre: (_userId: string, input: CreateGenreInput) =>

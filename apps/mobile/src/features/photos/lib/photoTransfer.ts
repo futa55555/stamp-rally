@@ -7,6 +7,13 @@ import { photoSource } from '../../../../assets/photoSources';
 
 type ShareAnchor = { x: number; y: number; width: number; height: number };
 type ImageFormat = { extension: string; mimeType: string };
+export type OriginalMedia = {
+  url: string;
+  expiresAt: string;
+  mimeType: string;
+  fileName: string;
+};
+type TransferSource = string | OriginalMedia;
 const exportRetentionMs = 24 * 60 * 60 * 1000;
 let exportSequence = 0;
 
@@ -33,11 +40,11 @@ function pruneOldExports() {
 
 // Content URIs and signed image URLs need not have a filename extension.
 // Read only the header so the original image can be exported without re-encoding.
-function imageFormat(file: File): ImageFormat {
+function imageFormat(file: File, declaredMimeType?: string): ImageFormat {
   const handle = file.open(FileMode.ReadOnly);
   let bytes: Uint8Array;
   try {
-    bytes = handle.readBytes(Math.min(32, file.size));
+    bytes = handle.readBytes(Math.min(256, file.size));
   } finally {
     handle.close();
   }
@@ -60,18 +67,30 @@ function imageFormat(file: File): ImageFormat {
       return { extension: 'heic', mimeType: 'image/heic' };
     if (/mif1|msf1/.test(brands))
       return { extension: 'heif', mimeType: 'image/heif' };
+    if (brands.includes('qt  '))
+      return { extension: 'mov', mimeType: 'video/quicktime' };
+    if (/isom|iso[2-9]|mp4[12]|avc1|M4V /.test(brands))
+      return { extension: 'mp4', mimeType: 'video/mp4' };
+    // The authenticated endpoint has already verified the container and codec.
+    if (declaredMimeType === 'video/mp4')
+      return { extension: 'mp4', mimeType: declaredMimeType };
+    if (declaredMimeType === 'video/quicktime')
+      return { extension: 'mov', mimeType: declaredMimeType };
   }
+  if (['moov', 'mdat', 'wide'].includes(text.slice(4, 8)))
+    return { extension: 'mov', mimeType: 'video/quicktime' };
   if (startsWith(0x49, 0x49, 0x2a, 0) || startsWith(0x4d, 0x4d, 0, 0x2a))
     return { extension: 'tiff', mimeType: 'image/tiff' };
   if (text.startsWith('BM')) return { extension: 'bmp', mimeType: 'image/bmp' };
-  throw new Error('写真のファイル形式を確認できませんでした。');
+  throw new Error('ファイル形式を確認できませんでした。');
 }
 
 async function withPhotoFile(
-  mediaUrl: string,
+  input: TransferSource,
   operation: (file: File, format: ImageFormat) => Promise<unknown>,
   retainAfterSuccess = false,
 ) {
+  const mediaUrl = typeof input === 'string' ? input : input.url;
   pruneOldExports();
   const directory = new Directory(
     Paths.cache,
@@ -84,17 +103,61 @@ async function withPhotoFile(
     const source = photoSource(mediaUrl);
     if (typeof source === 'number') {
       const asset = await BundledAsset.fromModule(source).downloadAsync();
-      if (!asset.localUri) throw new Error('写真を読み込めませんでした。');
+      if (!asset.localUri) throw new Error('ファイルを読み込めませんでした。');
       await new File(asset.localUri).copy(temporary);
     } else if (/^https?:\/\//.test(mediaUrl)) {
       await File.downloadFileAsync(mediaUrl, temporary);
     } else if (/^(file|content):\/\//.test(mediaUrl)) {
       await new File(mediaUrl).copy(temporary);
     } else {
-      throw new Error('写真を読み込めませんでした。');
+      throw new Error('ファイルを読み込めませんでした。');
     }
-    const format = imageFormat(temporary);
-    const photo = new File(directory, `photo.${format.extension}`);
+    let format = imageFormat(
+      temporary,
+      typeof input === 'string' ? undefined : input.mimeType,
+    );
+    if (typeof input !== 'string' && input.mimeType !== format.mimeType) {
+      const heifFamily = ['image/heic', 'image/heif'];
+      const videoFamily = ['video/mp4', 'video/quicktime'];
+      if (
+        heifFamily.includes(input.mimeType) &&
+        heifFamily.includes(format.mimeType)
+      )
+        format = {
+          mimeType: input.mimeType,
+          extension: /\.heif$/i.test(input.fileName) ? 'heif' : 'heic',
+        };
+      else if (
+        videoFamily.includes(input.mimeType) &&
+        videoFamily.includes(format.mimeType)
+      )
+        format = {
+          mimeType: input.mimeType,
+          extension: input.mimeType === 'video/mp4' ? 'mp4' : 'mov',
+        };
+      else throw new Error('原本の形式が一致しません。');
+    }
+    const requestedName =
+      typeof input === 'string'
+        ? 'photo'
+        : Array.from(input.fileName)
+            .map((char) =>
+              char.charCodeAt(0) < 32 ||
+              char === '/' ||
+              char === String.fromCharCode(92)
+                ? '_'
+                : char,
+            )
+            .join('')
+            .slice(0, 160);
+    const name = (
+      format.mimeType === 'image/jpeg'
+        ? /\.jpe?g$/i.test(requestedName)
+        : requestedName.toLowerCase().endsWith(`.${format.extension}`)
+    )
+      ? requestedName
+      : `${requestedName}.${format.extension}`;
+    const photo = new File(directory, name);
     await temporary.move(photo);
     await operation(photo, format);
     completed = true;
@@ -104,17 +167,29 @@ async function withPhotoFile(
   }
 }
 
-export async function sharePhoto(mediaUrl: string, anchor?: ShareAnchor) {
+export async function sharePhoto(
+  mediaUrl: TransferSource,
+  anchor?: ShareAnchor,
+) {
   if (Platform.OS === 'web' || !(await Sharing.isAvailableAsync()))
-    throw new Error('この端末では写真を共有できません。');
+    throw new Error('この端末ではファイルを共有できません。');
   try {
     await withPhotoFile(
       mediaUrl,
       (file, format) =>
         Sharing.shareAsync(file.uri, {
           mimeType: format.mimeType,
-          UTI: 'public.image',
-          dialogTitle: '写真を共有',
+          UTI:
+            format.mimeType === 'video/quicktime'
+              ? 'com.apple.quicktime-movie'
+              : format.mimeType === 'video/mp4'
+                ? 'public.mpeg-4'
+                : format.mimeType === 'image/heic'
+                  ? 'public.heic'
+                  : format.mimeType === 'image/heif'
+                    ? 'public.heif'
+                    : 'public.image',
+          dialogTitle: 'ファイルを共有',
           anchor,
         }),
       // Android resolves when its chooser returns, before a recipient necessarily
@@ -122,24 +197,26 @@ export async function sharePhoto(mediaUrl: string, anchor?: ShareAnchor) {
       Platform.OS === 'android',
     );
   } catch {
-    throw new Error('写真を共有できませんでした。もう一度お試しください。');
+    throw new Error('ファイルを共有できませんでした。もう一度お試しください。');
   }
 }
 
-export async function savePhotoToLibrary(mediaUrl: string) {
+export async function savePhotoToLibrary(mediaUrl: TransferSource) {
   if (Platform.OS === 'web')
-    throw new Error('写真の保存は iOS・Android アプリで利用できます。');
+    throw new Error('写真・動画の保存は iOS・Android アプリで利用できます。');
   // Saving needs add-only access, never access to all existing photos.
   const permission = await requestPermissionsAsync(true, []);
   if (!permission.granted)
     throw new Error(
       permission.canAskAgain
-        ? '写真を保存するには、写真への追加を許可してください。'
+        ? '写真・動画を保存するには、写真への追加を許可してください。'
         : '端末の設定から写真への追加を許可してください。',
     );
   try {
     await withPhotoFile(mediaUrl, (file) => Asset.create(file.uri));
   } catch {
-    throw new Error('写真を保存できませんでした。もう一度お試しください。');
+    throw new Error(
+      '写真・動画を保存できませんでした。もう一度お試しください。',
+    );
   }
 }

@@ -1,3 +1,5 @@
+import type { CoverAssetsService } from '../covers/cover-assets.service.js';
+import type { CoverPresenter } from '../covers/cover-presenter.service.js';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 import { PaginationQueryDto } from '../common/pagination.js';
@@ -24,6 +26,8 @@ describe('TripsService', () => {
     access as unknown as TripAccessService,
     invitations as unknown as InvitationRepository,
     prisma as unknown as PrismaService,
+    {} as CoverAssetsService,
+    { present: async (value: unknown) => value } as CoverPresenter,
   );
   const input = {
     name: '  旅行  ',
@@ -50,12 +54,13 @@ describe('TripsService', () => {
       (work: (client: object) => Promise<unknown>) => work(tx),
     );
     repo.create.mockResolvedValue(trip);
+    repo.findAll.mockResolvedValue({ items: [], nextCursor: null });
     repo.findById.mockResolvedValue(trip);
     repo.save.mockImplementation(async (value: Trip) => value);
   });
 
   it('creates the trip and initial invitations in the same serializable transaction', async () => {
-    expect(await service.create('owner', input)).toBe(trip);
+    expect(await service.create('owner', input)).toEqual(trip.toJSON());
     expect(repo.create).toHaveBeenCalledWith(
       'owner',
       expect.objectContaining({ name: '旅行' }),
@@ -94,7 +99,7 @@ describe('TripsService', () => {
 
   it('allows another participant to edit and clear the cover', async () => {
     const result = await service.update('participant', 'trip', {
-      coverImageUrl: null,
+      coverAssetId: null,
       name: '  更新  ',
     });
     expect(access.requireTrip).toHaveBeenCalledWith('participant', 'trip');

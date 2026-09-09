@@ -260,7 +260,7 @@ describe('notification navigation', () => {
     ]);
   });
 
-  it('rejects missing resources, broken ancestry, videos and inaccessible trips', () => {
+  it('rejects missing resources, broken ancestry and inaccessible trips while accepting videos', () => {
     const data = fixture();
     expect(
       resolveTarget(data, { type: 'photo', postId: 'missing' }, DEMO_USER_ID),
@@ -278,6 +278,6 @@ describe('notification navigation', () => {
     data.posts[0].mediaType = 'VIDEO';
     expect(
       resolveTarget(data, data.notifications[0].target, DEMO_USER_ID),
-    ).toBeNull();
+    ).not.toBeNull();
   });
 });

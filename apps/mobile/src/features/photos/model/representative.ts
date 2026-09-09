@@ -1,7 +1,9 @@
 import type { Post } from './types';
 
 export function representativeCandidates(posts: Post[]): Post[] {
-  const images = posts.filter((post) => post.mediaType === 'IMAGE');
+  const images = posts.filter(
+    (post) => !post.status || post.status === 'READY',
+  );
   const favorites = images.filter((post) => post.isFavorite);
   return (favorites.length ? favorites : images).sort((a, b) =>
     a.id.localeCompare(b.id),

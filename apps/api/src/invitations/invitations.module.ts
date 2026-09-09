@@ -1,3 +1,4 @@
+import { CoverAssetsModule } from '../covers/cover-assets.module.js';
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { TripAccessModule } from '../trips/trip-access.module.js';
@@ -7,7 +8,7 @@ import { InvitationsService } from './invitations.service.js';
 import { TripInvitationsController } from './trip-invitations.controller.js';
 
 @Module({
-  imports: [AuthModule, TripAccessModule],
+  imports: [CoverAssetsModule, AuthModule, TripAccessModule],
   controllers: [InvitationsController, TripInvitationsController],
   providers: [InvitationRepository, InvitationsService],
   exports: [InvitationRepository],

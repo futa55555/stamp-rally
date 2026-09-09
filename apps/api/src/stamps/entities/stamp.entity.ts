@@ -11,6 +11,9 @@ export class Stamp {
     public readonly isCompleted: boolean,
     public readonly hasUnreadPhotos = false,
     public readonly photoCount = 0,
+    public readonly videoCount = 0,
+    public readonly mediaCount = photoCount + videoCount,
+    public readonly hasUnreadMedia = hasUnreadPhotos,
   ) {}
 
   static validate(input: { name: string; description?: string }) {

@@ -73,20 +73,31 @@ describe('API mutations', () => {
       locations: [],
       coverImageUrl: 'file:///image.jpg',
     };
-    expect(() => actions.createTrip('viewer', input)).toThrow('カバー画像');
-    expect(() =>
-      actions.updateTrip('viewer', 'trip', {
-        ...input,
-        coverImageUrl: 'content://image',
+    await actions.createTrip('viewer', input);
+    expect(request).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: {
+          name: input.name,
+          locations: [],
+          startDate: input.startDate,
+          endDate: input.endDate,
+        },
       }),
-    ).toThrow('カバー画像');
-    expect(request).not.toHaveBeenCalled();
+    );
     await actions.updateTrip('viewer', 'trip', {
       ...input,
-      coverImageUrl: null,
+      coverAssetId: null,
     });
-    expect(request).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { ...input, coverImageUrl: null } }),
+    expect(request).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: {
+          name: input.name,
+          locations: [],
+          startDate: input.startDate,
+          endDate: input.endDate,
+          coverAssetId: null,
+        },
+      }),
     );
     cache.clear();
   });
