@@ -66,7 +66,8 @@ export function applyDomainChange(
         ),
         notifications: data.notifications.filter(
           ({ target }) =>
-            target.type !== 'photo' || target.postId !== change.postId,
+            (target.type !== 'photo' && target.type !== 'video') ||
+            target.postId !== change.postId,
         ),
       });
   }

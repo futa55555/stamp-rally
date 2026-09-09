@@ -22,6 +22,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "usePrecompiledModules": false
+          }
+        }
+      ],
       "expo-apple-authentication",
       "expo-font",
       "expo-router",
@@ -29,7 +37,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "旅行に投稿する写真を選ぶために写真へのアクセスを使用します。",
+          "photosPermission": "旅行に投稿する写真・動画の原本を取得するために写真ライブラリへのアクセスを使用します。",
           "cameraPermission": "旅行に投稿する写真を撮影するためにカメラを使用します。",
           "microphonePermission": false
         }
@@ -39,12 +47,13 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "旅行に投稿する写真を選ぶために写真へのアクセスを使用します。",
-          "savePhotosPermission": "投稿の写真を端末の写真ライブラリに保存します。",
+          "photosPermission": "旅行に投稿する写真・動画の原本を取得するために写真ライブラリへのアクセスを使用します。",
+          "savePhotosPermission": "投稿の写真・動画の原本を端末の写真ライブラリに保存します。",
           "granularPermissions": []
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-video"
     ],
     "extra": {
       "eas": {

@@ -18,6 +18,21 @@ const removeCommentsMigration = readFileSync(
   'utf8',
 );
 
+const mobileMigration = readFileSync(
+  new URL(
+    '../../prisma/migrations/20260909000000_mobile_api/migration.sql',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const mediaMigration = readFileSync(
+  new URL(
+    '../../prisma/migrations/20260910000000_media_uploads/migration.sql',
+    import.meta.url,
+  ),
+  'utf8',
+);
+
 describe('Trip domain migration integration', () => {
   let client: Client;
   let schema: string;
@@ -182,5 +197,85 @@ describe('Trip domain migration integration', () => {
     expect((await client.query('SELECT name FROM trips')).rows).toEqual([
       { name: '日帰り' },
     ]);
+  });
+  it('quarantines legacy originals, preserves favorites/reads/timestamps, and queues cascade cleanup', async () => {
+    const owner = randomUUID();
+    const trip = randomUUID();
+    const genre = randomUUID();
+    const stamp = randomUUID();
+    const post = randomUUID();
+    const timestamp = new Date('2026-09-09T03:00:00Z');
+    await client.query('INSERT INTO users (id, name) VALUES ($1, $2)', [
+      owner,
+      'Owner',
+    ]);
+    await client.query(migration);
+    await client.query(removeCommentsMigration);
+    await client.query(mobileMigration);
+    await client.query(
+      "INSERT INTO trips (id,name,start_date,end_date,created_by_id,updated_at) VALUES ($1,'Trip','2026-09-09','2026-09-09',$2,$3)",
+      [trip, owner, timestamp],
+    );
+    await client.query(
+      "INSERT INTO genres (id,trip_id,name,updated_at) VALUES ($1,$2,'Genre',$3)",
+      [genre, trip, timestamp],
+    );
+    await client.query(
+      "INSERT INTO stamps (id,genre_id,name,updated_at) VALUES ($1,$2,'Stamp',$3)",
+      [stamp, genre, timestamp],
+    );
+    await client.query(
+      "INSERT INTO posts (id,stamp_id,author_id,media_type,media_url,is_favorite,created_at,updated_at) VALUES ($1,$2,$3,'IMAGE','https://legacy.test/camera.heic',true,$4,$4)",
+      [post, stamp, owner, timestamp],
+    );
+    await client.query(
+      'INSERT INTO photo_reads (user_id,post_id,read_at) VALUES ($1,$2,$3)',
+      [owner, post, timestamp],
+    );
+    await client.query(mediaMigration);
+    expect(
+      (
+        await client.query(
+          'SELECT id, status, is_legacy, media_url, original_key, is_favorite, created_at, updated_at FROM posts',
+        )
+      ).rows,
+    ).toEqual([
+      {
+        id: post,
+        status: 'LEGACY',
+        is_legacy: true,
+        media_url: 'https://legacy.test/camera.heic',
+        original_key: null,
+        is_favorite: true,
+        created_at: timestamp,
+        updated_at: timestamp,
+      },
+    ]);
+    expect(
+      (
+        await client.query('SELECT read_at FROM photo_reads WHERE post_id=$1', [
+          post,
+        ])
+      ).rows,
+    ).toEqual([{ read_at: timestamp }]);
+    await client.query(
+      "UPDATE posts SET status='READY',original_key='media/original',large_key='media/large',small_key='media/small' WHERE id=$1",
+      [post],
+    );
+    await client.query('DELETE FROM trips WHERE id=$1', [trip]);
+    const cleanup = (
+      await client.query('SELECT keys,created_at FROM media_cleanup')
+    ).rows;
+    expect(cleanup).toHaveLength(1);
+    expect(cleanup[0].keys).toEqual([
+      'media/original',
+      'media/large',
+      'media/small',
+    ]);
+    expect(cleanup[0].created_at.getTime()).toBeGreaterThan(Date.now());
+    expect(
+      (await client.query('SELECT COUNT(*)::int AS count FROM photo_reads'))
+        .rows,
+    ).toEqual([{ count: 0 }]);
   });
 });

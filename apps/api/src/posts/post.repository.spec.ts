@@ -1,0 +1,68 @@
+import { NotFoundException } from '@nestjs/common';
+import type { PrismaService } from '../database/prisma.service.js';
+import type { ObjectStorageService } from '../storage/object-storage.service.js';
+import { PostRepository } from './post.repository.js';
+
+function setup() {
+  const post = { deleteMany: vi.fn(), findFirst: vi.fn() };
+  const photoRead = { upsert: vi.fn() };
+  const storage = { signGet: vi.fn() };
+  const prisma = {
+    post,
+    photoRead,
+    $transaction: vi.fn(async (fn) => fn({ post, photoRead })),
+  };
+  return {
+    repository: new PostRepository(
+      prisma as unknown as PrismaService,
+      storage as unknown as ObjectStorageService,
+    ),
+    post,
+    photoRead,
+    storage,
+  };
+}
+
+describe('Post repository publication boundaries', () => {
+  it('deletes only READY posts and leaves unpublished uploads to their owner-only endpoint', async () => {
+    const context = setup();
+    context.post.deleteMany
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 1 });
+    await expect(context.repository.delete('pending')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(context.post.deleteMany).toHaveBeenCalledWith({
+      where: { id: 'pending', status: 'READY' },
+    });
+    await expect(context.repository.delete('ready')).resolves.toBeUndefined();
+    expect(context.post.deleteMany).toHaveBeenCalledWith({
+      where: { id: 'ready', status: 'READY' },
+    });
+  });
+
+  it('checks current membership and READY status before issuing original download URLs', async () => {
+    const context = setup();
+    context.post.findFirst.mockResolvedValue(null);
+    await expect(
+      context.repository.original('post', 'user'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(context.post.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'post',
+        status: 'READY',
+        stamp: { genre: { trip: { members: { some: { userId: 'user' } } } } },
+      },
+    });
+    expect(context.storage.signGet).not.toHaveBeenCalled();
+  });
+
+  it('does not create reads for pending media or after membership is removed', async () => {
+    const context = setup();
+    context.post.findFirst.mockResolvedValue(null);
+    await expect(
+      context.repository.markRead('post', 'user'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(context.photoRead.upsert).not.toHaveBeenCalled();
+  });
+});

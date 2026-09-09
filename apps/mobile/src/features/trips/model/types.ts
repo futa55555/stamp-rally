@@ -15,6 +15,7 @@ export type Trip = {
 
 export type Genre = {
   hasUnreadPhotos: boolean;
+  hasUnreadMedia?: boolean;
   id: string;
   tripId: string;
   name: string;
@@ -28,7 +29,10 @@ export type Genre = {
 
 export type Stamp = {
   hasUnreadPhotos: boolean;
+  hasUnreadMedia?: boolean;
   photoCount: number;
+  videoCount?: number;
+  mediaCount?: number;
   id: string;
   genreId: string;
   name: string;

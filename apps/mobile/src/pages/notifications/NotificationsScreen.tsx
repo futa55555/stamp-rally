@@ -98,9 +98,11 @@ export function NotificationsScreen() {
           <View className="pt-1">
             <Icon
               name={
-                item.target.type === 'photo' || item.target.type === 'stamp'
-                  ? 'image-multiple-outline'
-                  : 'bag-suitcase-outline'
+                item.target.type === 'video'
+                  ? 'video-outline'
+                  : item.target.type === 'photo' || item.target.type === 'stamp'
+                    ? 'image-multiple-outline'
+                    : 'bag-suitcase-outline'
               }
               tone="primary"
             />

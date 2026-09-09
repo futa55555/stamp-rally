@@ -5,6 +5,15 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { AuthTokenService } from '../src/auth/auth-token/auth-token.service.js';
 import { PrismaService } from '../src/database/prisma.service.js';
+import { ObjectStorageService } from '../src/storage/object-storage.service.js';
+import { MediaProcessor } from '../src/media-processing/media-processor.service.js';
+import { MediaQueue } from '../src/media-processing/media-queue.service.js';
+import { UploadLifecycleService } from '../src/uploads/upload-lifecycle.service.js';
+import {
+  TestMediaProcessor,
+  TestMediaQueue,
+  TestObjectStorage,
+} from './media-fixtures.js';
 
 interface Actor {
   id: string;
@@ -60,9 +69,14 @@ describe('Trip API integration', () => {
   let owner: Actor;
   let member: Actor;
   let outsider: Actor;
+  let lifecycle: UploadLifecycleService;
+  const storage = new TestObjectStorage();
+  const queue = new TestMediaQueue();
 
   async function cleanDatabase() {
     await prisma.trip.deleteMany();
+    await prisma.uploadBatch.deleteMany();
+    await prisma.mediaCleanup.deleteMany();
     await prisma.session.deleteMany();
     await prisma.authAccount.deleteMany();
     await prisma.user.deleteMany();
@@ -109,6 +123,52 @@ describe('Trip API integration', () => {
     return http<T>('get', path, who, undefined, 200, query);
   }
 
+  // Fixtures follow the upload API and real publication transaction; only S3
+  // and encoding are replaced. The legacy URL registration API stays rejected.
+  async function publish(who: Actor, input: Input): Promise<Resource> {
+    const video = input.mediaType === 'VIDEO';
+    const batch = await http<{ id: string; uploads: Array<{ id: string }> }>(
+      'post',
+      '/uploads/batches',
+      who,
+      {
+        stampId: input.stampId,
+        clientRequestId: randomUUID(),
+        files: [
+          {
+            clientId: randomUUID(),
+            fileName: video ? 'video.mp4' : 'photo.jpg',
+            mimeType: video ? 'video/mp4' : 'image/jpeg',
+            byteSize: 100,
+            mediaType: video ? 'VIDEO' : 'IMAGE',
+          },
+        ],
+      },
+    );
+    const id = batch.uploads[0]!.id;
+    const row = await prisma.post.findUniqueOrThrow({ where: { id } });
+    if (video) {
+      storage.multipart.get(row.multipartUploadId!)!.parts = [
+        { partNumber: 1, etag: 'test-part', byteSize: 100 },
+      ];
+    } else {
+      storage.objects.set(row.stagingKey!, {
+        byteSize: 100,
+        contentType: 'image/jpeg',
+        etag: 'test-object',
+      });
+    }
+    await http(
+      'post',
+      `/uploads/${id}/complete`,
+      who,
+      video ? { parts: [{ partNumber: 1, etag: 'test-part' }] } : {},
+    );
+    const processing = await prisma.post.findUniqueOrThrow({ where: { id } });
+    await lifecycle.process(id, processing.processingVersion);
+    return get(`/posts/${id}`, who);
+  }
+
   async function tree(who = owner) {
     const trip = await http('post', '/trips', who, tripInput);
     const genre = await http('post', '/genres', who, {
@@ -142,15 +202,25 @@ describe('Trip API integration', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(ObjectStorageService)
+      .useValue(storage)
+      .overrideProvider(MediaProcessor)
+      .useValue(new TestMediaProcessor(storage))
+      .overrideProvider(MediaQueue)
+      .useValue(queue)
+      .compile();
     prisma = moduleRef.get(PrismaService);
     tokens = moduleRef.get(AuthTokenService);
+    lifecycle = moduleRef.get(UploadLifecycleService);
     app = moduleRef.createNestApplication();
     await app.init();
   });
 
   beforeEach(async () => {
     await cleanDatabase();
+    storage.reset();
+    queue.jobs.length = 0;
     owner = await actor('Owner');
     member = await actor('Member');
     outsider = await actor('Outsider');
@@ -303,7 +373,7 @@ describe('Trip API integration', () => {
       name: '海',
     });
     await join(trip.id, outsider, member);
-    const post = await http('post', '/posts', member, {
+    const post = await publish(member, {
       stampId: stamp.id,
       ...mediaInput,
     });
@@ -350,6 +420,22 @@ describe('Trip API integration', () => {
       ['post', '/stamps', { genreId: genre.id, name: 'Stamp' }],
       ['get', `/posts?stampId=${stamp.id}`],
       ['post', '/posts', { stampId: stamp.id, ...mediaInput }],
+      [
+        'post',
+        '/uploads/batches',
+        {
+          stampId: stamp.id,
+          files: [
+            {
+              clientId: 'auth-check',
+              fileName: 'photo.jpg',
+              mimeType: 'image/jpeg',
+              mediaType: 'IMAGE',
+              byteSize: 100,
+            },
+          ],
+        },
+      ],
       ['get', '/invitations'],
       ['post', `/trips/${trip.id}/invitations`, { inviteeName: 'Member' }],
     ];
@@ -381,7 +467,7 @@ describe('Trip API integration', () => {
   it('denies cross-trip reads and writes for every resource, list scope, member and invitation route', async () => {
     const { trip, genre, stamp } = await tree();
     const foreign = await tree(outsider);
-    const post = await http('post', '/posts', owner, {
+    const post = await publish(owner, {
       stampId: stamp.id,
       ...mediaInput,
     });
@@ -441,7 +527,7 @@ describe('Trip API integration', () => {
   it('rejects parent reassignment and caller-supplied author or identity fields', async () => {
     const { trip, genre, stamp } = await tree();
     const other = await tree();
-    const post = await http('post', '/posts', owner, {
+    const post = await publish(owner, {
       stampId: stamp.id,
       ...mediaInput,
     });
@@ -496,7 +582,7 @@ describe('Trip API integration', () => {
       isCompleted: false,
     });
 
-    await http('post', '/posts', owner, { stampId: stamp.id, ...mediaInput });
+    await publish(owner, { stampId: stamp.id, ...mediaInput });
     expect(await get(`/stamps/${stamp.id}`, owner)).toMatchObject({
       isCompleted: true,
     });
@@ -525,7 +611,7 @@ describe('Trip API integration', () => {
       completedGenreCount: 0,
       isCompleted: false,
     });
-    await http('post', '/posts', owner, {
+    await publish(owner, {
       stampId: nextStamp.id,
       mediaType: 'VIDEO',
       mediaUrl: 'https://example.com/video.mp4',
@@ -548,7 +634,7 @@ describe('Trip API integration', () => {
       genreId: emptyGenre.id,
       name: '最後',
     });
-    await http('post', '/posts', owner, {
+    await publish(owner, {
       stampId: finalStamp.id,
       ...mediaInput,
     });
@@ -582,17 +668,17 @@ describe('Trip API integration', () => {
   it('shares explicit favorite state and scopes favorites to stamp, genre and trip', async () => {
     const { trip, genre, stamp } = await tree();
     await join(trip.id);
-    const first = await http('post', '/posts', owner, {
+    const first = await publish(owner, {
       stampId: stamp.id,
       ...mediaInput,
     });
-    const second = await http('post', '/posts', member, {
+    const second = await publish(member, {
       stampId: stamp.id,
       ...mediaInput,
       mediaUrl: 'https://example.com/second.jpg',
     });
     const foreign = await tree(outsider);
-    const foreignPost = await http('post', '/posts', outsider, {
+    const foreignPost = await publish(outsider, {
       stampId: foreign.stamp.id,
       ...mediaInput,
     });
@@ -746,7 +832,7 @@ describe('Trip API integration', () => {
 
   it('strictly validates partial updates, text, media and favorite state', async () => {
     const { trip, genre, stamp } = await tree();
-    const post = await http('post', '/posts', owner, {
+    const post = await publish(owner, {
       stampId: stamp.id,
       ...mediaInput,
     });
@@ -884,7 +970,7 @@ describe('Trip API integration', () => {
     for (let index = 0; index < 3; index++) {
       postIds.push(
         (
-          await http('post', '/posts', owner, {
+          await publish(owner, {
             stampId: stamp.id,
             ...mediaInput,
           })
@@ -960,7 +1046,7 @@ describe('Trip API integration', () => {
   it('keeps photo reads per user, idempotent and separate from notifications; cascades deletion and progress', async () => {
     const { trip, genre, stamp } = await tree();
     await join(trip.id);
-    const photo = await http('post', '/posts', owner, {
+    const photo = await publish(owner, {
       ...mediaInput,
       stampId: stamp.id,
     });
@@ -1044,11 +1130,11 @@ describe('Trip API integration', () => {
     await http('patch', `/stamps/${stamp.id}`, owner, { description: '更新' });
     await http('post', '/genres', owner, { tripId: trip.id, name: '追加' });
     await http('post', '/stamps', owner, { genreId: genre.id, name: '追加' });
-    const image = await http('post', '/posts', owner, {
+    const image = await publish(owner, {
       ...mediaInput,
       stampId: stamp.id,
     });
-    const video = await http('post', '/posts', owner, {
+    const video = await publish(owner, {
       ...mediaInput,
       stampId: stamp.id,
       mediaType: 'VIDEO',
@@ -1056,14 +1142,14 @@ describe('Trip API integration', () => {
     await http('patch', `/posts/${image.id}/favorite`, member, {
       isFavorite: true,
     });
-    expect(await prisma.notification.count()).toBe(6);
+    expect(await prisma.notification.count()).toBe(7);
     const first = await get<Page & { unreadCount: number }>(
       '/notifications',
       member,
       { limit: 1 },
     );
     expect(first.items).toHaveLength(1);
-    expect(first.unreadCount).toBe(6);
+    expect(first.unreadCount).toBe(7);
     const read = await http(
       'patch',
       `/notifications/${first.items[0].id}/read`,
@@ -1078,8 +1164,8 @@ describe('Trip API integration', () => {
       member,
       { cursor: first.nextCursor!, limit: 100 },
     );
-    expect(rest.items).toHaveLength(5);
-    expect(rest.unreadCount).toBe(5);
+    expect(rest.items).toHaveLength(6);
+    expect(rest.unreadCount).toBe(6);
     expect((await get<Page>('/notifications', owner)).items).toEqual([]);
     expect((await get<Page>('/notifications', outsider)).items).toEqual([]);
     expect(
@@ -1105,7 +1191,9 @@ describe('Trip API integration', () => {
       undefined,
       400,
     );
-    await http('patch', `/posts/${video.id}/read`, member, undefined, 400);
+    expect(
+      (await http('patch', `/posts/${video.id}/read`, member)).readAt,
+    ).toEqual(expect.any(String));
     const onboarding = await actor('New', 'ONBOARDING');
     for (const [method, path] of [
       ['get', '/notifications'],
@@ -1116,6 +1204,246 @@ describe('Trip API integration', () => {
       await http(method, path, null, undefined, 401);
       await http(method, path, onboarding, undefined, 403);
     }
+  });
+
+  it('limits batches, scopes pending uploads to their author, and keeps pending media out of every aggregate', async () => {
+    const { trip, genre, stamp } = await tree();
+    await join(trip.id);
+    const files = Array.from({ length: 30 }, (_, index) => ({
+      clientId: `file-${index}`,
+      fileName: `photo-${index}.jpg`,
+      mediaType: 'IMAGE',
+      mimeType: 'image/jpeg',
+      byteSize: 50_000_000,
+    }));
+    await http(
+      'post',
+      '/uploads/batches',
+      owner,
+      {
+        stampId: stamp.id,
+        files: [...files, { ...files[0], clientId: 'extra' }],
+      },
+      400,
+    );
+    await http(
+      'post',
+      '/uploads/batches',
+      owner,
+      {
+        stampId: stamp.id,
+        files: Array.from({ length: 6 }, (_, index) => ({
+          clientId: `video-${index}`,
+          fileName: 'video.mp4',
+          mediaType: 'VIDEO',
+          mimeType: 'video/mp4',
+          byteSize: 1_000_000_000,
+          durationMs: 300_000,
+        })),
+      },
+      400,
+    );
+    for (const invalid of [
+      { ...files[0], byteSize: 50_000_001 },
+      { ...files[0], byteSize: 0 },
+      { ...files[0], mimeType: 'image/svg+xml' },
+      {
+        ...files[0],
+        mediaType: 'VIDEO',
+        mimeType: 'video/mp4',
+        byteSize: 1_000_000_001,
+      },
+      {
+        ...files[0],
+        mediaType: 'VIDEO',
+        mimeType: 'video/mp4',
+        durationMs: 300_001,
+      },
+    ])
+      await http(
+        'post',
+        '/uploads/batches',
+        owner,
+        { stampId: stamp.id, files: [invalid] },
+        400,
+      );
+    expect(await prisma.post.count()).toBe(0);
+
+    const clientRequestId = randomUUID();
+    const input = { stampId: stamp.id, clientRequestId, files };
+    const batch = await http<{
+      id: string;
+      uploads: Array<{ id: string; status: string }>;
+    }>('post', '/uploads/batches', owner, input);
+    expect(batch.uploads).toHaveLength(30);
+    expect(batch.uploads.every((item) => item.status === 'PENDING')).toBe(true);
+    expect(
+      (await http<{ id: string }>('post', '/uploads/batches', owner, input)).id,
+    ).toBe(batch.id);
+    expect(await prisma.post.count()).toBe(30);
+    for (const who of [member, outsider]) {
+      await http('get', `/uploads/batches/${batch.id}`, who, undefined, 404);
+      await http(
+        'post',
+        `/uploads/${batch.uploads[0]!.id}/complete`,
+        who,
+        {},
+        404,
+      );
+      await http(
+        'delete',
+        `/uploads/${batch.uploads[0]!.id}`,
+        who,
+        undefined,
+        404,
+      );
+    }
+    await http('get', `/posts/${batch.uploads[0]!.id}`, member, undefined, 404);
+    for (const who of [owner, member])
+      await http(
+        'delete',
+        `/posts/${batch.uploads[0]!.id}`,
+        who,
+        undefined,
+        404,
+      );
+    await http(
+      'get',
+      `/posts/${batch.uploads[0]!.id}/original`,
+      owner,
+      undefined,
+      404,
+    );
+    expect(
+      (await get<Page>('/posts', owner, { stampId: stamp.id })).items,
+    ).toEqual([]);
+    expect(await get(`/stamps/${stamp.id}`, member)).toMatchObject({
+      isCompleted: false,
+      photoCount: 0,
+      hasUnreadPhotos: false,
+    });
+    expect(await get(`/genres/${genre.id}`, member)).toMatchObject({
+      completedStampCount: 0,
+      hasUnreadPhotos: false,
+    });
+    expect(await get(`/trips/${trip.id}`, member)).toMatchObject({
+      completedGenreCount: 0,
+    });
+    expect(await prisma.notification.count()).toBe(0);
+    await http(
+      'post',
+      '/posts',
+      owner,
+      { stampId: stamp.id, ...mediaInput },
+      400,
+    );
+    await http(
+      'delete',
+      `/uploads/${batch.uploads[0]!.id}`,
+      owner,
+      undefined,
+      204,
+    );
+    expect(
+      (
+        await prisma.post.findUniqueOrThrow({
+          where: { id: batch.uploads[0]!.id },
+        })
+      ).status,
+    ).toBe('CANCELLED');
+  });
+
+  it('publishes independently, returns only derivative display URLs, and exposes originals only to participants', async () => {
+    const { trip, stamp } = await tree();
+    await join(trip.id);
+    const post = await publish(owner, { stampId: stamp.id, ...mediaInput });
+    const row = await prisma.post.findUniqueOrThrow({ where: { id: post.id } });
+    const detail = await get<Record<string, unknown>>(
+      `/posts/${post.id}`,
+      member,
+    );
+    expect(detail.smallUrl).toContain(encodeURIComponent(row.smallKey!));
+    expect(detail.largeUrl).toContain(encodeURIComponent(row.largeKey!));
+    expect(detail.mediaUrl).toBe(detail.largeUrl);
+    expect(detail).not.toHaveProperty('originalKey');
+    expect(detail).not.toHaveProperty('originalUrl');
+    expect(JSON.stringify(detail)).not.toContain(
+      encodeURIComponent(row.originalKey!),
+    );
+    const download = await get<{
+      url: string;
+      fileName: string;
+      mimeType: string;
+    }>(`/posts/${post.id}/original`, member);
+    expect(download.url).toContain(encodeURIComponent(row.originalKey!));
+    expect(download).toMatchObject({
+      fileName: 'photo.jpg',
+      mimeType: 'image/jpeg',
+    });
+    await http('get', `/posts/${post.id}/original`, outsider, undefined, 404);
+
+    await lifecycle.process(row.id, row.processingVersion);
+    await http('post', `/uploads/${post.id}/complete`, owner, {});
+    expect(
+      await prisma.notification.count({ where: { postId: post.id } }),
+    ).toBe(1);
+    await http('delete', `/posts/${post.id}`, member, undefined, 204);
+    await lifecycle.process(row.id, row.processingVersion);
+    expect(await prisma.post.findUnique({ where: { id: post.id } })).toBeNull();
+    expect(await prisma.mediaCleanup.count()).toBeGreaterThan(0);
+    expect(await prisma.notification.count()).toBe(0);
+  });
+
+  it('keeps legacy media hidden and preserves identity, timestamps, favorites and reads through backfill', async () => {
+    const { trip, stamp } = await tree();
+    await join(trip.id);
+    const legacy = await prisma.post.create({
+      data: {
+        stampId: stamp.id,
+        authorId: owner.id,
+        mediaType: 'IMAGE',
+        mediaUrl: 'https://old.example.test/original.jpg',
+        status: 'LEGACY',
+        isLegacy: true,
+        isFavorite: true,
+        createdAt: new Date('2020-01-01T00:00:00Z'),
+        updatedAt: new Date('2021-02-03T04:05:06Z'),
+      },
+    });
+    const readAt = new Date('2022-03-04T05:06:07Z');
+    await prisma.photoRead.create({
+      data: { postId: legacy.id, userId: member.id, readAt },
+    });
+    expect(
+      (await get<Page>('/posts', owner, { stampId: stamp.id })).items,
+    ).toEqual([]);
+    await http('get', `/posts/${legacy.id}`, owner, undefined, 404);
+    expect(
+      await prisma.post.findUnique({ where: { id: legacy.id } }),
+    ).toMatchObject({
+      mediaUrl: legacy.mediaUrl,
+      isFavorite: true,
+      createdAt: legacy.createdAt,
+    });
+    await lifecycle.migrateLegacy(legacy.id);
+    expect(
+      await prisma.post.findUniqueOrThrow({ where: { id: legacy.id } }),
+    ).toMatchObject({
+      id: legacy.id,
+      authorId: owner.id,
+      isFavorite: true,
+      status: 'READY',
+      createdAt: legacy.createdAt,
+      updatedAt: legacy.updatedAt,
+      mediaUrl: null,
+      originalKey: expect.any(String),
+      largeKey: expect.any(String),
+      smallKey: expect.any(String),
+    });
+    expect((await get(`/posts/${legacy.id}`, member)).readAt).toBe(
+      readAt.toISOString(),
+    );
+    expect(await prisma.notification.count()).toBe(0);
   });
 
   it('rolls back target changes when notification insertion fails', async () => {
@@ -1149,17 +1477,13 @@ describe('Trip API integration', () => {
         { name: 'Must rollback' },
         500,
       );
-      await http(
-        'post',
-        '/posts',
-        owner,
-        { stampId: stamp.id, ...mediaInput },
-        500,
-      );
+      await expect(
+        publish(owner, { stampId: stamp.id, ...mediaInput }),
+      ).rejects.toThrow();
       expect((await get(`/trips/${trip.id}`, owner)).name).toBe(trip.name);
       expect((await get(`/genres/${genre.id}`, owner)).name).toBe(genre.name);
       expect((await get(`/stamps/${stamp.id}`, owner)).name).toBe(stamp.name);
-      expect(await prisma.post.count()).toBe(0);
+      expect(await prisma.post.count({ where: { status: 'READY' } })).toBe(0);
       expect(await prisma.notification.count()).toBe(0);
     } finally {
       await prisma.$executeRawUnsafe(

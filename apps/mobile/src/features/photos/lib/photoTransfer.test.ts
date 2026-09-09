@@ -176,7 +176,7 @@ describe('photo transfer', () => {
     native.share.mockRejectedValue(new Error('No sharing activity'));
     await expect(
       sharePhoto('https://images.example.com/photo'),
-    ).rejects.toThrow('写真を共有できませんでした');
+    ).rejects.toThrow('ファイルを共有できませんでした');
     expect(native.files.size).toBe(0);
     expect(native.directories.size).toBe(0);
   });
@@ -235,7 +235,7 @@ describe('photo transfer', () => {
     );
     await expect(
       sharePhoto('https://images.example.com/photo'),
-    ).rejects.toThrow('写真を共有できませんでした');
+    ).rejects.toThrow('ファイルを共有できませんでした');
     expect(native.share).not.toHaveBeenCalled();
     expect(native.files.size).toBe(0);
   });
@@ -252,8 +252,69 @@ describe('photo transfer', () => {
     );
     await expect(
       sharePhoto('https://images.example.com/photo.jpg'),
-    ).rejects.toThrow('写真を共有できませんでした');
+    ).rejects.toThrow('ファイルを共有できませんでした');
     expect(native.share).not.toHaveBeenCalled();
     expect(native.files.size).toBe(0);
+  });
+});
+
+describe('original media metadata', () => {
+  it('shares a QuickTime original with its original filename, MIME and byte sequence', async () => {
+    const mov = new TextEncoder().encode(
+      '\u0000\u0000\u0000\u0014ftypqt  \u0000\u0000\u0000\u0000qt  ',
+    );
+    native.download.mockImplementation(
+      async (_url: string, file: { uri: string }) => {
+        native.files.set(file.uri, mov);
+        return file;
+      },
+    );
+    native.share.mockImplementation(async (uri: string, options: unknown) => {
+      expect(uri).toMatch(/IMG_0001\.MOV$/);
+      expect(native.files.get(uri)).toEqual(mov);
+      expect(options).toMatchObject({
+        mimeType: 'video/quicktime',
+        UTI: 'com.apple.quicktime-movie',
+      });
+    });
+    await sharePhoto({
+      url: 'https://r2.example/original?signed',
+      expiresAt: '2099',
+      fileName: 'IMG_0001.MOV',
+      mimeType: 'video/quicktime',
+    });
+    expect(native.share).toHaveBeenCalledOnce();
+  });
+
+  it('preserves HEIC bytes when saving and rejects an image response for a claimed video', async () => {
+    const heic = new TextEncoder().encode(
+      '\u0000\u0000\u0000\u0014ftypheic\u0000\u0000\u0000\u0000mif1',
+    );
+    native.download.mockImplementation(
+      async (_url: string, file: { uri: string }) => {
+        native.files.set(file.uri, heic);
+        return file;
+      },
+    );
+    native.createAsset.mockImplementation(async (uri: string) => {
+      expect(uri).toMatch(/IMG\.HEIC$/);
+      expect(native.files.get(uri)).toEqual(heic);
+    });
+    await savePhotoToLibrary({
+      url: 'https://r2/original',
+      expiresAt: '2099',
+      mimeType: 'image/heic',
+      fileName: 'IMG.HEIC',
+    });
+    expect(native.createAsset).toHaveBeenCalledOnce();
+    await expect(
+      sharePhoto({
+        url: 'https://r2/error',
+        expiresAt: '2099',
+        mimeType: 'video/mp4',
+        fileName: 'video.mp4',
+      }),
+    ).rejects.toThrow();
+    expect(native.share).not.toHaveBeenCalled();
   });
 });

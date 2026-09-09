@@ -16,7 +16,7 @@ afterEach(() => vi.restoreAllMocks());
 const posts = createDemoData().posts.slice(0, 3);
 
 describe('representative photos', () => {
-  it('prefers favorites, falls back to all images, and excludes videos', () => {
+  it('prefers favorites and includes video posters while excluding unfinished media', () => {
     expect(representativeCandidates(posts).map((p) => p.id)).toEqual(
       posts.slice(0, 2).map((p) => p.id),
     );
@@ -24,6 +24,9 @@ describe('representative photos', () => {
     expect(representativeCandidates(noFavorites)).toHaveLength(3);
     expect(
       representativeCandidates([{ ...posts[0], mediaType: 'VIDEO' }]),
+    ).toEqual([{ ...posts[0], mediaType: 'VIDEO' }]);
+    expect(
+      representativeCandidates([{ ...posts[0], status: 'PROCESSING' }]),
     ).toEqual([]);
     expect(chooseRepresentative([])).toBeNull();
     expect(chooseRepresentative(posts, () => 0)).toBe(posts[0].id);

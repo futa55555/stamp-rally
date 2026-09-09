@@ -1,3 +1,4 @@
+import { UploadList } from '../../features/uploads/UploadList';
 import { QueryState } from '../../shared/ui/QueryState';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FlatList } from 'react-native';
@@ -29,20 +30,23 @@ export function StampDetailScreen() {
         onRefresh={() => {
           void query.refetch();
         }}
-        data={photos.length ? [...photos, null] : photos}
+        data={[...photos, null]}
         numColumns={2}
         keyExtractor={(photo) => (photo ? `post-${photo.id}` : 'create-post')}
         className="flex-1 bg-background"
         contentContainerClassName="pb-12 w-full grow"
         columnWrapperClassName="gap-0"
         ListHeaderComponent={
-          <StampDetailHeader stamp={stamp} tripName={trip?.name} />
+          <>
+            <StampDetailHeader stamp={stamp} tripName={trip?.name} />
+            <UploadList stampId={stampId} />
+          </>
         }
         ListEmptyComponent={
           <StateView
             compact
             title="最初の一枚を楽しみに"
-            description="写真投稿は準備中です。"
+            description="旅の写真・動画を追加しましょう。"
             icon="camera-outline"
           />
         }

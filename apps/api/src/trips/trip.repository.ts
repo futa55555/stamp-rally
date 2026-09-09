@@ -100,7 +100,7 @@ export class TripRepository {
           WHERE EXISTS (SELECT 1 FROM stamps s WHERE s.genre_id = g.id)
             AND NOT EXISTS (
               SELECT 1 FROM stamps s WHERE s.genre_id = g.id
-                AND NOT EXISTS (SELECT 1 FROM posts p WHERE p.stamp_id = s.id)
+                AND NOT EXISTS (SELECT 1 FROM posts p WHERE p.stamp_id = s.id AND p.status = 'READY')
             )
         )::int AS "completedGenreCount"
       FROM trips t

@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, View } from 'react-native';
 import type { useTrip } from '../../../features/trips/hooks';
 import { AppText } from '../../../shared/ui/AppText';
-import { PhotoImage } from '../../../shared/ui/PhotoImage';
+import { PostImage } from '../../../features/photos/ui/PostImage';
 import { SectionHeading } from '../../../shared/ui/SectionHeading';
 import { StateView } from '../../../shared/ui/StateView';
 
@@ -44,10 +44,7 @@ export function FavoritePhotosSection({
                 }
                 className="w-[174px] gap-2 active:opacity-pressed"
               >
-                <PhotoImage
-                  url={photo.mediaUrl}
-                  className="aspect-square rounded-2xl"
-                />
+                <PostImage post={photo} className="aspect-square rounded-2xl" />
                 <AppText
                   variant="caption"
                   tone="textSecondary"

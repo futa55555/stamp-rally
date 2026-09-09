@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ActivityIndicator, Image, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
+import { Image } from 'expo-image';
 import { photoSource } from '../../../assets/photoSources';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { AppText } from './AppText';
@@ -21,6 +22,8 @@ export function PhotoImage({
   fit?: 'cover' | 'contain';
   background?: keyof typeof backgrounds;
   onDisplayed?: () => void;
+  blurhash?: string | null;
+  refresh?: () => Promise<string | null>;
   className?: string;
 }) {
   // Reset loading/error state when a reused list cell changes its image.
@@ -33,6 +36,8 @@ function ImageContent({
   fit = 'cover',
   background = fit === 'contain' ? 'photoBackground' : 'surfaceSubtle',
   onDisplayed,
+  blurhash,
+  refresh,
   className = '',
 }: Parameters<typeof PhotoImage>[0]) {
   const theme = useAppTheme();
@@ -41,25 +46,48 @@ function ImageContent({
     'loading',
   );
   const [attempt, setAttempt] = useState(0);
+  const [sourceUrl, setSourceUrl] = useState(url);
+  const [refreshed, setRefreshed] = useState(false);
+  const reload = async () => {
+    setStatus('loading');
+    try {
+      if (refresh) {
+        const fresh = await refresh();
+        if (!fresh) throw new Error('表示用画像が見つかりません。');
+        setSourceUrl(fresh);
+      }
+      setAttempt((n) => n + 1);
+    } catch {
+      setStatus('error');
+    }
+  };
   return (
     <View
       className={['overflow-hidden', backgrounds[background], className].join(
         ' ',
       )}
     >
-      {url && status !== 'error' ? (
+      {sourceUrl && status !== 'error' ? (
         <Image
           key={attempt}
-          source={photoSource(url)}
-          resizeMode={fit}
+          source={photoSource(sourceUrl)}
+          contentFit={fit}
+          placeholder={blurhash ? { blurhash } : undefined}
+          placeholderContentFit={fit}
+          cachePolicy="memory-disk"
           accessible={!!label}
           accessibilityLabel={label}
-          className="absolute inset-0 h-full w-full"
-          onLoad={() => {
+          style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
+          onDisplay={() => {
             setStatus('ready');
             onDisplayed?.();
           }}
-          onError={() => setStatus('error')}
+          onError={() => {
+            if (refresh && !refreshed) {
+              setRefreshed(true);
+              void reload();
+            } else setStatus('error');
+          }}
         />
       ) : null}
       {!url || status !== 'ready' ? (
@@ -89,8 +117,7 @@ function ImageContent({
                 label="写真を再読み込み"
                 tone={darkBackground ? 'onPhoto' : 'primary'}
                 onPress={() => {
-                  setStatus('loading');
-                  setAttempt((n) => n + 1);
+                  void reload();
                 }}
               />
             </>

@@ -89,6 +89,18 @@ vi.mock('../../shared/ui/Header', () => ({
 vi.mock('../../shared/ui/IconButton', () => ({ IconButton: 'IconButton' }));
 vi.mock('../../shared/ui/StateView', () => ({ StateView: 'StateView' }));
 vi.mock('../../shared/ui/PhotoImage', () => ({ PhotoImage: 'PhotoImage' }));
+vi.mock('./components/ZoomPhoto', () => ({
+  ZoomPhoto: (props: { post: Post; label: string; onDisplayed: () => void }) =>
+    createElement('PhotoImage', {
+      url: props.post.largeUrl,
+      fit: 'contain',
+      onDisplayed: props.onDisplayed,
+    }),
+}));
+vi.mock('./components/PostVideo', () => ({ PostVideo: 'PostVideo' }));
+vi.mock('../../features/photos/ui/PostImage', () => ({
+  PostImage: 'PostImage',
+}));
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -96,6 +108,7 @@ let renderer: ReactTestRenderer | undefined;
 let store: {
   data: AppData;
   userId: string;
+  client: { request: ReturnType<typeof vi.fn>; sessionGuard: () => () => void };
   actions: {
     markPhotoRead: ReturnType<typeof vi.fn>;
     setFavorite: ReturnType<typeof vi.fn>;
@@ -116,12 +129,23 @@ beforeEach(() => {
   data.posts = data.posts.map((post) => ({
     ...post,
     author: { ...data.users[1] },
-    mediaUrl: `file:///photo-${post.id}.jpg`,
+    mediaUrl: `file:///legacy-original-${post.id}.jpg`,
+    largeUrl: `https://display.example/large-${post.id}.webp`,
+    smallUrl: `https://display.example/small-${post.id}.webp`,
   }));
   photos = selectPhotos(data, { stampId: data.stamps[0].id });
   store = {
     data,
     userId: DEMO_USER_ID,
+    client: {
+      request: vi.fn().mockImplementation(async ({ url }: { url: string }) => ({
+        url: `https://original.example${url}`,
+        mimeType: 'image/jpeg',
+        fileName: 'IMG.jpg',
+        expiresAt: '2099-01-01',
+      })),
+      sessionGuard: () => () => {},
+    },
     actions: {
       markPhotoRead: vi.fn().mockResolvedValue(undefined),
       setFavorite: vi
@@ -165,7 +189,7 @@ const list = () => host('FlatList');
 const image = (photo: Post) =>
   renderer!.root
     .findAllByType('PhotoImage' as never)
-    .find((node) => node.props.url === photo.mediaUrl)!;
+    .find((node) => node.props.url === photo.largeUrl)!;
 const dialogButtons = () =>
   native.alert.mock.calls.at(-1)![2] as {
     text: string;
@@ -261,9 +285,20 @@ describe('photo detail', () => {
     ]);
     await show(photos[0]);
     await act(async () => button('写真を共有').props.onPress());
-    expect(native.share).toHaveBeenCalledWith(photos[0].mediaUrl);
+    expect(store.client.request).toHaveBeenCalledWith({
+      url: `/posts/${photos[0].id}/original`,
+    });
+    expect(native.share).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: `https://original.example/posts/${photos[0].id}/original`,
+      }),
+    );
     await act(async () => button('写真をダウンロード').props.onPress());
-    expect(native.save).toHaveBeenCalledWith(photos[0].mediaUrl);
+    expect(native.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: `https://original.example/posts/${photos[0].id}/original`,
+      }),
+    );
     expect(native.alert).toHaveBeenCalledWith('写真を保存しました');
     await act(async () => button('お気に入りに追加').props.onPress());
     expect(store.actions.setFavorite).toHaveBeenCalledWith(photos[0].id, true);

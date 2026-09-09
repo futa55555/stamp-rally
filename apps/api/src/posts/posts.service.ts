@@ -6,7 +6,7 @@ import {
 import { TripAccessService } from '../trips/trip-access.service.js';
 import { CreatePostDto } from './dto/create-post.dto.js';
 import { ListPostsDto, postScope } from './dto/list-posts.dto.js';
-import { InvalidPostMediaError, Post } from './entities/post.entity.js';
+import { Post } from './entities/post.entity.js';
 import { PostRepository } from './post.repository.js';
 
 @Injectable()
@@ -19,22 +19,9 @@ export class PostsService {
   async create(userId: string, dto: CreatePostDto): Promise<Post> {
     await this.access.requireStamp(userId, dto.stampId);
 
-    let mediaUrl: string;
-    try {
-      mediaUrl = Post.validateMedia(dto.mediaType, dto.mediaUrl);
-    } catch (error) {
-      if (error instanceof InvalidPostMediaError) {
-        throw new BadRequestException(error.message);
-      }
-      throw error;
-    }
-
-    return this.posts.create({
-      stampId: dto.stampId,
-      authorId: userId,
-      mediaType: dto.mediaType,
-      mediaUrl,
-    });
+    throw new BadRequestException(
+      'Direct media URLs are no longer accepted. Create an upload with POST /uploads/batches.',
+    );
   }
 
   async findAll(userId: string, query: ListPostsDto) {
@@ -54,10 +41,13 @@ export class PostsService {
   }
 
   async markRead(userId: string, id: string): Promise<Post> {
-    const post = await this.findOne(userId, id);
-    if (post.mediaType !== 'IMAGE')
-      throw new BadRequestException('Only photos can be marked read');
+    await this.findOne(userId, id);
     return this.posts.markRead(id, userId);
+  }
+
+  async original(userId: string, id: string) {
+    await this.access.requirePost(userId, id);
+    return this.posts.original(id, userId);
   }
 
   async delete(userId: string, id: string): Promise<void> {

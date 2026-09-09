@@ -19,7 +19,7 @@ export function useTrip(tripId: string) {
   const genres = useList<Genre>('/genres', { tripId }, !!trip.data);
   const favorites = useList<Post>(
     '/posts',
-    { tripId, mediaType: 'IMAGE', favoritesOnly: true },
+    { tripId, favoritesOnly: true },
     !!trip.data,
   );
   const members = useList<{ user: User }>(
@@ -43,7 +43,7 @@ export function useTrip(tripId: string) {
     trip: trip.data,
     genres: (genres.data ?? []).map((genre) => ({
       ...genre,
-      unread: genre.hasUnreadPhotos,
+      unread: genre.hasUnreadMedia ?? genre.hasUnreadPhotos,
     })),
     favorites: (favorites.data ?? []).map((photo) => ({
       ...photo,
@@ -61,18 +61,14 @@ export function useGenre(genreId: string) {
   const trip = useDetail<Trip>(`/trips/${genre.data?.tripId}`, !!genre.data);
   const stamps = useList<Stamp>('/stamps', { genreId }, !!genre.data);
   // Finish every page before exposing candidates to the representative selector.
-  const photos = useList<Post>(
-    '/posts',
-    { genreId, mediaType: 'IMAGE' },
-    !!genre.data,
-  );
+  const photos = useList<Post>('/posts', { genreId }, !!genre.data);
   return {
     ...combineQueries(genre, trip, stamps, photos),
     genre: genre.data,
     trip: trip.data,
     stamps: (stamps.data ?? []).map((stamp) => ({
       ...stamp,
-      unread: stamp.hasUnreadPhotos,
+      unread: stamp.hasUnreadMedia ?? stamp.hasUnreadPhotos,
       photos: (photos.data ?? []).filter((photo) => photo.stampId === stamp.id),
     })),
   };
@@ -84,11 +80,7 @@ export function useStamp(stampId: string) {
     !!stamp.data,
   );
   const trip = useDetail<Trip>(`/trips/${genre.data?.tripId}`, !!genre.data);
-  const photos = useList<Post>(
-    '/posts',
-    { stampId, mediaType: 'IMAGE' },
-    !!stamp.data,
-  );
+  const photos = useList<Post>('/posts', { stampId }, !!stamp.data);
   return {
     ...combineQueries(stamp, genre, trip, photos),
     stamp: stamp.data,

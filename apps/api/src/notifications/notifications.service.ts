@@ -18,6 +18,9 @@ export class NotificationsService {
       async (tx) => {
         const where = {
           recipientId: userId,
+          AND: [
+            { OR: [{ postId: null }, { post: { status: 'READY' as const } }] },
+          ],
           trip: { members: { some: { userId } } },
         };
         const rows = await tx.notification.findMany({
@@ -40,6 +43,9 @@ export class NotificationsService {
         where: {
           id,
           recipientId: userId,
+          AND: [
+            { OR: [{ postId: null }, { post: { status: 'READY' as const } }] },
+          ],
           trip: { members: { some: { userId } } },
         },
       });

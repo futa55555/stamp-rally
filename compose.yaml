@@ -15,5 +15,21 @@ services:
       timeout: 5s
       retries: 5
 
+  media-worker:
+    profiles: ['media']
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.worker
+    env_file:
+      - apps/api/.env
+    environment:
+      DATABASE_URL: postgresql://stamp_rally:stamp_rally@postgres:5432/stamp_rally?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 45s
+
 volumes:
   postgres_data:

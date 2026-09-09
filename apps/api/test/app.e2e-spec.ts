@@ -25,6 +25,8 @@ describe('Application bootstrap (e2e)', () => {
       '/genres',
       '/stamps',
       '/posts',
+      '/uploads/batches/00000000-0000-4000-8000-000000000001',
+      '/posts/00000000-0000-4000-8000-000000000001/original',
       '/invitations',
     ]) {
       await request(app.getHttpServer()).get(path).expect(401);

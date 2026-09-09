@@ -8,10 +8,8 @@ export function resolveTarget(
   userId: string,
 ): TripRoute[] | null {
   const post =
-    target.type === 'photo'
-      ? data.posts.find(
-          (p) => p.id === target.postId && p.mediaType === 'IMAGE',
-        )
+    target.type === 'photo' || target.type === 'video'
+      ? data.posts.find((p) => p.id === target.postId)
       : undefined;
   const stampId = target.type === 'stamp' ? target.stampId : post?.stampId;
   const stamp = stampId ? data.stamps.find((s) => s.id === stampId) : undefined;
@@ -25,7 +23,7 @@ export function resolveTarget(
   )
     return null;
   if (
-    (target.type === 'photo' && !post) ||
+    ((target.type === 'photo' || target.type === 'video') && !post) ||
     (stampId && !stamp) ||
     (genreId && !genre)
   )
@@ -52,13 +50,11 @@ export async function resolveApiTarget(
   target: NotificationTarget,
 ): Promise<TripRoute[]> {
   const post =
-    target.type === 'photo'
+    target.type === 'photo' || target.type === 'video'
       ? await client.request<import('../../photos/model/types').Post>({
           url: `/posts/${target.postId}`,
         })
       : undefined;
-  if (post && post.mediaType !== 'IMAGE')
-    throw new Error('この投稿は表示できません。');
   const stampId = target.type === 'stamp' ? target.stampId : post?.stampId;
   const stamp = stampId
     ? await client.request<import('../model/types').Stamp>({

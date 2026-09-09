@@ -10,6 +10,7 @@ import { UsersModule } from './users/users.module.js';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './database/database.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { UploadsModule } from './uploads/uploads.module.js';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AuthModule } from './auth/auth.module.js';
     TripsModule,
     UsersModule,
     AuthModule,
+    UploadsModule,
   ],
   controllers: [],
   providers: [],

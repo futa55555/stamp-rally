@@ -13,6 +13,8 @@ import {
   useAppTheme,
 } from '../shared/theme/ThemeProvider';
 import { AppLoadingState } from '../shared/ui/AppLoadingState';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { UploadProvider } from '../features/uploads/UploadProvider';
 
 export const unstable_settings = { initialRouteName: '(main)' };
 
@@ -61,10 +63,14 @@ function RootNavigation() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <AppDataProvider>
-        <RootNavigation />
-      </AppDataProvider>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <AppDataProvider>
+          <UploadProvider>
+            <RootNavigation />
+          </UploadProvider>
+        </AppDataProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

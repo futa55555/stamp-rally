@@ -11,6 +11,7 @@ export class Genre {
     public readonly totalStampCount = 0,
     public readonly completedStampCount = 0,
     public readonly hasUnreadPhotos = false,
+    public readonly hasUnreadMedia = hasUnreadPhotos,
   ) {}
 
   get isCompleted(): boolean {

@@ -1,3 +1,4 @@
+import { UploadSummary } from '../../features/uploads/UploadSummary';
 import { View } from 'react-native';
 import { useTrips } from '../../features/trips/hooks';
 import { groupTrips } from '../../features/trips/model/selectors';
@@ -37,6 +38,7 @@ export function TripListScreen() {
   return (
     <ListScreen
       data={rows}
+      ListHeaderComponent={<UploadSummary />}
       keyExtractor={(row) =>
         row.type === 'create' ? 'create' : `trip-${row.trip.id}`
       }

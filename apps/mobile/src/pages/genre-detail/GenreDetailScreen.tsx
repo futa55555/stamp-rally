@@ -56,10 +56,7 @@ export function GenreDetailScreen() {
         }
         renderItem={({ item }) =>
           item ? (
-            <StampCard
-              stamp={item}
-              imageUrl={representatives[item.id]?.mediaUrl}
-            />
+            <StampCard stamp={item} photo={representatives[item.id]} />
           ) : (
             <View className="flex-1" />
           )

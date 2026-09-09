@@ -3,14 +3,15 @@ import { Pressable, View } from 'react-native';
 import type { useGenre } from '../../../features/trips/hooks';
 import { AppText } from '../../../shared/ui/AppText';
 import { Icon } from '../../../shared/ui/Icon';
-import { PhotoImage } from '../../../shared/ui/PhotoImage';
+import { PostImage } from '../../../features/photos/ui/PostImage';
+import type { Post } from '../../../features/photos/model/types';
 import { UnreadBadge } from '../../../shared/ui/UnreadBadge';
 export function StampCard({
   stamp,
-  imageUrl,
+  photo,
 }: {
   stamp: ReturnType<typeof useGenre>['stamps'][number];
-  imageUrl?: string;
+  photo?: Post;
 }) {
   const router = useRouter();
   return (
@@ -20,8 +21,8 @@ export function StampCard({
         stamp.name +
         (stamp.unread ? '、未読あり' : '') +
         '、' +
-        (stamp.photoCount
-          ? stamp.photoCount + '枚投稿済み'
+        ((stamp.mediaCount ?? stamp.photoCount)
+          ? `${stamp.photoCount}枚${stamp.videoCount ? `・動画${stamp.videoCount}本` : ''}投稿済み`
           : 'まだ投稿がありません')
       }
       onPress={() =>
@@ -32,11 +33,8 @@ export function StampCard({
       }
       className="min-w-0 flex-1 gap-2 active:opacity-pressed"
     >
-      {stamp.photoCount ? (
-        <PhotoImage
-          url={imageUrl ?? null}
-          className="aspect-square rounded-2xl"
-        />
+      {photo ? (
+        <PostImage post={photo} className="aspect-square rounded-2xl" />
       ) : (
         <View className="aspect-square items-center justify-center rounded-2xl bg-border">
           <Icon name="camera-outline" size={32} tone="textMuted" />
@@ -58,8 +56,8 @@ export function StampCard({
         <Icon name="chevron-right" size={20} tone="textMuted" />
       </View>
       <AppText variant="caption" tone="textSecondary">
-        {stamp.photoCount
-          ? stamp.photoCount + '枚投稿済み'
+        {(stamp.mediaCount ?? stamp.photoCount)
+          ? `${stamp.photoCount}枚${stamp.videoCount ? `・動画${stamp.videoCount}本` : ''}投稿済み`
           : 'まだ投稿がありません'}
       </AppText>
     </Pressable>

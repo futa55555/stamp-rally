@@ -23,6 +23,16 @@ export class Post {
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
     public readonly readAt: Date | null = null,
+    public readonly smallUrl: string = mediaUrl,
+    public readonly largeUrl: string = mediaUrl,
+    public readonly playbackUrl: string | null = null,
+    public readonly blurhash: string | null = null,
+    public readonly width: number | null = null,
+    public readonly height: number | null = null,
+    public readonly durationMs: number | null = null,
+    public readonly status: 'READY' = 'READY',
+    public readonly originalMimeType: string | null = null,
+    public readonly originalFileName: string | null = null,
   ) {}
 
   static validateMedia(mediaType: MediaType, mediaUrl: string): string {

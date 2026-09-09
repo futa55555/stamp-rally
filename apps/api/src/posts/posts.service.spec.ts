@@ -10,6 +10,8 @@ const repository = {
   list: vi.fn(),
   findById: vi.fn(),
   setFavorite: vi.fn(),
+  markRead: vi.fn(),
+  original: vi.fn(),
 };
 const access = {
   requireTrip: vi.fn(),
@@ -30,23 +32,17 @@ describe('PostsService', () => {
   });
 
   it.each([MediaType.IMAGE, MediaType.VIDEO])(
-    'creates %s with the authenticated author',
+    'rejects direct %s URL registration and points clients to uploads',
     async (mediaType) => {
-      repository.create.mockResolvedValue({ id: 'post', isFavorite: false });
       await expect(
         service.create('user', {
           stampId: 'stamp',
           mediaType,
-          mediaUrl: '  https://example.com/media  ',
+          mediaUrl: 'https://example.com/media',
         }),
-      ).resolves.toEqual({ id: 'post', isFavorite: false });
+      ).rejects.toThrow('POST /uploads/batches');
       expect(access.requireStamp).toHaveBeenCalledWith('user', 'stamp');
-      expect(repository.create).toHaveBeenCalledWith({
-        stampId: 'stamp',
-        authorId: 'user',
-        mediaType,
-        mediaUrl: 'https://example.com/media',
-      });
+      expect(repository.create).not.toHaveBeenCalled();
     },
   );
 
@@ -167,5 +163,30 @@ describe('PostsService', () => {
       ['post', false, 'member-b'],
       ['post', false, 'member-b'],
     ]);
+  });
+  it.each([MediaType.IMAGE, MediaType.VIDEO])(
+    'marks ready %s media read',
+    async (mediaType) => {
+      repository.findById.mockResolvedValue({ id: 'post', mediaType });
+      repository.markRead.mockResolvedValue({ id: 'post', readAt: new Date() });
+      await service.markRead('user', 'post');
+      expect(repository.markRead).toHaveBeenCalledWith('post', 'user');
+    },
+  );
+
+  it('authorizes original downloads separately from display reads', async () => {
+    repository.original.mockResolvedValue({
+      url: 'https://r2.test/original',
+      fileName: 'camera.heic',
+    });
+    await expect(service.original('user', 'post')).resolves.toMatchObject({
+      fileName: 'camera.heic',
+    });
+    expect(access.requirePost).toHaveBeenCalledWith('user', 'post');
+    expect(repository.original).toHaveBeenCalledWith('post', 'user');
+    access.requirePost.mockRejectedValue(new NotFoundException());
+    await expect(service.original('outsider', 'post')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });
