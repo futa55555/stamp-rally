@@ -1,3 +1,4 @@
+import { QueryState } from '../../shared/ui/QueryState';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FlatList, View } from 'react-native';
 import { useGenre } from '../../features/trips/hooks';
@@ -9,8 +10,10 @@ import { GenreDetailHeader } from './sections/GenreDetailHeader';
 export function GenreDetailScreen() {
   const router = useRouter();
   const { genreId } = useLocalSearchParams<{ genreId: string }>();
-  const { genre, stamps } = useGenre(genreId);
+  const query = useGenre(genreId);
+  const { genre, stamps } = query;
   const representatives = useRepresentativePhotos(stamps);
+  if (query.isPending || query.error) return <QueryState query={query} />;
   if (!genre)
     return (
       <StateView
@@ -21,6 +24,10 @@ export function GenreDetailScreen() {
   return (
     <>
       <FlatList
+        refreshing={query.isFetching}
+        onRefresh={() => {
+          void query.refetch();
+        }}
         data={stamps.length % 2 ? [...stamps, null] : stamps}
         numColumns={2}
         columnWrapperClassName="gap-4"

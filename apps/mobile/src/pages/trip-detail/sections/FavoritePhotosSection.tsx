@@ -1,6 +1,5 @@
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, View } from 'react-native';
-import { useData } from '../../../features/app-data/AppDataProvider';
 import type { useTrip } from '../../../features/trips/hooks';
 import { AppText } from '../../../shared/ui/AppText';
 import { PhotoImage } from '../../../shared/ui/PhotoImage';
@@ -13,7 +12,6 @@ export function FavoritePhotosSection({
   favorites: ReturnType<typeof useTrip>['favorites'];
 }) {
   const router = useRouter();
-  const { data } = useData();
   return (
     <View className="gap-4">
       <View className="px-4">
@@ -26,10 +24,7 @@ export function FavoritePhotosSection({
           contentContainerClassName="gap-3 px-4"
         >
           {favorites.map((photo) => {
-            const genreName =
-              data.genres.find((g) => g.id === photo.genreId)?.name ?? '';
-            const stampName =
-              data.stamps.find((s) => s.id === photo.stampId)?.name ?? '';
+            const { genreName, stampName } = photo;
             return (
               <Pressable
                 key={photo.id}

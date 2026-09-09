@@ -45,7 +45,7 @@ export function TopHeader({ onPost }: { onPost: () => void }) {
       <HeaderTitle title="Stamp Rally" />
       <IconButton
         icon="camera-plus-outline"
-        label="投稿を作成"
+        label="写真投稿は準備中"
         align="end"
         onPress={onPost}
       />
@@ -77,7 +77,7 @@ export function PageHeader({
       {onPost ? (
         <IconButton
           icon="camera-plus-outline"
-          label="投稿を作成"
+          label="写真投稿は準備中"
           align="end"
           onPress={onPost}
         />

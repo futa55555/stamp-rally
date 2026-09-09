@@ -30,28 +30,39 @@ describe('GenresService', () => {
   it('allows participants to create children after the parent already exists', async () => {
     await service.create('participant', { tripId: 'trip', name: '  新規  ' });
     expect(access.requireTrip).toHaveBeenCalledWith('participant', 'trip');
-    expect(repo.create).toHaveBeenCalledWith({
-      tripId: 'trip',
-      name: '新規',
-      description: '',
-    });
+    expect(repo.create).toHaveBeenCalledWith(
+      {
+        tripId: 'trip',
+        name: '新規',
+        description: '',
+      },
+      'participant',
+    );
   });
 
   it('updates only supplied fields', async () => {
     await service.update('participant', 'genre', { name: '  改名  ' });
     expect(access.requireGenre).toHaveBeenCalledWith('participant', 'genre');
-    expect(repo.update).toHaveBeenCalledWith('genre', {
-      name: '改名',
-      description: undefined,
-    });
+    expect(repo.update).toHaveBeenCalledWith(
+      'genre',
+      {
+        name: '改名',
+        description: undefined,
+      },
+      'participant',
+    );
   });
 
   it('allows clearing a description', async () => {
     await service.update('participant', 'genre', { description: '' });
-    expect(repo.update).toHaveBeenCalledWith('genre', {
-      name: undefined,
-      description: '',
-    });
+    expect(repo.update).toHaveBeenCalledWith(
+      'genre',
+      {
+        name: undefined,
+        description: '',
+      },
+      'participant',
+    );
   });
 
   it.each([{}, { name: '  ' }, { description: 'あ'.repeat(2001) }])(

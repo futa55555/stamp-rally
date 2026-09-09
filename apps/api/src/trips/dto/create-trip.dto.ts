@@ -14,6 +14,11 @@ import {
 } from '../../common/validation.js';
 
 export class CreateTripDto {
+  @OptionalField()
+  @IsArray()
+  @IsString({ each: true })
+  locations?: string[];
+
   @DomainName()
   name!: string;
 

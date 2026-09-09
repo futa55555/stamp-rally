@@ -9,9 +9,7 @@ export const unstable_settings = { initialRouteName: 'trips' };
 export default function MainLayout() {
   const segments = useSegments();
   const theme = useAppTheme();
-  const unreadCount = useNotifications().filter(
-    (notification) => !notification.readAt,
-  ).length;
+  const { unreadCount } = useNotifications();
 
   return (
     <NativeTabs

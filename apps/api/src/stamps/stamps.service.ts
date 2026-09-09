@@ -19,17 +19,20 @@ export class StampsService {
 
   async create(userId: string, dto: CreateStampDto): Promise<Stamp> {
     await this.access.requireGenre(userId, dto.genreId);
-    return this.stamps.create({ genreId: dto.genreId, ...this.validate(dto) });
+    return this.stamps.create(
+      { genreId: dto.genreId, ...this.validate(dto) },
+      userId,
+    );
   }
 
   async findAll(userId: string, query: ListStampsDto) {
     await this.access.requireGenre(userId, query.genreId);
-    return this.stamps.findAll(query);
+    return this.stamps.findAll(query, userId);
   }
 
   async findOne(userId: string, id: string): Promise<Stamp> {
     await this.access.requireStamp(userId, id);
-    const stamp = await this.stamps.findById(id);
+    const stamp = await this.stamps.findById(id, userId);
     if (!stamp) throw new NotFoundException('Stamp not found');
     return stamp;
   }
@@ -48,11 +51,15 @@ export class StampsService {
       description:
         dto.description === undefined ? current.description : dto.description,
     });
-    return this.stamps.update(id, {
-      name: dto.name === undefined ? undefined : values.name,
-      description:
-        dto.description === undefined ? undefined : values.description,
-    });
+    return this.stamps.update(
+      id,
+      {
+        name: dto.name === undefined ? undefined : values.name,
+        description:
+          dto.description === undefined ? undefined : values.description,
+      },
+      userId,
+    );
   }
 
   private validate(input: { name: string; description?: string }) {

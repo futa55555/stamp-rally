@@ -1,3 +1,4 @@
+import { NotificationsModule } from './notifications/notifications.module.js';
 import { Module } from '@nestjs/common';
 import { GenresModule } from './genres/genres.module.js';
 import { HealthModule } from './health/health.module.js';
@@ -19,6 +20,7 @@ import { AuthModule } from './auth/auth.module.js';
     GenresModule,
     HealthModule,
     PostsModule,
+    NotificationsModule,
     StampsModule,
     InvitationsModule,
     TripsModule,

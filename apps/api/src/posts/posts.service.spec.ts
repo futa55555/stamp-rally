@@ -99,6 +99,7 @@ describe('PostsService', () => {
       expect(repository.list).toHaveBeenCalledWith(
         { type, id: 'parent' },
         query,
+        'user',
       );
     },
   );
@@ -162,9 +163,9 @@ describe('PostsService', () => {
     await service.setFavorite('member-b', 'post', false);
     await service.setFavorite('member-b', 'post', false);
     expect(repository.setFavorite.mock.calls).toEqual([
-      ['post', true],
-      ['post', false],
-      ['post', false],
+      ['post', true, 'member-a'],
+      ['post', false, 'member-b'],
+      ['post', false, 'member-b'],
     ]);
   });
 });

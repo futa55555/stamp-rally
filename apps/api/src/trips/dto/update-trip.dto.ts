@@ -1,4 +1,10 @@
-import { IsDateString, Matches, ValidateIf } from 'class-validator';
+import {
+  IsArray,
+  IsString,
+  IsDateString,
+  Matches,
+  ValidateIf,
+} from 'class-validator';
 import {
   DomainName,
   HttpsUrl,
@@ -6,6 +12,11 @@ import {
 } from '../../common/validation.js';
 
 export class UpdateTripDto {
+  @OptionalField()
+  @IsArray()
+  @IsString({ each: true })
+  locations?: string[];
+
   @OptionalField()
   @DomainName()
   name?: string;

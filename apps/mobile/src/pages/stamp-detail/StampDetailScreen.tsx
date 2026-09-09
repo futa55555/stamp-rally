@@ -1,3 +1,4 @@
+import { QueryState } from '../../shared/ui/QueryState';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FlatList } from 'react-native';
 import { PhotoTile } from '../../features/photos/ui/PhotoTile';
@@ -9,9 +10,11 @@ import { StampDetailHeader } from './sections/StampDetailHeader';
 export function StampDetailScreen() {
   const router = useRouter();
   const { stampId } = useLocalSearchParams<{ stampId: string }>();
-  const { stamp, trip, photos } = useStamp(stampId);
+  const query = useStamp(stampId);
+  const { stamp, trip, photos } = query;
   const openPost = () =>
     router.push({ pathname: '/editor/post', params: { stampId } });
+  if (query.isPending || query.error) return <QueryState query={query} />;
   if (!stamp)
     return (
       <StateView
@@ -22,6 +25,10 @@ export function StampDetailScreen() {
   return (
     <>
       <FlatList
+        refreshing={query.isFetching}
+        onRefresh={() => {
+          void query.refetch();
+        }}
         data={photos.length ? [...photos, null] : photos}
         numColumns={2}
         keyExtractor={(photo) => (photo ? `post-${photo.id}` : 'create-post')}
@@ -35,11 +42,7 @@ export function StampDetailScreen() {
           <StateView
             compact
             title="最初の一枚を楽しみに"
-            description="最初の写真を投稿して、スタンプを達成しましょう。"
-            action={{
-              label: '写真を投稿',
-              onPress: openPost,
-            }}
+            description="写真投稿は準備中です。"
             icon="camera-outline"
           />
         }

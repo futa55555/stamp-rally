@@ -59,6 +59,26 @@ vi.mock('react-native-safe-area-context', () => ({
 vi.mock('../../features/app-data/AppDataProvider', () => ({
   useData: native.data,
 }));
+vi.mock('../../features/photos/hooks/usePhoto', () => ({
+  usePhoto: (id: string) => {
+    const { data } = native.data();
+    const photo = data.posts.find((post: Post) => post.id === id);
+    return {
+      photo,
+      stamp: data.stamps.find(
+        (stamp: { id: string }) => stamp.id === photo?.stampId,
+      ),
+      trip: data.trips.find(
+        (trip: { id: string }) => trip.id === photo?.tripId,
+      ),
+      photos: photo ? selectPhotos(data, { stampId: photo.stampId }) : [],
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+  },
+}));
+vi.mock('../../shared/ui/QueryState', () => ({ QueryState: 'QueryState' }));
 vi.mock('../../features/photos/lib/photoTransfer', () => ({
   sharePhoto: native.share,
   savePhotoToLibrary: native.save,

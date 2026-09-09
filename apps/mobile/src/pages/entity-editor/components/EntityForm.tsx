@@ -1,12 +1,10 @@
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import type { NotificationTarget } from '../../../features/notifications/model/types';
 import { useData } from '../../../features/app-data/AppDataProvider';
 import { useEditor } from '../../../features/editor/EditorProvider';
 import { useEditorGuard } from '../../../features/editor/hooks/useEditorGuard';
-import { selectPostScope } from '../../../features/editor/model/draft';
 import type { EntityKind } from '../../../features/editor/model/types';
 import { FormPage } from '../../../features/editor/ui/FormPage';
-import { usePhotoPicker } from '../../../features/photos/hooks/usePhotoPicker';
 import { CoverField } from './CoverField';
 import { LocationsField } from './LocationsField';
 import type {
@@ -25,7 +23,6 @@ export function EntityForm({
   id,
   tripId,
   genreId,
-  fromPost,
   initial,
   parentLabel,
 }: {
@@ -33,29 +30,38 @@ export function EntityForm({
   id?: string;
   tripId?: string;
   genreId?: string;
-  fromPost: boolean;
   initial: TripInput & NamedInput;
   parentLabel: string;
 }) {
   const { actions, userId } = useData();
-  const router = useRouter();
   const flow = useEditor();
   const [original] = useState(initial);
+  const [savedTarget, setSavedTarget] = useState<NotificationTarget | null>(
+    null,
+  );
   const [values, setValues] = useState(initial);
   const task = useTask();
-  const picker = usePhotoPicker(
-    (uris) => setValues((v) => ({ ...v, coverImageUrl: uris[0] })),
-    1,
-  );
-  const pending = task.pending || picker.pending || flow.finishing;
+  const pending = task.pending || flow.finishing;
   const dirty =
-    JSON.stringify(values.locations) !== JSON.stringify(original.locations) ||
-    (
-      ['name', 'description', 'startDate', 'endDate', 'coverImageUrl'] as const
-    ).some((key) => values[key] !== original[key]);
-  const leave = useEditorGuard(dirty, pending);
+    !savedTarget &&
+    (JSON.stringify(values.locations) !== JSON.stringify(original.locations) ||
+      (
+        [
+          'name',
+          'description',
+          'startDate',
+          'endDate',
+          'coverImageUrl',
+        ] as const
+      ).some((key) => values[key] !== original[key]));
+  useEditorGuard(dirty, pending);
   const save = () => {
     void task.run(async () => {
+      if (savedTarget) {
+        await flow.finish({ target: savedTarget });
+        return;
+      }
+      let target: NotificationTarget;
       if (kind === 'trip') {
         const input: TripInput = {
           name: values.name,
@@ -67,52 +73,41 @@ export function EntityForm({
         const trip = id
           ? await actions.updateTrip(userId!, id, input)
           : await actions.createTrip(userId!, input);
-        flow.finish(id ? {} : { target: { type: 'trip', tripId: trip.id } });
+        target = { type: 'trip', tripId: trip.id };
       } else if (kind === 'genre') {
         const input = { name: values.name, description: values.description };
         const genre = id
           ? await actions.updateGenre(userId!, id, input)
           : await actions.createGenre(userId!, { ...input, tripId: tripId! });
-        if (fromPost && flow.draft && flow.draft.tripId === genre.tripId) {
-          flow.setDraft((draft) =>
-            draft ? selectPostScope(draft, 'genreId', genre.id) : draft,
-          );
-          leave(() => router.back());
-        } else
-          flow.finish(
-            id ? {} : { target: { type: 'genre', genreId: genre.id } },
-          );
+        target = { type: 'genre', genreId: genre.id };
       } else {
         const input = { name: values.name, description: values.description };
         const stamp = id
           ? await actions.updateStamp(userId!, id, input)
           : await actions.createStamp(userId!, { ...input, genreId: genreId! });
-        if (fromPost && flow.draft && flow.draft.genreId === stamp.genreId) {
-          flow.setDraft((draft) =>
-            draft ? selectPostScope(draft, 'stampId', stamp.id) : draft,
-          );
-          leave(() => router.back());
-        } else
-          flow.finish(
-            id ? {} : { target: { type: 'stamp', stampId: stamp.id } },
-          );
+        target = { type: 'stamp', stampId: stamp.id };
       }
+      // A failed ancestor fetch can be retried without creating the entity twice.
+      setSavedTarget(target);
+      await flow.finish({ target });
     });
   };
   return (
     <FormPage
       title={`${labels[kind]}を${id ? '編集' : '作成'}`}
       pending={pending}
-      error={task.error ?? picker.error}
+      error={task.error}
       onSave={save}
-      saveLabel={id ? '変更を保存' : '作成する'}
+      saveLabel={
+        savedTarget ? '保存した画面を開く' : id ? '変更を保存' : '作成する'
+      }
     >
       {parentLabel ? <AppText tone="primary">{parentLabel}</AppText> : null}
       <TextField
         label={`${labels[kind]}の名前`}
         value={values.name}
         onChangeText={(name) => setValues((v) => ({ ...v, name }))}
-        disabled={pending}
+        disabled={pending || !!savedTarget}
         hint="1〜100文字"
         hideLabel={kind === 'trip'}
       />
@@ -121,18 +116,17 @@ export function EntityForm({
           <DateField
             value={{ startDate: values.startDate, endDate: values.endDate }}
             onChange={(range) => setValues((v) => ({ ...v, ...range }))}
-            disabled={pending}
+            disabled={pending || !!savedTarget}
           />
           <LocationsField
             values={values.locations}
             onChange={(locations) => setValues((v) => ({ ...v, locations }))}
-            disabled={pending}
+            disabled={pending || !!savedTarget}
           />
           <CoverField
             uri={values.coverImageUrl}
             onRemove={() => setValues((v) => ({ ...v, coverImageUrl: null }))}
-            picker={picker}
-            disabled={pending}
+            disabled={pending || !!savedTarget}
           />
         </>
       ) : (
@@ -143,15 +137,10 @@ export function EntityForm({
             setValues((v) => ({ ...v, description }))
           }
           multiline
-          disabled={pending}
+          disabled={pending || !!savedTarget}
           hint="2,000文字以内"
         />
       )}
-      {fromPost ? (
-        <AppText variant="caption" tone="textMuted">
-          作成後は投稿に戻ります。作成した項目は、投稿をキャンセルしても残ります。
-        </AppText>
-      ) : null}
     </FormPage>
   );
 }

@@ -10,6 +10,7 @@ export class Genre {
     public readonly updatedAt: Date,
     public readonly totalStampCount = 0,
     public readonly completedStampCount = 0,
+    public readonly hasUnreadPhotos = false,
   ) {}
 
   get isCompleted(): boolean {

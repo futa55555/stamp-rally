@@ -14,8 +14,7 @@ import { SectionHeading } from '../../shared/ui/SectionHeading';
 import { NameEditModal } from './components/NameEditModal';
 
 export function SettingsScreen() {
-  const { data, userId, actions } = useData();
-  const user = data.users.find((u) => u.id === userId);
+  const { user, userId, actions } = useData();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
@@ -87,7 +86,7 @@ export function SettingsScreen() {
           />
           <ErrorMessage message={logoutTask.error} />
           <AppText variant="caption" tone="textMuted" className="text-center">
-            変更内容はアプリを再起動するとリセットされます。
+            変更内容はアカウントに保存されます。
           </AppText>
         </View>
       </Screen>

@@ -3,7 +3,9 @@ import { FlatList, Pressable, View } from 'react-native';
 import { useData } from '../../features/app-data/AppDataProvider';
 import { useNotifications } from '../../features/notifications/hooks';
 import type { AppNotification } from '../../features/notifications/model/types';
-import { resolveTarget } from '../../features/trips/navigation/targets';
+import { resolveApiTarget } from '../../features/trips/navigation/targets';
+import { QueryState } from '../../shared/ui/QueryState';
+import { Button } from '../../shared/ui/Button';
 import { useTask } from '../../shared/hooks/useTask';
 import { timestampLabel } from '../../shared/lib/dates';
 import { AppText } from '../../shared/ui/AppText';
@@ -14,17 +16,22 @@ import { UnreadBadge } from '../../shared/ui/UnreadBadge';
 
 export function NotificationsScreen() {
   const navigation = useNavigation();
-  const notifications = useNotifications();
-  const { data, userId, actions } = useData();
+  const query = useNotifications();
+  const { notifications } = query;
+  const { client, userId, actions } = useData();
   const task = useTask();
   const openNotification = (notification: AppNotification) =>
     task.run(async () => {
-      const routes = resolveTarget(data, notification.target, userId!);
+      const assertCurrent = client.sessionGuard();
+      const routes = await resolveApiTarget(client, notification.target);
       if (!routes)
         throw new Error(
           '通知の対象が見つかりません。すでに削除されたか、アクセスできない可能性があります。',
         );
+      assertCurrent();
       await actions.markNotificationRead(notification.id);
+      assertCurrent();
+      if (client.snapshot().user?.id !== userId) return;
       // Replace the Trips stack with the destination and its ancestors so Back
       // follows the trip hierarchy, even when opening another trip's notification.
       navigation.getParent()?.dispatch((state) => ({
@@ -40,14 +47,31 @@ export function NotificationsScreen() {
         },
       }));
     });
+  if (query.isPending || (query.error && !query.data))
+    return <QueryState query={query} />;
   return (
     <FlatList
       data={notifications}
+      refreshing={query.isRefetching}
+      onRefresh={() => {
+        void query.refetch();
+      }}
+      ListFooterComponent={
+        query.hasNextPage ? (
+          <Button
+            label="さらに読み込む"
+            pending={query.isFetchingNextPage}
+            onPress={() => {
+              void query.fetchNextPage();
+            }}
+          />
+        ) : null
+      }
       keyExtractor={(notification) => notification.id}
       className="flex-1 bg-background"
       contentContainerClassName="grow px-4 pt-6 pb-12 gap-3 w-full max-w-page self-center"
       ListHeaderComponent={
-        task.error ? <ErrorMessage message={task.error} /> : null
+        <ErrorMessage message={task.error ?? query.error?.message ?? null} />
       }
       ListEmptyComponent={
         <StateView

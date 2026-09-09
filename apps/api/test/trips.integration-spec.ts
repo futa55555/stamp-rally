@@ -14,6 +14,10 @@ interface Actor {
 
 interface Resource {
   id: string;
+  locations: string[];
+  readAt: string | null;
+  hasUnreadPhotos: boolean;
+  photoCount: number;
   name: string;
   description: string;
   isCompleted: boolean;
@@ -36,7 +40,7 @@ interface Page<T = Resource> {
   nextCursor: string | null;
 }
 
-type Method = 'get' | 'post' | 'patch';
+type Method = 'get' | 'post' | 'patch' | 'delete';
 type Input = Record<string, unknown>;
 type Query = Record<string, string | number | boolean>;
 const tripInput = {
@@ -933,6 +937,237 @@ describe('Trip API integration', () => {
         expect(ids.length).toBeLessThanOrEqual(expected.length);
       } while (cursor);
       expect(ids).toEqual(expected);
+    }
+  });
+  it('normalizes locations, preserves omission, clears explicitly and rejects invalid arrays', async () => {
+    const trip = await http('post', '/trips', owner, {
+      ...tripInput,
+      locations: [' 京都 ', '', '  ', '京都', '大阪'],
+    });
+    expect(trip.locations).toEqual(['京都', '京都', '大阪']);
+    await http('patch', `/trips/${trip.id}`, owner, { name: '新しい名前' });
+    expect((await get(`/trips/${trip.id}`, owner)).locations).toEqual(
+      trip.locations,
+    );
+    await http('patch', `/trips/${trip.id}`, owner, { locations: [] });
+    expect((await get(`/trips/${trip.id}`, owner)).locations).toEqual([]);
+    for (const locations of [null, '京都', [1]]) {
+      await http('patch', `/trips/${trip.id}`, owner, { locations }, 400);
+      await http('post', '/trips', owner, { ...tripInput, locations }, 400);
+    }
+  });
+
+  it('keeps photo reads per user, idempotent and separate from notifications; cascades deletion and progress', async () => {
+    const { trip, genre, stamp } = await tree();
+    await join(trip.id);
+    const photo = await http('post', '/posts', owner, {
+      ...mediaInput,
+      stampId: stamp.id,
+    });
+    expect(photo.readAt).toBeNull();
+    expect(await get(`/stamps/${stamp.id}`, owner)).toMatchObject({
+      hasUnreadPhotos: false,
+      photoCount: 1,
+    });
+    expect(await get(`/stamps/${stamp.id}`, member)).toMatchObject({
+      hasUnreadPhotos: true,
+      photoCount: 1,
+    });
+    expect(await get(`/genres/${genre.id}`, member)).toMatchObject({
+      hasUnreadPhotos: true,
+    });
+    const notifications = await get<Page & { unreadCount: number }>(
+      '/notifications',
+      member,
+    );
+    expect(notifications.unreadCount).toBe(1);
+    expect(notifications.items[0]).toMatchObject({
+      target: { type: 'photo', postId: photo.id },
+    });
+    await http(
+      'patch',
+      `/notifications/${notifications.items[0].id}/read`,
+      outsider,
+      undefined,
+      404,
+    );
+    await http('patch', `/posts/${photo.id}/read`, outsider, undefined, 404);
+    await http('delete', `/posts/${photo.id}`, outsider, undefined, 404);
+    const reads = await Promise.all([
+      http('patch', `/posts/${photo.id}/read`, member),
+      http('patch', `/posts/${photo.id}/read`, member),
+    ]);
+    expect(reads[0].readAt).toEqual(expect.any(String));
+    expect(reads[1].readAt).toEqual(reads[0].readAt);
+    expect((await get(`/posts/${photo.id}`, owner)).readAt).toBeNull();
+    expect((await get(`/posts/${photo.id}`, member)).readAt).toBe(
+      reads[0].readAt,
+    );
+    expect(await get(`/stamps/${stamp.id}`, member)).toMatchObject({
+      hasUnreadPhotos: false,
+    });
+    expect(await get(`/genres/${genre.id}`, member)).toMatchObject({
+      hasUnreadPhotos: false,
+    });
+    expect(
+      (await get<Page & { unreadCount: number }>('/notifications', member))
+        .unreadCount,
+    ).toBe(1);
+    await http('delete', `/posts/${photo.id}`, member, undefined, 204);
+    expect(await prisma.photoRead.count()).toBe(0);
+    expect(await prisma.notification.count()).toBe(0);
+    expect(await get(`/stamps/${stamp.id}`, owner)).toMatchObject({
+      isCompleted: false,
+      photoCount: 0,
+    });
+    expect(await get(`/genres/${genre.id}`, owner)).toMatchObject({
+      isCompleted: false,
+      completedStampCount: 0,
+    });
+    expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
+      isCompleted: false,
+      completedGenreCount: 0,
+    });
+  });
+
+  it('notifies only other participants on effective changes, reports global unread count and filters images', async () => {
+    const { trip, genre, stamp } = await tree();
+    await join(trip.id);
+    expect(await prisma.notification.count()).toBe(0);
+    await http('patch', `/trips/${trip.id}`, owner, {
+      locations: [' 京都 ', ' '],
+    });
+    await http('patch', `/trips/${trip.id}`, owner, { locations: ['京都'] });
+    await http('patch', `/genres/${genre.id}`, owner, { name: '更新' });
+    await http('patch', `/genres/${genre.id}`, owner, { name: ' 更新 ' });
+    await http('patch', `/stamps/${stamp.id}`, owner, { description: '更新' });
+    await http('patch', `/stamps/${stamp.id}`, owner, { description: '更新' });
+    await http('post', '/genres', owner, { tripId: trip.id, name: '追加' });
+    await http('post', '/stamps', owner, { genreId: genre.id, name: '追加' });
+    const image = await http('post', '/posts', owner, {
+      ...mediaInput,
+      stampId: stamp.id,
+    });
+    const video = await http('post', '/posts', owner, {
+      ...mediaInput,
+      stampId: stamp.id,
+      mediaType: 'VIDEO',
+    });
+    await http('patch', `/posts/${image.id}/favorite`, member, {
+      isFavorite: true,
+    });
+    expect(await prisma.notification.count()).toBe(6);
+    const first = await get<Page & { unreadCount: number }>(
+      '/notifications',
+      member,
+      { limit: 1 },
+    );
+    expect(first.items).toHaveLength(1);
+    expect(first.unreadCount).toBe(6);
+    const read = await http(
+      'patch',
+      `/notifications/${first.items[0].id}/read`,
+      member,
+    );
+    expect(
+      (await http('patch', `/notifications/${read.id}/read`, member)).readAt,
+    ).toBe(read.readAt);
+    expect((await get(`/posts/${image.id}`, member)).readAt).toBeNull();
+    const rest = await get<Page & { unreadCount: number }>(
+      '/notifications',
+      member,
+      { cursor: first.nextCursor!, limit: 100 },
+    );
+    expect(rest.items).toHaveLength(5);
+    expect(rest.unreadCount).toBe(5);
+    expect((await get<Page>('/notifications', owner)).items).toEqual([]);
+    expect((await get<Page>('/notifications', outsider)).items).toEqual([]);
+    expect(
+      (
+        await get<Page>('/posts', member, {
+          genreId: genre.id,
+          mediaType: 'IMAGE',
+        })
+      ).items.map((item) => item.id),
+    ).toEqual([image.id]);
+    expect(
+      (
+        await get<Page>('/posts', member, {
+          tripId: trip.id,
+          mediaType: 'VIDEO',
+        })
+      ).items.map((item) => item.id),
+    ).toEqual([video.id]);
+    await http(
+      'get',
+      `/posts?stampId=${stamp.id}&mediaType=AUDIO`,
+      owner,
+      undefined,
+      400,
+    );
+    await http('patch', `/posts/${video.id}/read`, member, undefined, 400);
+    const onboarding = await actor('New', 'ONBOARDING');
+    for (const [method, path] of [
+      ['get', '/notifications'],
+      ['patch', `/notifications/${read.id}/read`],
+      ['patch', `/posts/${image.id}/read`],
+      ['delete', `/posts/${image.id}`],
+    ] as [Method, string][]) {
+      await http(method, path, null, undefined, 401);
+      await http(method, path, onboarding, undefined, 403);
+    }
+  });
+
+  it('rolls back target changes when notification insertion fails', async () => {
+    const { trip, genre, stamp } = await tree();
+    await join(trip.id);
+    // Force a real database failure after the target write, inside its transaction.
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION reject_test_notification() RETURNS trigger AS $$
+      BEGIN RAISE EXCEPTION 'test notification failure'; END;
+    $$ LANGUAGE plpgsql`);
+    await prisma.$executeRawUnsafe(`CREATE TRIGGER reject_test_notification BEFORE INSERT ON notifications
+      FOR EACH ROW EXECUTE FUNCTION reject_test_notification()`);
+    try {
+      await http(
+        'patch',
+        `/trips/${trip.id}`,
+        owner,
+        { name: 'Must rollback' },
+        500,
+      );
+      await http(
+        'patch',
+        `/genres/${genre.id}`,
+        owner,
+        { name: 'Must rollback' },
+        500,
+      );
+      await http(
+        'patch',
+        `/stamps/${stamp.id}`,
+        owner,
+        { name: 'Must rollback' },
+        500,
+      );
+      await http(
+        'post',
+        '/posts',
+        owner,
+        { stampId: stamp.id, ...mediaInput },
+        500,
+      );
+      expect((await get(`/trips/${trip.id}`, owner)).name).toBe(trip.name);
+      expect((await get(`/genres/${genre.id}`, owner)).name).toBe(genre.name);
+      expect((await get(`/stamps/${stamp.id}`, owner)).name).toBe(stamp.name);
+      expect(await prisma.post.count()).toBe(0);
+      expect(await prisma.notification.count()).toBe(0);
+    } finally {
+      await prisma.$executeRawUnsafe(
+        'DROP TRIGGER reject_test_notification ON notifications',
+      );
+      await prisma.$executeRawUnsafe(
+        'DROP FUNCTION reject_test_notification()',
+      );
     }
   });
 });
