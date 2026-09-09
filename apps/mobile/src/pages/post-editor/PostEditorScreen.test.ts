@@ -16,6 +16,8 @@ const native = vi.hoisted(() => ({
   finish: vi.fn(),
   uploads: vi.fn(),
   picker: vi.fn(),
+  detail: vi.fn(),
+  list: vi.fn(),
 }));
 vi.mock('expo-router', () => ({
   useLocalSearchParams: native.params,
@@ -26,7 +28,8 @@ vi.mock('../../features/app-data/AppDataProvider', () => ({
   useData: () => ({ userId: 'user' }),
 }));
 vi.mock('../../features/app-data/api/queries', () => ({
-  useList: () => ({ data: [], error: null }),
+  useDetail: native.detail,
+  useList: native.list,
 }));
 vi.mock('../../features/editor/EditorProvider', () => ({
   useEditor: () => ({ finish: native.finish, finishing: false }),
@@ -73,6 +76,28 @@ beforeEach(async () => {
     originalError(...args);
   });
   native.params.mockReturnValue({ stampId: 'stamp' });
+  native.detail.mockImplementation((path: string) => ({
+    data:
+      path === '/stamps/stamp'
+        ? { id: 'stamp', genreId: 'genre' }
+        : path === '/genres/genre'
+          ? { id: 'genre', tripId: 'trip' }
+          : undefined,
+    error: null,
+    isPending: false,
+  }));
+  native.list.mockImplementation((path: string, filters, enabled = true) => ({
+    data: enabled
+      ? path === '/trips'
+        ? [{ id: 'trip', name: '旅行A' }]
+        : path === '/genres' && filters.tripId === 'trip'
+          ? [{ id: 'genre', name: 'ジャンルA' }]
+          : path === '/stamps' && filters.genreId === 'genre'
+            ? [{ id: 'stamp', name: 'スタンプA' }]
+            : []
+      : [],
+    error: null,
+  }));
   native.focused.mockReturnValue(true);
   native.finish.mockResolvedValue(undefined);
   native.picker.mockImplementation((accept) => {
@@ -179,6 +204,96 @@ async function reconcile(batch: PendingBatch, statuses: UploadStatus[]) {
     }),
   );
 }
+
+describe('post destination selection', () => {
+  const fields = () => view!.root.findAllByType('SelectField' as never);
+
+  it.each([
+    {
+      screen: 'trip',
+      params: { initialTripId: 'trip' },
+      expected: ['trip', undefined, undefined],
+    },
+    {
+      screen: 'genre',
+      params: { initialGenreId: 'genre' },
+      expected: ['trip', 'genre', undefined],
+    },
+    {
+      screen: 'stamp',
+      params: { initialStampId: 'stamp' },
+      expected: ['trip', 'genre', 'stamp'],
+    },
+  ])(
+    'shows editable selections from the $screen header',
+    async ({ params, expected }) => {
+      native.params.mockReturnValue(params);
+      await mount();
+      expect(fields().map((field) => field.props.label)).toEqual([
+        '旅行',
+        'ジャンル',
+        'スタンプ',
+      ]);
+      expect(fields().map((field) => field.props.value)).toEqual(expected);
+      for (const field of fields()) {
+        expect(field.props.disabled).toBe(false);
+        if (field.props.value) {
+          expect(field.props.options).toContainEqual({
+            value: field.props.value,
+            label: `${field.props.label}A`,
+          });
+        }
+      }
+    },
+  );
+
+  it('resolves parents after opening and uploads to the changed destination', async () => {
+    native.params.mockReturnValue({ initialStampId: 'stamp' });
+    const details = new Map<string, unknown>();
+    native.detail.mockImplementation((path: string, enabled: boolean) => ({
+      data: details.get(path),
+      error: null,
+      isPending: enabled && !details.has(path),
+    }));
+    await mount();
+    expect(fields().every((field) => field.props.disabled)).toBe(true);
+    details.set('/stamps/stamp', { id: 'stamp', genreId: 'genre' });
+    await act(async () => view!.update(createElement(PostEditorScreen)));
+    expect(fields().every((field) => field.props.disabled)).toBe(true);
+    details.set('/genres/genre', { id: 'genre', tripId: 'trip' });
+    await act(async () => view!.update(createElement(PostEditorScreen)));
+    expect(fields().map((field) => field.props.value)).toEqual([
+      'trip',
+      'genre',
+      'stamp',
+    ]);
+
+    await act(async () => fields()[1].props.onChange('other-genre'));
+    expect(fields().map((field) => field.props.value)).toEqual([
+      'trip',
+      'other-genre',
+      undefined,
+    ]);
+    await act(async () => fields()[2].props.onChange('other-stamp'));
+    await act(async () => fields()[0].props.onChange('other-trip'));
+    await act(async () => view!.update(createElement(PostEditorScreen)));
+    expect(fields().map((field) => field.props.value)).toEqual([
+      'other-trip',
+      undefined,
+      undefined,
+    ]);
+    expect(form().props.disabled).toBe(true);
+    await act(async () => fields()[1].props.onChange('new-genre'));
+    await act(async () => fields()[2].props.onChange('new-stamp'));
+    const batch = await submit();
+    expect(batch.stampId).toBe('new-stamp');
+    expect(fields().every((field) => field.props.disabled)).toBe(true);
+    await reconcile(batch, ['READY']);
+    expect(native.finish).toHaveBeenCalledExactlyOnceWith({
+      target: { type: 'stamp', stampId: 'new-stamp' },
+    });
+  });
+});
 
 describe('post upload completion', () => {
   it('waits for every file to be published, then closes the editor for the target stamp once', async () => {

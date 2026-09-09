@@ -2,7 +2,7 @@ import { useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useData } from '../../features/app-data/AppDataProvider';
-import { useList } from '../../features/app-data/api/queries';
+import { useDetail, useList } from '../../features/app-data/api/queries';
 import { useEditor } from '../../features/editor/EditorProvider';
 import { useEditorGuard } from '../../features/editor/hooks/useEditorGuard';
 import { FormPage } from '../../features/editor/ui/FormPage';
@@ -27,14 +27,33 @@ export function PostEditorScreen() {
     genreId?: string;
     tripId?: string;
     batchId?: string;
+    initialTripId?: string;
+    initialGenreId?: string;
+    initialStampId?: string;
   }>();
   const { userId } = useData();
   const { manager, batches } = useUploads();
   const flow = useEditor();
   const focused = useIsFocused();
-  const [tripId, setTripId] = useState(params.tripId);
-  const [genreId, setGenreId] = useState(params.genreId);
-  const [stampId, setStampId] = useState(params.stampId);
+  const [destination, setDestination] = useState<{
+    tripId?: string;
+    genreId?: string;
+    stampId?: string;
+  }>();
+  const initialStamp = useDetail<Stamp>(
+    `/stamps/${params.initialStampId}`,
+    !destination && !!params.initialStampId && !params.initialGenreId,
+  );
+  const initialGenreId = params.initialGenreId ?? initialStamp.data?.genreId;
+  const initialGenre = useDetail<Genre>(
+    `/genres/${initialGenreId}`,
+    !destination && !!initialGenreId && !params.initialTripId,
+  );
+  const { tripId, genreId, stampId } = destination ?? {
+    tripId: params.tripId ?? params.initialTripId ?? initialGenre.data?.tripId,
+    genreId: params.genreId ?? initialGenreId,
+    stampId: params.stampId ?? params.initialStampId,
+  };
   const [files, setFiles] = useState<PickedMedia[]>([]);
   const [batchId, setBatchId] = useState(params.batchId);
   const [completedStampId, setCompletedStampId] = useState<string | null>(null);
@@ -48,6 +67,7 @@ export function PostEditorScreen() {
   const task = useTask();
   const pending = task.pending || flow.finishing;
   const locked = pending || !!batchId || !!completedStampId;
+  const destinationPending = initialStamp.isPending || initialGenre.isPending;
   const trips = useList<Trip>('/trips', {}, !params.stampId && !params.genreId);
   const genres = useList<Genre>(
     '/genres',
@@ -118,6 +138,9 @@ export function PostEditorScreen() {
       error={
         task.error ??
         picker.error ??
+        (!destination
+          ? (initialStamp.error?.message ?? initialGenre.error?.message)
+          : null) ??
         trips.error?.message ??
         genres.error?.message ??
         stamps.error?.message ??
@@ -161,7 +184,7 @@ export function PostEditorScreen() {
             <>
               <SelectField
                 label="旅行"
-                disabled={locked}
+                disabled={locked || destinationPending}
                 icon="bag-suitcase-outline"
                 value={tripId}
                 placeholder="旅行を選ぶ"
@@ -170,14 +193,12 @@ export function PostEditorScreen() {
                   label: trip.name,
                 }))}
                 onChange={(value) => {
-                  setTripId(value);
-                  setGenreId(undefined);
-                  setStampId(undefined);
+                  setDestination({ tripId: value });
                 }}
               />
               <SelectField
                 label="ジャンル"
-                disabled={locked}
+                disabled={locked || destinationPending}
                 icon="shape-outline"
                 value={genreId}
                 placeholder="ジャンルを選ぶ"
@@ -186,15 +207,14 @@ export function PostEditorScreen() {
                   label: genre.name,
                 }))}
                 onChange={(value) => {
-                  setGenreId(value);
-                  setStampId(undefined);
+                  setDestination({ tripId, genreId: value });
                 }}
               />
             </>
           ) : null}
           <SelectField
             label="スタンプ"
-            disabled={locked}
+            disabled={locked || destinationPending}
             icon="stamper"
             value={stampId}
             placeholder="スタンプを選ぶ"
@@ -202,7 +222,9 @@ export function PostEditorScreen() {
               value: stamp.id,
               label: stamp.name,
             }))}
-            onChange={setStampId}
+            onChange={(value) =>
+              setDestination({ tripId, genreId, stampId: value })
+            }
           />
         </View>
       ) : null}

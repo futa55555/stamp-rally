@@ -41,7 +41,16 @@ export function TripStackHeader({
   return (
     <PageHeader
       title={title}
-      onPost={() => router.push('/editor/post')}
+      onPost={() =>
+        router.push({
+          pathname: '/editor/post',
+          params: {
+            initialTripId: tripId,
+            initialGenreId: genreId,
+            initialStampId: params?.stampId,
+          },
+        })
+      }
       onBack={() => {
         if (navigation.canGoBack()) {
           navigation.goBack();
