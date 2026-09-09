@@ -34,6 +34,21 @@ export function invitationTokenFromUrl(
     return null;
   }
 }
+export function isPublicTopUrl(value: string, origin: string | null): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      !!origin &&
+      url.origin === origin &&
+      url.protocol === 'https:' &&
+      !url.username &&
+      !url.password &&
+      url.pathname === '/'
+    );
+  } catch {
+    return false;
+  }
+}
 export function invitationUrl(
   token: string,
   scheme: string,

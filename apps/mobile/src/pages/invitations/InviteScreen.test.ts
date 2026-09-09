@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { InviteScreen } from './InviteScreen';
 import { InvitationControls } from './InvitationParts';
 import type { Invitation } from '../../features/invitations/types';
+import { ApiError } from '../../shared/api/errors';
 
 const mocks = vi.hoisted(() => ({
   token: 'a'.repeat(43),
@@ -19,6 +20,8 @@ const mocks = vi.hoisted(() => ({
   refresh: vi.fn(),
   pending: { ready: true, token: null as string | null, error: null },
   preview: {} as Record<string, unknown>,
+  error: null as Error | null,
+  isFetching: false,
 }));
 vi.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ token: mocks.token, linkId: mocks.linkId }),
@@ -43,7 +46,8 @@ vi.mock('../../features/invitations/hooks', () => ({
   useInvitationPreview: () => ({
     data: mocks.preview,
     isPending: false,
-    error: null,
+    error: mocks.error,
+    isFetching: mocks.isFetching,
     invalidate: mocks.refresh,
   }),
 }));
@@ -91,6 +95,8 @@ beforeEach(() => {
   mocks.user = null;
   mocks.token = 'a'.repeat(43);
   mocks.linkId = undefined;
+  mocks.error = null;
+  mocks.isFetching = false;
   mocks.pending = { ready: true, token: mocks.token, error: null };
   mocks.preview = {
     trip: invitation.trip,
@@ -158,7 +164,10 @@ describe('Invitation screens', () => {
       .findAllByType('Button' as never)
       .map((button) => button.props.label);
     expect(labels).not.toContain('参加を申請');
-    expect(labels).toContain('申請を撤回');
+    expect(mocks.replace).toHaveBeenCalledWith({
+      pathname: '/invitations/[id]',
+      params: { id: invitation.id },
+    });
   });
   it('preserves the invite through login and onboarding, and submits only on an explicit tap', async () => {
     await act(async () => {
@@ -196,12 +205,118 @@ describe('Invitation screens', () => {
     });
     const button = view!.root
       .findAllByType('Button' as never)
-      .find((button) => button.props.label === '招待を閉じる')!;
+      .find((button) => button.props.label === 'トップに戻る')!;
     await act(async () => button.props.onPress());
     mocks.pending = { ...mocks.pending, token: null };
     await act(async () => view!.update(createElement(InviteScreen)));
     expect(mocks.capture).toHaveBeenCalledTimes(1);
-    expect(mocks.replace).toHaveBeenCalledWith('/');
+    expect(mocks.replace).toHaveBeenCalledWith('/trips');
+  });
+  it.each(['ACTIVE', 'EXPIRED', 'REVOKED'])(
+    'opens the trip immediately for an existing member through a %s link',
+    async (linkStatus) => {
+      mocks.user = { id: 'applicant', status: 'ACTIVE' };
+      mocks.preview = {
+        ...mocks.preview,
+        linkStatus,
+        isMember: true,
+        canRequest: false,
+        invitation: { ...invitation, status: 'ACCEPTED' },
+      };
+      await act(async () => {
+        view = create(createElement(InviteScreen));
+      });
+      expect(mocks.replace).toHaveBeenCalledWith({
+        pathname: '/trips/trip/[tripId]',
+        params: { tripId: 'trip' },
+      });
+      expect(mocks.request).not.toHaveBeenCalled();
+    },
+  );
+  it.each(['ACTIVE', 'EXPIRED', 'REVOKED'])(
+    'opens the application for a pending applicant through a %s link',
+    async (linkStatus) => {
+      mocks.user = { id: 'applicant', status: 'ACTIVE' };
+      mocks.preview = {
+        ...mocks.preview,
+        linkStatus,
+        canRequest: false,
+        invitation,
+      };
+      await act(async () => {
+        view = create(createElement(InviteScreen));
+      });
+      expect(mocks.replace).toHaveBeenCalledWith({
+        pathname: '/invitations/[id]',
+        params: { id: 'request' },
+      });
+    },
+  );
+  it.each(['DECLINED', 'CANCELLED'])(
+    'shows the %s result on the same active link and an application on a new link',
+    async (status) => {
+      mocks.user = { id: 'applicant', status: 'ACTIVE' };
+      mocks.preview = {
+        ...mocks.preview,
+        canRequest: false,
+        invitation: { ...invitation, status },
+      };
+      await act(async () => {
+        view = create(createElement(InviteScreen));
+      });
+      expect(mocks.replace).toHaveBeenCalledWith({
+        pathname: '/invitations/[id]',
+        params: { id: 'request' },
+      });
+      mocks.replace.mockClear();
+      mocks.preview = { ...mocks.preview, canRequest: true };
+      await act(async () => view!.update(createElement(InviteScreen)));
+      expect(mocks.replace).not.toHaveBeenCalled();
+      expect(
+        view!.root.findAllByType('Button' as never).map((b) => b.props.label),
+      ).toContain('参加を申請');
+    },
+  );
+  it.each([404, 410])(
+    'shows an unavailable link on HTTP %s and clears the invitation on return to top',
+    async (status) => {
+      mocks.user = { id: 'applicant', status: 'ACTIVE' };
+      mocks.error = new ApiError('Unavailable', status);
+      await act(async () => {
+        view = create(createElement(InviteScreen));
+      });
+      expect(JSON.stringify(view!.toJSON())).toContain(
+        'この招待リンクは利用できません',
+      );
+      expect(mocks.replace).not.toHaveBeenCalled();
+      await act(async () =>
+        view!.root
+          .findAllByType('Button' as never)
+          .find((b) => b.props.label === 'トップに戻る')!
+          .props.onPress(),
+      );
+      expect(mocks.clear).toHaveBeenCalled();
+      expect(mocks.replace).toHaveBeenCalledWith('/trips');
+    },
+  );
+  it('keeps communication errors retryable and does not navigate using stale cached membership', async () => {
+    mocks.user = { id: 'applicant', status: 'ACTIVE' };
+    mocks.preview = { ...mocks.preview, isMember: true };
+    mocks.isFetching = true;
+    await act(async () => {
+      view = create(createElement(InviteScreen));
+    });
+    expect(mocks.replace).not.toHaveBeenCalled();
+    mocks.isFetching = false;
+    mocks.error = new ApiError('Offline');
+    await act(async () => view!.update(createElement(InviteScreen)));
+    expect(mocks.replace).not.toHaveBeenCalled();
+    expect(
+      view!.root.findByType('QueryState' as never).props.query.invalidate,
+    ).toBe(mocks.refresh);
+    expect(JSON.stringify(view!.toJSON())).not.toContain(
+      'この招待リンクは利用できません',
+    );
   });
   it('never navigates with an old-session request response', async () => {
     mocks.user = { id: 'applicant', status: 'ACTIVE' };

@@ -1,4 +1,4 @@
-import { InvitationWebController } from './invitation-web.controller.js';
+import { PublicInvitationLinksController } from './public-invitation-links.controller.js';
 import { InvitationLinksController } from './invitation-links.controller.js';
 import { CoverAssetsModule } from '../covers/cover-assets.module.js';
 import { Module } from '@nestjs/common';
@@ -15,7 +15,7 @@ import { TripInvitationsController } from './trip-invitations.controller.js';
     InvitationsController,
     TripInvitationsController,
     InvitationLinksController,
-    InvitationWebController,
+    PublicInvitationLinksController,
   ],
   providers: [
     InvitationRepository,

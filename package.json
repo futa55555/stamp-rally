@@ -8,6 +8,7 @@
     "api:generate": "pnpm --filter api exec prisma generate --config ./prisma7.config.ts",
     "api:migrate": "pnpm --filter api exec prisma migrate deploy --config ./prisma7.config.ts",
     "api:dev": "pnpm --filter api start:dev",
+    "web:dev": "pnpm --filter web dev",
     "mobile:start": "pnpm --filter mobile start",
     "mobile:start:remote": "pnpm --filter mobile start:remote",
     "mobile:ios": "pnpm --filter mobile ios",

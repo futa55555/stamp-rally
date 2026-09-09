@@ -74,6 +74,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
               action: 'VIEW',
               autoVerify: true,
               data: [
+                { scheme: 'https', host: invitationHost, path: '/' },
                 {
                   scheme: 'https',
                   host: invitationHost,

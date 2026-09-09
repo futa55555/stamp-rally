@@ -79,7 +79,7 @@ function RootNavigation() {
                     void pendingInvitation
                       .clear()
                       .catch(() => {})
-                      .then(() => router.replace('/'));
+                      .then(() => router.replace('/trips'));
                   }}
                 />
               ),
