@@ -2,7 +2,7 @@ import { useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useData } from '../../features/app-data/AppDataProvider';
-import { useList } from '../../features/app-data/api/queries';
+import { useDetail, useList } from '../../features/app-data/api/queries';
 import { useEditor } from '../../features/editor/EditorProvider';
 import { useEditorGuard } from '../../features/editor/hooks/useEditorGuard';
 import { FormPage } from '../../features/editor/ui/FormPage';
@@ -12,13 +12,13 @@ import {
   validateMediaSelection,
   type PickedMedia,
 } from '../../features/photos/model/inputs';
+import { SelectedMediaGrid } from '../../features/photos/ui/SelectedMediaGrid';
 import type { Genre, Stamp, Trip } from '../../features/trips/model/types';
 import { useUploads } from '../../features/uploads/UploadProvider';
 import { UploadList } from '../../features/uploads/UploadList';
 import { useTask } from '../../shared/hooks/useTask';
 import { AppText } from '../../shared/ui/AppText';
 import { Button } from '../../shared/ui/Button';
-import { IconButton } from '../../shared/ui/IconButton';
 import { SelectField } from '../../shared/ui/SelectField';
 
 export function PostEditorScreen() {
@@ -27,14 +27,33 @@ export function PostEditorScreen() {
     genreId?: string;
     tripId?: string;
     batchId?: string;
+    initialTripId?: string;
+    initialGenreId?: string;
+    initialStampId?: string;
   }>();
   const { userId } = useData();
   const { manager, batches } = useUploads();
   const flow = useEditor();
   const focused = useIsFocused();
-  const [tripId, setTripId] = useState(params.tripId);
-  const [genreId, setGenreId] = useState(params.genreId);
-  const [stampId, setStampId] = useState(params.stampId);
+  const [destination, setDestination] = useState<{
+    tripId?: string;
+    genreId?: string;
+    stampId?: string;
+  }>();
+  const initialStamp = useDetail<Stamp>(
+    `/stamps/${params.initialStampId}`,
+    !destination && !!params.initialStampId && !params.initialGenreId,
+  );
+  const initialGenreId = params.initialGenreId ?? initialStamp.data?.genreId;
+  const initialGenre = useDetail<Genre>(
+    `/genres/${initialGenreId}`,
+    !destination && !!initialGenreId && !params.initialTripId,
+  );
+  const { tripId, genreId, stampId } = destination ?? {
+    tripId: params.tripId ?? params.initialTripId ?? initialGenre.data?.tripId,
+    genreId: params.genreId ?? initialGenreId,
+    stampId: params.stampId ?? params.initialStampId,
+  };
   const [files, setFiles] = useState<PickedMedia[]>([]);
   const [batchId, setBatchId] = useState(params.batchId);
   const [completedStampId, setCompletedStampId] = useState<string | null>(null);
@@ -48,6 +67,7 @@ export function PostEditorScreen() {
   const task = useTask();
   const pending = task.pending || flow.finishing;
   const locked = pending || !!batchId || !!completedStampId;
+  const destinationPending = initialStamp.isPending || initialGenre.isPending;
   const trips = useList<Trip>('/trips', {}, !params.stampId && !params.genreId);
   const genres = useList<Genre>(
     '/genres',
@@ -72,6 +92,7 @@ export function PostEditorScreen() {
           batch.files.every((file) => current.clientIds!.has(file.clientId));
       if (!matches) return;
       current.completed = true;
+      current.clientIds ??= new Set(batch.files.map((file) => file.clientId));
       setBatchId(undefined);
       setCompletedStampId(batch.stampId);
     });
@@ -96,10 +117,16 @@ export function PostEditorScreen() {
     );
   }, [completedStampId, pending, focused, task.run, flow.finish]);
   const picker = usePhotoPicker((picked) => {
-    const selected = [...files, ...picked];
-    validateMediaSelection(selected);
-    setFiles(selected);
-  }, MAX_POST_PHOTOS - files.length);
+    validateMediaSelection(picked);
+    setFiles(picked);
+  }, MAX_POST_PHOTOS);
+  const mediaCount =
+    batchId || completedStampId
+      ? (batches.find((batch) => batch.clientRequestId === batchId)?.files
+          .length ??
+        submission.current?.clientIds?.size ??
+        0)
+      : files.length;
   return (
     <FormPage
       title="写真・動画を追加"
@@ -118,6 +145,9 @@ export function PostEditorScreen() {
       error={
         task.error ??
         picker.error ??
+        (!destination
+          ? (initialStamp.error?.message ?? initialGenre.error?.message)
+          : null) ??
         trips.error?.message ??
         genres.error?.message ??
         stamps.error?.message ??
@@ -161,7 +191,7 @@ export function PostEditorScreen() {
             <>
               <SelectField
                 label="旅行"
-                disabled={locked}
+                disabled={locked || destinationPending}
                 icon="bag-suitcase-outline"
                 value={tripId}
                 placeholder="旅行を選ぶ"
@@ -170,14 +200,12 @@ export function PostEditorScreen() {
                   label: trip.name,
                 }))}
                 onChange={(value) => {
-                  setTripId(value);
-                  setGenreId(undefined);
-                  setStampId(undefined);
+                  setDestination({ tripId: value });
                 }}
               />
               <SelectField
                 label="ジャンル"
-                disabled={locked}
+                disabled={locked || destinationPending}
                 icon="shape-outline"
                 value={genreId}
                 placeholder="ジャンルを選ぶ"
@@ -186,15 +214,14 @@ export function PostEditorScreen() {
                   label: genre.name,
                 }))}
                 onChange={(value) => {
-                  setGenreId(value);
-                  setStampId(undefined);
+                  setDestination({ tripId, genreId: value });
                 }}
               />
             </>
           ) : null}
           <SelectField
             label="スタンプ"
-            disabled={locked}
+            disabled={locked || destinationPending}
             icon="stamper"
             value={stampId}
             placeholder="スタンプを選ぶ"
@@ -202,56 +229,59 @@ export function PostEditorScreen() {
               value: stamp.id,
               label: stamp.name,
             }))}
-            onChange={setStampId}
-          />
-        </View>
-      ) : null}
-      <AppText variant="heading">写真・動画 {files.length} / 30</AppText>
-      <AppText tone="textSecondary">
-        写真は1枚50 MBまで。動画は5本まで、1本1 GB・5分以内です。
-      </AppText>
-      {files.map((file, index) => (
-        <View
-          key={file.clientId}
-          className="flex-row items-center gap-2 rounded-lg bg-surfaceSubtle p-3"
-        >
-          <View className="flex-1 gap-1">
-            <AppText numberOfLines={1}>{file.fileName}</AppText>
-            <AppText variant="caption" tone="textSecondary">
-              {file.mediaType === 'VIDEO' ? '動画' : '写真'} ·{' '}
-              {(file.byteSize / 1_000_000).toFixed(1)} MB
-            </AppText>
-          </View>
-          <IconButton
-            icon="close-circle-outline"
-            label={`${index + 1}件目の選択を解除`}
-            disabled={locked}
-            onPress={() =>
-              setFiles((current) =>
-                current.filter((entry) => entry.clientId !== file.clientId),
-              )
+            onChange={(value) =>
+              setDestination({ tripId, genreId, stampId: value })
             }
           />
         </View>
-      ))}
-      <Button
-        label="ライブラリから選ぶ"
-        icon="image-multiple-outline"
-        variant="secondary"
-        disabled={locked || picker.pending || files.length >= 30}
-        onPress={picker.library}
-      />
-      <Button
-        label="カメラで撮影"
-        icon="camera-outline"
-        variant="secondary"
-        disabled={locked || picker.pending || files.length >= 30}
-        onPress={picker.camera}
-      />
-      {picker.pending ? (
-        <AppText tone="textSecondary">原本を準備しています…</AppText>
       ) : null}
-      <UploadList stampId={stampId} batchId={batchId} />
+      <View className="gap-3">
+        <AppText variant="heading">
+          写真・動画 {mediaCount} / {MAX_POST_PHOTOS}
+        </AppText>
+        <AppText tone="textSecondary">
+          写真は1枚50 MBまで。動画は5本まで、1本1 GB・5分以内です。
+        </AppText>
+        {!batchId && !completedStampId ? (
+          files.length ? (
+            <>
+              <SelectedMediaGrid files={files} />
+              <Button
+                label="選び直す"
+                icon="reload"
+                variant="secondary"
+                disabled={locked || picker.pending}
+                onPress={() => {
+                  setFiles([]);
+                  task.clearError();
+                  picker.clearError();
+                }}
+              />
+            </>
+          ) : (
+            <>
+              <Button
+                label="ライブラリから選ぶ"
+                icon="image-multiple-outline"
+                variant="secondary"
+                disabled={locked || picker.pending}
+                onPress={picker.library}
+              />
+              <Button
+                label="カメラで撮影"
+                icon="camera-outline"
+                variant="secondary"
+                disabled={locked || picker.pending}
+                onPress={picker.camera}
+              />
+            </>
+          )
+        ) : null}
+        {picker.pending ? (
+          <AppText tone="textSecondary">原本を準備しています…</AppText>
+        ) : null}
+        <UploadList stampId={stampId} batchId={batchId} />
+      </View>
     </FormPage>
   );
 }

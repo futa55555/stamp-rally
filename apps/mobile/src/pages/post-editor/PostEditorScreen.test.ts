@@ -16,6 +16,8 @@ const native = vi.hoisted(() => ({
   finish: vi.fn(),
   uploads: vi.fn(),
   picker: vi.fn(),
+  detail: vi.fn(),
+  list: vi.fn(),
 }));
 vi.mock('expo-router', () => ({
   useLocalSearchParams: native.params,
@@ -26,7 +28,8 @@ vi.mock('../../features/app-data/AppDataProvider', () => ({
   useData: () => ({ userId: 'user' }),
 }));
 vi.mock('../../features/app-data/api/queries', () => ({
-  useList: () => ({ data: [], error: null }),
+  useDetail: native.detail,
+  useList: native.list,
 }));
 vi.mock('../../features/editor/EditorProvider', () => ({
   useEditor: () => ({ finish: native.finish, finishing: false }),
@@ -37,6 +40,9 @@ vi.mock('../../features/editor/hooks/useEditorGuard', () => ({
 vi.mock('../../features/editor/ui/FormPage', () => ({ FormPage: 'FormPage' }));
 vi.mock('../../features/photos/hooks/usePhotoPicker', () => ({
   usePhotoPicker: native.picker,
+}));
+vi.mock('../../features/photos/ui/SelectedMediaGrid', () => ({
+  SelectedMediaGrid: 'SelectedMediaGrid',
 }));
 vi.mock('../../features/uploads/UploadProvider', () => ({
   useUploads: native.uploads,
@@ -64,6 +70,10 @@ let pick: (files: PickedMedia[]) => void;
 let initialStatus: UploadStatus;
 let request: ReturnType<typeof vi.fn>;
 const form = () => view!.root.findByType('FormPage' as never);
+const labels = () =>
+  view!.root
+    .findAllByType('AppText' as never)
+    .map((node) => [node.props.children].flat().join(''));
 
 beforeEach(async () => {
   vi.resetAllMocks();
@@ -73,11 +83,39 @@ beforeEach(async () => {
     originalError(...args);
   });
   native.params.mockReturnValue({ stampId: 'stamp' });
+  native.detail.mockImplementation((path: string) => ({
+    data:
+      path === '/stamps/stamp'
+        ? { id: 'stamp', genreId: 'genre' }
+        : path === '/genres/genre'
+          ? { id: 'genre', tripId: 'trip' }
+          : undefined,
+    error: null,
+    isPending: false,
+  }));
+  native.list.mockImplementation((path: string, filters, enabled = true) => ({
+    data: enabled
+      ? path === '/trips'
+        ? [{ id: 'trip', name: '旅行A' }]
+        : path === '/genres' && filters.tripId === 'trip'
+          ? [{ id: 'genre', name: 'ジャンルA' }]
+          : path === '/stamps' && filters.genreId === 'genre'
+            ? [{ id: 'stamp', name: 'スタンプA' }]
+            : []
+      : [],
+    error: null,
+  }));
   native.focused.mockReturnValue(true);
   native.finish.mockResolvedValue(undefined);
   native.picker.mockImplementation((accept) => {
     pick = accept;
-    return { pending: false, error: null, library: vi.fn(), camera: vi.fn() };
+    return {
+      pending: false,
+      error: null,
+      clearError: vi.fn(),
+      library: vi.fn(),
+      camera: vi.fn(),
+    };
   });
   const server = new Map<string, UploadBatch>();
   let key = 0;
@@ -180,6 +218,204 @@ async function reconcile(batch: PendingBatch, statuses: UploadStatus[]) {
   );
 }
 
+describe('post media selection', () => {
+  const buttons = () => view!.root.findAllByType('Button' as never);
+  const previews = () => view!.root.findAllByType('SelectedMediaGrid' as never);
+
+  it('shows previews with reselect and upload after picking photos and videos', async () => {
+    const files: PickedMedia[] = [
+      photo('one'),
+      {
+        ...photo('video'),
+        mediaType: 'VIDEO',
+        mimeType: 'video/mp4',
+        uri: 'file:///picker/video.mp4',
+      },
+    ];
+    await mount();
+    expect(buttons().map((button) => button.props.label)).toEqual([
+      'ライブラリから選ぶ',
+      'カメラで撮影',
+    ]);
+    expect(form().props.disabled).toBe(true);
+    await act(async () => pick(files));
+    expect(previews()[0].props.files).toEqual(files);
+    expect(buttons().map((button) => button.props.label)).toEqual(['選び直す']);
+    expect(view!.root.findAllByType('IconButton' as never)).toHaveLength(0);
+    expect(form().props.saveLabel).toBe('アップロードを開始');
+    expect(form().props.disabled).toBe(false);
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it('clears a full selection, stays empty on cancellation and uploads only the new selection', async () => {
+    await mount();
+    await act(async () =>
+      pick(Array.from({ length: 30 }, (_, i) => photo(`${i}`))),
+    );
+    expect(previews()[0].props.files).toHaveLength(30);
+    expect(buttons()[0].props.disabled).toBe(false);
+    await act(async () => buttons()[0].props.onPress());
+    expect(previews()).toHaveLength(0);
+    expect(form().props.disabled).toBe(true);
+    expect(native.picker.mock.lastCall?.[1]).toBe(30);
+    // A cancelled picker does not call onPicked.
+    await act(async () => buttons()[0].props.onPress());
+    expect(previews()).toHaveLength(0);
+    expect(form().props.disabled).toBe(true);
+    const batch = await submit([photo('new')]);
+    expect(batch.files.map((file) => file.clientId)).toEqual(['new']);
+    expect(previews()).toHaveLength(0);
+    expect(buttons()).toHaveLength(0);
+    expect(view!.root.findByType('UploadList' as never).props.batchId).toBe(
+      batch.clientRequestId,
+    );
+    expect(form().props.disabled).toBe(true);
+  });
+
+  it('replaces the selection instead of appending another copy of the same photo', async () => {
+    await mount();
+    await act(async () => pick([photo('one'), photo('two')]));
+    await act(async () => pick([photo('one'), photo('three')]));
+    expect(
+      previews()[0].props.files.map((file: PickedMedia) => file.clientId),
+    ).toEqual(['one', 'three']);
+  });
+
+  it('keeps the destination, selected count and limits visible throughout upload and completion', async () => {
+    native.params.mockReturnValue({ initialStampId: 'stamp' });
+    await mount();
+    const batch = await submit([photo('one'), photo('two')]);
+    const fields = view!.root.findAllByType('SelectField' as never);
+    expect(fields.map((field) => field.props.label)).toEqual([
+      '旅行',
+      'ジャンル',
+      'スタンプ',
+    ]);
+    expect(fields.map((field) => field.props.value)).toEqual([
+      'trip',
+      'genre',
+      'stamp',
+    ]);
+    expect(fields.every((field) => field.props.disabled)).toBe(true);
+    expect(labels()).toContain('写真・動画 2 / 30');
+    expect(labels()).toContain(
+      '写真は1枚50 MBまで。動画は5本まで、1本1 GB・5分以内です。',
+    );
+    expect(previews()).toHaveLength(0);
+    expect(buttons()).toHaveLength(0);
+    await reconcile(batch, ['READY', 'FAILED']);
+    expect(labels()).toContain('写真・動画 2 / 30');
+    await reconcile(batch, ['READY', 'READY']);
+    expect(labels()).toContain('写真・動画 2 / 30');
+    expect(native.finish).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the selection on upload failure and clears the error when reselecting', async () => {
+    vi.spyOn(manager, 'add').mockRejectedValueOnce(
+      new Error('原本を保持できません。'),
+    );
+    await mount();
+    await act(async () => pick([photo('one')]));
+    await act(async () => form().props.onSave());
+    expect(form().props.error).toBe('原本を保持できません。');
+    expect(previews()[0].props.files).toEqual([photo('one')]);
+    expect(buttons()[0].props.disabled).toBe(false);
+    await act(async () => buttons()[0].props.onPress());
+    expect(previews()).toHaveLength(0);
+    expect(form().props.error).toBeNull();
+  });
+});
+
+describe('post destination selection', () => {
+  const fields = () => view!.root.findAllByType('SelectField' as never);
+
+  it.each([
+    {
+      screen: 'trip',
+      params: { initialTripId: 'trip' },
+      expected: ['trip', undefined, undefined],
+    },
+    {
+      screen: 'genre',
+      params: { initialGenreId: 'genre' },
+      expected: ['trip', 'genre', undefined],
+    },
+    {
+      screen: 'stamp',
+      params: { initialStampId: 'stamp' },
+      expected: ['trip', 'genre', 'stamp'],
+    },
+  ])(
+    'shows editable selections from the $screen header',
+    async ({ params, expected }) => {
+      native.params.mockReturnValue(params);
+      await mount();
+      expect(fields().map((field) => field.props.label)).toEqual([
+        '旅行',
+        'ジャンル',
+        'スタンプ',
+      ]);
+      expect(fields().map((field) => field.props.value)).toEqual(expected);
+      for (const field of fields()) {
+        expect(field.props.disabled).toBe(false);
+        if (field.props.value) {
+          expect(field.props.options).toContainEqual({
+            value: field.props.value,
+            label: `${field.props.label}A`,
+          });
+        }
+      }
+    },
+  );
+
+  it('resolves parents after opening and uploads to the changed destination', async () => {
+    native.params.mockReturnValue({ initialStampId: 'stamp' });
+    const details = new Map<string, unknown>();
+    native.detail.mockImplementation((path: string, enabled: boolean) => ({
+      data: details.get(path),
+      error: null,
+      isPending: enabled && !details.has(path),
+    }));
+    await mount();
+    expect(fields().every((field) => field.props.disabled)).toBe(true);
+    details.set('/stamps/stamp', { id: 'stamp', genreId: 'genre' });
+    await act(async () => view!.update(createElement(PostEditorScreen)));
+    expect(fields().every((field) => field.props.disabled)).toBe(true);
+    details.set('/genres/genre', { id: 'genre', tripId: 'trip' });
+    await act(async () => view!.update(createElement(PostEditorScreen)));
+    expect(fields().map((field) => field.props.value)).toEqual([
+      'trip',
+      'genre',
+      'stamp',
+    ]);
+
+    await act(async () => fields()[1].props.onChange('other-genre'));
+    expect(fields().map((field) => field.props.value)).toEqual([
+      'trip',
+      'other-genre',
+      undefined,
+    ]);
+    await act(async () => fields()[2].props.onChange('other-stamp'));
+    await act(async () => fields()[0].props.onChange('other-trip'));
+    await act(async () => view!.update(createElement(PostEditorScreen)));
+    expect(fields().map((field) => field.props.value)).toEqual([
+      'other-trip',
+      undefined,
+      undefined,
+    ]);
+    expect(form().props.disabled).toBe(true);
+    await act(async () => fields()[1].props.onChange('new-genre'));
+    await act(async () => fields()[2].props.onChange('new-stamp'));
+    const batch = await submit();
+    expect(batch.stampId).toBe('new-stamp');
+    expect(fields().every((field) => field.props.disabled)).toBe(true);
+    await reconcile(batch, ['READY']);
+    expect(native.finish).toHaveBeenCalledExactlyOnceWith({
+      target: { type: 'stamp', stampId: 'new-stamp' },
+    });
+  });
+});
+
 describe('post upload completion', () => {
   it('waits for every file to be published, then closes the editor for the target stamp once', async () => {
     await mount();
@@ -281,7 +517,9 @@ describe('post upload completion', () => {
       batchId: batch.clientRequestId,
     });
     await mount();
+    expect(labels()).toContain('写真・動画 1 / 30');
     await reconcile(batch, ['READY']);
+    expect(labels()).toContain('写真・動画 1 / 30');
     expect(native.finish).toHaveBeenCalledExactlyOnceWith({
       target: { type: 'stamp', stampId: 'resumed-stamp' },
     });
