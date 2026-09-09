@@ -33,7 +33,7 @@ export function GenreDetailScreen() {
         columnWrapperClassName="gap-4"
         keyExtractor={(stamp) => stamp?.id ?? 'empty-cell'}
         className="flex-1 bg-background"
-        contentContainerClassName="px-4 pt-6 pb-12 gap-6 w-full grow"
+        contentContainerClassName="px-4 pt-6 pb-12 gap-6 w-full"
         ListHeaderComponent={
           <GenreDetailHeader
             genre={genre}

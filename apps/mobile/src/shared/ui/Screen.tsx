@@ -15,7 +15,7 @@ export function Screen({
     <ScrollView
       className="flex-1 bg-background"
       contentContainerClassName={[
-        'w-full grow gap-6 pb-12',
+        'w-full gap-6 pb-12',
         contentContainerClassName,
       ].join(' ')}
       keyboardShouldPersistTaps="handled"

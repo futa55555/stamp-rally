@@ -34,7 +34,7 @@ export function StampDetailScreen() {
         numColumns={2}
         keyExtractor={(photo) => (photo ? `post-${photo.id}` : 'create-post')}
         className="flex-1 bg-background"
-        contentContainerClassName="pb-12 w-full grow"
+        contentContainerClassName="pb-12 w-full"
         columnWrapperClassName="gap-0"
         ListHeaderComponent={
           <>
