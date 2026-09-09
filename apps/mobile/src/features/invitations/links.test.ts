@@ -4,10 +4,25 @@ import {
   invitationOrigin,
   invitationTokenFromUrl,
   invitationUrl,
+  isPublicTopUrl,
 } from './links';
 const token = 'a'.repeat(43);
 const origin = 'https://invite.example.com';
 describe('Invitation URLs', () => {
+  it('recognizes only the configured HTTPS top URL', () => {
+    expect(isPublicTopUrl(origin + '/', origin)).toBe(true);
+    expect(isPublicTopUrl(origin, origin)).toBe(true);
+    for (const value of [
+      'bad',
+      origin + '/trips',
+      origin + '/invite/' + token,
+      'https://evil.example.com/',
+      'http://invite.example.com/',
+      'https://user@invite.example.com/',
+    ])
+      expect(isPublicTopUrl(value, origin)).toBe(false);
+    expect(isPublicTopUrl(origin, null)).toBe(false);
+  });
   it('routes HTTPS and current-environment custom links to the same token', () => {
     expect(
       invitationTokenFromUrl(

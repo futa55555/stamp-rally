@@ -160,6 +160,11 @@ describe('Invitation link app associations', () => {
             {
               scheme: 'https',
               host: variant + '.invite.example.com',
+              path: '/',
+            },
+            {
+              scheme: 'https',
+              host: variant + '.invite.example.com',
               pathPrefix: '/invite/',
             },
           ],

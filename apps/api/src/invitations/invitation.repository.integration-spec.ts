@@ -171,7 +171,7 @@ describe('Invitation links and requests integration', () => {
     expect((await notifications.list(recipient, query)).items).toHaveLength(1);
   });
   it.each(['EXPIRED', 'REVOKED'] as const)(
-    'shows a received %s link but prevents new applications',
+    'withholds trip data for an unrequested received %s link and prevents applications',
     async (linkStatus) => {
       const link = await repository.createLink(tripId, sender);
       await repository.preview(link.token, recipient);
@@ -182,9 +182,9 @@ describe('Invitation links and requests integration', () => {
           where: { id: link.id },
           data: { expiresAt: new Date(0) },
         });
-      expect(
-        await repository.previewReceived(link.id, recipient),
-      ).toMatchObject({ linkStatus, canRequest: false });
+      await expect(
+        repository.previewReceived(link.id, recipient),
+      ).rejects.toBeInstanceOf(GoneException);
       await expect(
         repository.requestReceived(link.id, recipient),
       ).rejects.toBeInstanceOf(GoneException);
@@ -194,6 +194,102 @@ describe('Invitation links and requests integration', () => {
       );
     },
   );
+  describe.each(['ACTIVE', 'EXPIRED', 'REVOKED'] as const)(
+    'resolving a %s link',
+    (linkStatus) => {
+      it.each([
+        'NONE',
+        'PENDING_CONFIRMATION',
+        'ACCEPTED',
+        'DECLINED',
+        'CANCELLED',
+      ] as const)('prioritizes the applicant state %s', async (state) => {
+        const link = await repository.createLink(tripId, sender);
+        await repository.preview(link.token, recipient);
+        if (state !== 'NONE') {
+          const application = await repository.request(link.token, recipient);
+          if (state !== 'PENDING_CONFIRMATION')
+            await repository.decide(
+              application.id,
+              state === 'DECLINED' ? recipient : sender,
+              state === 'ACCEPTED'
+                ? 'confirm'
+                : state === 'DECLINED'
+                  ? 'decline'
+                  : 'cancel',
+              1,
+            );
+        }
+        if (linkStatus === 'EXPIRED')
+          await prisma.invitationLink.update({
+            where: { id: link.id },
+            data: { expiresAt: new Date(0) },
+          });
+        if (linkStatus === 'REVOKED')
+          await repository.revokeLink(link.id, sender);
+        const before = await prisma.notification.count();
+        const visible =
+          linkStatus === 'ACTIVE' ||
+          state === 'ACCEPTED' ||
+          state === 'PENDING_CONFIRMATION';
+        for (const resolve of [
+          () => repository.preview(link.token, recipient),
+          () => repository.previewReceived(link.id, recipient),
+        ]) {
+          if (visible)
+            expect(await resolve()).toMatchObject({
+              linkStatus,
+              isMember: state === 'ACCEPTED',
+              canRequest: state === 'NONE' && linkStatus === 'ACTIVE',
+              invitation:
+                state === 'NONE'
+                  ? null
+                  : expect.objectContaining({ status: state }),
+            });
+          else await expect(resolve()).rejects.toBeInstanceOf(GoneException);
+        }
+        expect(await prisma.notification.count()).toBe(before);
+        expect((await repository.preview(link.token, sender)).isMember).toBe(
+          true,
+        );
+        if (linkStatus !== 'ACTIVE')
+          await expect(
+            repository.request(link.token, recipient),
+          ).rejects.toBeInstanceOf(GoneException);
+      });
+    },
+  );
+  it('checks public status without adding notifications or applications', async () => {
+    const link = await repository.createLink(tripId, sender);
+    expect(await repository.publicStatus(link.token)).toEqual({
+      status: 'ACTIVE',
+    });
+    expect(await repository.publicStatus('a'.repeat(43))).toEqual({
+      status: 'NOT_FOUND',
+    });
+    expect(await prisma.notification.count()).toBe(0);
+    expect(await prisma.tripInvitation.count()).toBe(0);
+    expect(await countMember()).toBe(0);
+  });
+  it('preserves an application across a different expired link and permits reapplication only with a new active link', async () => {
+    const { link, invitation } = await apply();
+    const next = await repository.createLink(tripId, other);
+    await repository.revokeLink(next.id, other);
+    expect(
+      (await repository.preview(next.token, recipient)).invitation?.id,
+    ).toBe(invitation.id);
+    await repository.decide(invitation.id, recipient, 'decline', 1);
+    const fresh = await repository.createLink(tripId, other);
+    expect((await repository.preview(link.token, recipient)).canRequest).toBe(
+      false,
+    );
+    expect((await repository.preview(fresh.token, recipient)).canRequest).toBe(
+      true,
+    );
+    await expect(
+      repository.preview(next.token, recipient),
+    ).rejects.toBeInstanceOf(GoneException);
+  });
   it('shares one link with multiple users and grants access only after any member confirms', async () => {
     const { link, invitation } = await apply();
     expect(link.token).toHaveLength(43);

@@ -142,13 +142,36 @@ export class InvitationRepository {
   }
 
   private async validLink(tx: Prisma.TransactionClient, token: string) {
+    const link = await this.findLink(tx, token);
+    this.requireActiveLink(link);
+    return link;
+  }
+
+  private async findLink(tx: Prisma.TransactionClient, token: string) {
     const link = await tx.invitationLink.findUnique({
       where: { tokenHash: tokenHash(token) },
       include: linkInclude,
     });
     if (!link) throw new NotFoundException('招待リンクが見つかりません。');
-    this.requireActiveLink(link);
     return link;
+  }
+
+  async publicStatus(token: string) {
+    const link = /^[A-Za-z0-9_-]{43}$/.test(token)
+      ? await this.prisma.invitationLink.findUnique({
+          where: { tokenHash: tokenHash(token) },
+          select: { expiresAt: true, revokedAt: true },
+        })
+      : null;
+    return {
+      status: !link
+        ? 'NOT_FOUND'
+        : link.revokedAt
+          ? 'REVOKED'
+          : link.expiresAt.getTime() <= Date.now()
+            ? 'EXPIRED'
+            : 'ACTIVE',
+    };
   }
 
   private requireActiveLink(link: Link) {
@@ -160,7 +183,7 @@ export class InvitationRepository {
 
   async preview(token: string, userId: string) {
     return this.write(async (tx) => {
-      const link = await this.validLink(tx, token);
+      const link = await this.findLink(tx, token);
       const preview = await this.presentLink(tx, link, userId);
       // Remember receipt without applying or notifying the trip's members.
       if (preview.canRequest)
@@ -216,6 +239,13 @@ export class InvitationRepository {
       where: { tripId_inviteeId: { tripId: link.tripId, inviteeId: userId } },
       include: invitationInclude,
     });
+    const isMember = link.trip.members.some(
+      (member) => member.userId === userId,
+    );
+    // Existing access and pending applications survive link expiration/revocation.
+    // Everyone else must hold an active link before any trip summary is returned.
+    if (!isMember && existing?.status !== 'PENDING_CONFIRMATION')
+      this.requireActiveLink(link);
     const linkStatus = link.revokedAt
       ? 'REVOKED'
       : link.expiresAt.getTime() <= Date.now()
@@ -227,11 +257,11 @@ export class InvitationRepository {
       createdBy: link.createdBy,
       expiresAt: link.expiresAt,
       linkStatus,
-      isMember: link.trip.members.some((member) => member.userId === userId),
+      isMember,
       invitation: existing ? await this.present(existing, userId) : null,
       canRequest:
         linkStatus === 'ACTIVE' &&
-        !link.trip.members.some((member) => member.userId === userId) &&
+        !isMember &&
         (!existing ||
           (existing.status !== 'PENDING_CONFIRMATION' &&
             existing.linkId !== link.id)),

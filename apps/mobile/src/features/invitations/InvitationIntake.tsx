@@ -1,8 +1,8 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Linking from 'expo-linking';
 import { usePathname, useRootNavigationState, useRouter } from 'expo-router';
 import { useData } from '../app-data/AppDataProvider';
-import { invitationTokenFromUrl } from './links';
+import { invitationTokenFromUrl, isPublicTopUrl } from './links';
 import {
   invitationScheme,
   pendingInvitation,
@@ -19,17 +19,26 @@ export function InvitationIntake() {
     pendingInvitation.snapshot,
   );
   const previousUserId = useRef(user?.id);
+  const [topLink, setTopLink] = useState(false);
   useEffect(() => {
     const revision = pendingInvitation.version();
     let alive = true;
     let received = false;
     const capture = (url: string) => {
+      if (isPublicTopUrl(url, publicInvitationOrigin)) {
+        void pendingInvitation.clear().catch(() => {});
+        setTopLink(true);
+        return;
+      }
       const token = invitationTokenFromUrl(
         url,
         invitationScheme,
         publicInvitationOrigin,
       );
-      if (token) void pendingInvitation.capture(token).catch(() => {});
+      if (token) {
+        setTopLink(false);
+        void pendingInvitation.capture(token).catch(() => {});
+      }
     };
     const subscription = Linking.addEventListener('url', ({ url }) => {
       received = true;
@@ -54,6 +63,11 @@ export function InvitationIntake() {
     };
   }, []);
   useEffect(() => {
+    if (navigation?.key && topLink) {
+      router.replace('/');
+      setTopLink(false);
+      return;
+    }
     if (
       navigation?.key &&
       pending.ready &&
@@ -73,6 +87,7 @@ export function InvitationIntake() {
     user?.status,
     path,
     router,
+    topLink,
   ]);
   useEffect(() => {
     if (previousUserId.current && !user && !pending.token && navigation?.key)
