@@ -1,4 +1,4 @@
-import { createElement, useEffect } from 'react';
+import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { expect, it, vi } from 'vitest';
@@ -12,7 +12,7 @@ vi.mock('../app-data/AppDataProvider', () => ({
   }),
 }));
 vi.mock('expo-router', () => ({
-  useFocusEffect: (callback: () => void) => useEffect(callback, [callback]),
+  useIsFocused: () => true,
 }));
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 

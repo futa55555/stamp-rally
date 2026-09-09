@@ -98,7 +98,7 @@ function createQuery() {
     hasNextPage: false,
     error: null,
     data: {},
-    refetch: vi.fn().mockResolvedValue(undefined),
+    invalidate: vi.fn().mockResolvedValue(undefined),
     fetchNextPage: vi.fn().mockResolvedValue(undefined),
     today: '2026-09-10',
     trip: { id: 'trip', name: 'Trip', coverImageUrl: null },
@@ -171,16 +171,16 @@ it.each(screens)(
       await render(Screen);
       expect(refreshProps().refreshing).toBe(false);
     }
-    expect(query.refetch).not.toHaveBeenCalled();
+    expect(query.invalidate).not.toHaveBeenCalled();
 
     // A pull during an existing background fetch owns its own progress state.
     query.isFetching = true;
     query.isRefetching = true;
     await render(Screen);
     const manual = Promise.withResolvers<void>();
-    query.refetch.mockReturnValueOnce(manual.promise);
+    query.invalidate.mockReturnValueOnce(manual.promise);
     await act(async () => refreshProps().onRefresh());
-    expect(query.refetch).toHaveBeenCalledOnce();
+    expect(query.invalidate).toHaveBeenCalledOnce();
     expect(refreshProps().refreshing).toBe(true);
 
     query.isFetching = false;
@@ -203,7 +203,7 @@ it('keeps notification pagination progress in the load-more button', async () =>
   const list = () => renderer!.root.findByType('FlatList' as never);
   await act(async () => list().props.ListFooterComponent.props.onPress());
   expect(query.fetchNextPage).toHaveBeenCalledOnce();
-  expect(query.refetch).not.toHaveBeenCalled();
+  expect(query.invalidate).not.toHaveBeenCalled();
 
   query.isFetching = true;
   query.isFetchingNextPage = true;

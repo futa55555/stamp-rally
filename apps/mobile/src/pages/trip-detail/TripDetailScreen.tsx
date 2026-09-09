@@ -13,7 +13,7 @@ export function TripDetailScreen() {
   const router = useRouter();
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
   const query = useTrip(tripId);
-  const refresh = usePullToRefresh(query.refetch);
+  const refresh = usePullToRefresh(query.invalidate);
   const { trip, genres, favorites, members } = query;
   if (query.isPending || query.error) return <QueryState query={query} />;
   if (!trip)

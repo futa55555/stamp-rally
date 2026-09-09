@@ -13,7 +13,7 @@ export function StampDetailScreen() {
   const router = useRouter();
   const { stampId } = useLocalSearchParams<{ stampId: string }>();
   const query = useStamp(stampId);
-  const refresh = usePullToRefresh(query.refetch);
+  const refresh = usePullToRefresh(query.invalidate);
   const { stamp, trip, photos } = query;
   const openPost = () =>
     router.push({ pathname: '/editor/post', params: { stampId } });

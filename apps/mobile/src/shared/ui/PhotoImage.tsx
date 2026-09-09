@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Image } from 'expo-image';
 import { photoSource } from '../../../assets/photoSources';
@@ -6,6 +6,7 @@ import { useAppTheme } from '../theme/ThemeProvider';
 import { AppText } from './AppText';
 import { Icon } from './Icon';
 import { IconButton } from './IconButton';
+import { imageCacheKey } from '../lib/imageCacheKey';
 
 const backgrounds = {
   background: 'bg-background',
@@ -26,8 +27,14 @@ export function PhotoImage({
   refresh?: () => Promise<string | null>;
   className?: string;
 }) {
-  // Reset loading/error state when a reused list cell changes its image.
-  return <ImageContent key={url} url={url} {...props} />;
+  // Reset a recycled cell for a different image, not for renewed authorization.
+  return (
+    <ImageContent
+      key={url ? imageCacheKey(url) : 'empty'}
+      url={url}
+      {...props}
+    />
+  );
 }
 
 function ImageContent({
@@ -46,12 +53,20 @@ function ImageContent({
     'loading',
   );
   const [attempt, setAttempt] = useState(0);
+  // Keep the displayed source while this image's identity is unchanged. If it
+  // fails, retry with the latest signed URL received through props.
   const [sourceUrl, setSourceUrl] = useState(url);
+  const lastAttemptedUrl = useRef(url);
   const [refreshed, setRefreshed] = useState(false);
   const reload = async () => {
     setStatus('loading');
     try {
-      if (refresh) {
+      const hasNewUrl =
+        url && url !== lastAttemptedUrl.current && url !== sourceUrl;
+      lastAttemptedUrl.current = url;
+      if (hasNewUrl) {
+        setSourceUrl(url);
+      } else if (refresh) {
         const fresh = await refresh();
         if (!fresh) throw new Error('表示用画像が見つかりません。');
         setSourceUrl(fresh);
@@ -61,6 +76,7 @@ function ImageContent({
       setStatus('error');
     }
   };
+  const source = sourceUrl ? photoSource(sourceUrl) : undefined;
   return (
     <View
       className={['overflow-hidden', backgrounds[background], className].join(
@@ -70,7 +86,14 @@ function ImageContent({
       {sourceUrl && status !== 'error' ? (
         <Image
           key={attempt}
-          source={photoSource(sourceUrl)}
+          source={
+            typeof source === 'number'
+              ? source
+              : {
+                  uri: sourceUrl,
+                  cacheKey: imageCacheKey(sourceUrl),
+                }
+          }
           contentFit={fit}
           placeholder={blurhash ? { blurhash } : undefined}
           placeholderContentFit={fit}
@@ -83,7 +106,7 @@ function ImageContent({
             onDisplayed?.();
           }}
           onError={() => {
-            if (refresh && !refreshed) {
+            if ((refresh || url !== lastAttemptedUrl.current) && !refreshed) {
               setRefreshed(true);
               void reload();
             } else setStatus('error');

@@ -12,7 +12,7 @@ export function GenreDetailScreen() {
   const router = useRouter();
   const { genreId } = useLocalSearchParams<{ genreId: string }>();
   const query = useGenre(genreId);
-  const refresh = usePullToRefresh(query.refetch);
+  const refresh = usePullToRefresh(query.invalidate);
   const { genre, stamps } = query;
   const representatives = useRepresentativePhotos(stamps);
   if (query.isPending || query.error) return <QueryState query={query} />;

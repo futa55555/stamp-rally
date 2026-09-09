@@ -74,7 +74,7 @@ vi.mock('../../features/photos/hooks/usePhoto', () => ({
       photos: photo ? selectPhotos(data, { stampId: photo.stampId }) : [],
       isPending: false,
       error: null,
-      refetch: vi.fn(),
+      invalidate: vi.fn(),
     };
   },
 }));

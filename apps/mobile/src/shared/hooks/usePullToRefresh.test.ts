@@ -22,29 +22,29 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-function Harness({ refetch }: { refetch: () => Promise<unknown> }) {
-  refresh = usePullToRefresh(refetch);
+function Harness({ invalidate }: { invalidate: () => Promise<unknown> }) {
+  refresh = usePullToRefresh(invalidate);
   return null;
 }
 
-async function mount(refetch: () => Promise<unknown>) {
+async function mount(invalidate: () => Promise<unknown>) {
   await act(async () => {
-    renderer = create(createElement(Harness, { refetch }));
+    renderer = create(createElement(Harness, { invalidate }));
   });
 }
 
 it('waits for every query in a manual refresh and ignores repeated pulls', async () => {
   const first = Promise.withResolvers<void>();
   const last = Promise.withResolvers<void>();
-  const refetch = vi.fn(() => Promise.all([first.promise, last.promise]));
-  await mount(refetch);
+  const invalidate = vi.fn(() => Promise.all([first.promise, last.promise]));
+  await mount(invalidate);
   expect(refresh.refreshing).toBe(false);
 
   await act(async () => {
     refresh.onRefresh();
     refresh.onRefresh();
   });
-  expect(refetch).toHaveBeenCalledOnce();
+  expect(invalidate).toHaveBeenCalledOnce();
   expect(refresh.refreshing).toBe(true);
 
   await act(async () => first.resolve());
@@ -53,36 +53,36 @@ it('waits for every query in a manual refresh and ignores repeated pulls', async
   expect(refresh.refreshing).toBe(false);
 
   await act(async () => refresh.onRefresh());
-  expect(refetch).toHaveBeenCalledTimes(2);
+  expect(invalidate).toHaveBeenCalledTimes(2);
   expect(refresh.refreshing).toBe(false);
 });
 
 it('stops after a failed refresh and allows retrying', async () => {
   const failed = Promise.withResolvers<void>();
   const retry = Promise.withResolvers<void>();
-  const refetch = vi
+  const invalidate = vi
     .fn()
     .mockReturnValueOnce(failed.promise)
     .mockReturnValueOnce(retry.promise);
-  await mount(refetch);
+  await mount(invalidate);
   await act(async () => refresh.onRefresh());
   expect(refresh.refreshing).toBe(true);
 
   await act(async () => failed.reject(new Error('Network unavailable')));
   expect(refresh.refreshing).toBe(false);
   await act(async () => refresh.onRefresh());
-  expect(refetch).toHaveBeenCalledTimes(2);
+  expect(invalidate).toHaveBeenCalledTimes(2);
   expect(refresh.refreshing).toBe(true);
   await act(async () => retry.resolve());
   expect(refresh.refreshing).toBe(false);
 });
 
-it('uses the current refetch callback after rerendering', async () => {
+it('uses the current invalidate callback after rerendering', async () => {
   const previous = vi.fn().mockResolvedValue(undefined);
   const current = vi.fn().mockResolvedValue(undefined);
   await mount(previous);
   await act(async () => {
-    renderer!.update(createElement(Harness, { refetch: current }));
+    renderer!.update(createElement(Harness, { invalidate: current }));
   });
   await act(async () => refresh.onRefresh());
   expect(previous).not.toHaveBeenCalled();

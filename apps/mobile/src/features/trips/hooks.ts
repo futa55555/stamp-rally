@@ -1,4 +1,5 @@
-import { useQueries } from '@tanstack/react-query';
+import { useIsFocused } from 'expo-router';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useData } from '../app-data/AppDataProvider';
 import { resourceKey } from '../app-data/api/queries';
 import { useToday } from '../../shared/hooks/useToday';
@@ -15,6 +16,8 @@ export function useTrips() {
 }
 export function useTrip(tripId: string) {
   const { client, userId } = useData();
+  const cache = useQueryClient();
+  const focused = useIsFocused();
   const trip = useDetail<Trip>(`/trips/${tripId}`, !!tripId);
   const genres = useList<Genre>('/genres', { tripId }, !!trip.data);
   const favorites = useList<Post>(
@@ -35,11 +38,27 @@ export function useTrip(tripId: string) {
       queryKey: resourceKey(userId ?? '', `/stamps/${id}`),
       queryFn: ({ signal }: { signal: AbortSignal }) =>
         client.request<Stamp>({ url: `/stamps/${id}`, signal }),
-      enabled: !!userId,
+      enabled: !!userId && focused,
     })),
   });
   return {
-    ...combineQueries(trip, genres, favorites, members, ...stamps),
+    ...combineQueries(
+      trip,
+      genres,
+      favorites,
+      members,
+      ...stamps.map((query, index) => ({
+        ...query,
+        invalidate: () =>
+          cache.invalidateQueries(
+            {
+              queryKey: resourceKey(userId ?? '', `/stamps/${stampIds[index]}`),
+              exact: true,
+            },
+            { cancelRefetch: false },
+          ),
+      })),
+    ),
     trip: trip.data,
     genres: (genres.data ?? []).map((genre) => ({
       ...genre,

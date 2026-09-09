@@ -19,7 +19,7 @@ import { UnreadBadge } from '../../shared/ui/UnreadBadge';
 export function NotificationsScreen() {
   const navigation = useNavigation();
   const query = useNotifications();
-  const refresh = usePullToRefresh(query.refetch);
+  const refresh = usePullToRefresh(query.invalidate);
   const { notifications } = query;
   const { client, userId, actions } = useData();
   const task = useTask();

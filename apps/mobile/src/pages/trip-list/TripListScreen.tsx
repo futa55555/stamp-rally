@@ -25,7 +25,7 @@ function tripRows(trips: Trip[], heading: string): TripListRow[] {
 
 export function TripListScreen() {
   const query = useTrips();
-  const refresh = usePullToRefresh(query.refetch);
+  const refresh = usePullToRefresh(query.invalidate);
   const { trips, today } = query;
   const { active, upcoming, past } = groupTrips(trips, today);
   if (query.isPending || query.error) return <QueryState query={query} />;

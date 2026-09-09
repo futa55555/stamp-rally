@@ -3,6 +3,7 @@ import { useData } from '../../app-data/AppDataProvider';
 import { PhotoImage } from '../../../shared/ui/PhotoImage';
 import { displayUrl } from '../model/display';
 import type { Post } from '../model/types';
+import { resourceKey } from '../../app-data/api/queries';
 
 export function PostImage({
   post,
@@ -21,9 +22,20 @@ export function PostImage({
       blurhash={post.blurhash}
       refresh={async () => {
         const guard = client.sessionGuard();
-        const fresh = await client.request<Post>({ url: `/posts/${post.id}` });
+        const queryKey = resourceKey(userId ?? '', `/posts/${post.id}`);
+        await cache.invalidateQueries(
+          { queryKey, exact: true },
+          { cancelRefetch: false },
+        );
         guard();
-        cache.setQueryData(['user', userId, `/posts/${post.id}`, {}], fresh);
+        // A tile may only have list data. Register/read the detail query here;
+        // fetchQuery also reuses it if invalidation already fetched fresh data.
+        const fresh = await cache.fetchQuery({
+          queryKey,
+          queryFn: ({ signal }) =>
+            client.request<Post>({ url: `/posts/${post.id}`, signal }),
+        });
+        guard();
         return displayUrl(fresh, variant);
       }}
     />

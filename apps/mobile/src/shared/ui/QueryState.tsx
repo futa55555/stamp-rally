@@ -4,7 +4,7 @@ import { StateView } from './StateView';
 export function QueryState({
   query,
 }: {
-  query: { isPending: boolean; error: Error | null; refetch: () => unknown };
+  query: { isPending: boolean; error: Error | null; invalidate: () => unknown };
 }) {
   const missing = query.error instanceof ApiError && query.error.status === 404;
   return (
@@ -23,7 +23,7 @@ export function QueryState({
           ? {
               label: '再試行',
               onPress: () => {
-                void query.refetch();
+                void query.invalidate();
               },
             }
           : undefined
