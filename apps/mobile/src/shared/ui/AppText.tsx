@@ -1,5 +1,5 @@
 import type { TextProps } from 'react-native';
-import { Text } from 'react-native';
+import { Text, useWindowDimensions } from 'react-native';
 import type { AppTheme, ColorToken } from '../theme/tokens';
 
 const variants = {
@@ -41,8 +41,11 @@ export function AppText({
   className = '',
   ...props
 }: TextProps & { variant?: keyof AppTheme['typography']; tone?: ColorToken }) {
+  const { fontScale } = useWindowDimensions();
   return (
     <Text
+      // Remeasure native text when Dynamic Type changes while the app is open.
+      key={fontScale}
       allowFontScaling
       {...props}
       className={[variants[variant], tones[tone], className].join(' ')}
