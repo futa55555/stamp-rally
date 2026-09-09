@@ -29,12 +29,17 @@ export function TripDetailScreen() {
     );
   return (
     <>
-      <Screen {...refresh}>
-        <PhotoImage
-          url={trip.coverImageUrl}
-          label={trip.name}
-          className="w-full aspect-[1.6]"
-        />
+      <Screen
+        {...refresh}
+        contentContainerClassName={trip.coverImageUrl ? '' : 'pt-6'}
+      >
+        {trip.coverImageUrl ? (
+          <PhotoImage
+            url={trip.coverImageUrl}
+            label={trip.name}
+            className="w-full aspect-[1.6]"
+          />
+        ) : null}
         <TripDetailHeader trip={trip} members={members} />
         <FavoritePhotosSection favorites={favorites} />
         <GenresSection tripId={tripId} genres={genres} />
