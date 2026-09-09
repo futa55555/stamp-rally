@@ -7,12 +7,10 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "bundleIdentifier": "com.futa.stamprally",
       "supportsTablet": true,
       "usesAppleSignIn": true
     },
     "android": {
-      "package": "com.futa.stamprally",
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
@@ -54,7 +52,6 @@
       }
     },
     "owner": "fuesugi",
-    "scheme": "stamp-rally",
     "experiments": {
       "typedRoutes": true
     }

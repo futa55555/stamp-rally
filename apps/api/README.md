@@ -13,6 +13,8 @@ NestJS + Prisma + PostgreSQL。認証済みの参加者が、trip → genre → 
 
 ## 開発・検証
 
+環境別のAPI・DB・Google / Appleの設定は[ビルド前の手動設定](../../docs/build-setup.md)を参照してください。remoteは環境ごとにAPIインスタンスを分け、デプロイ先から環境変数を注入します。各APIが許可するclient IDはGoogle・Appleそれぞれ1つです。
+
 リポジトリルートで `pnpm install`、`docker compose up -d postgres` を実行し、`apps/api/.env.example` を参考に `apps/api/.env` を設定してください。
 
 ```sh

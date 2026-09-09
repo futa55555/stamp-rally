@@ -29,8 +29,8 @@ export async function identityCredentials(
       throw error;
     }
   }
-  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-  const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
+  const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim();
   if (!webClientId || (Platform.OS === 'ios' && !iosClientId))
     throw new Error('GoogleログインのOAuth client IDが設定されていません。');
   // Load native code only when used so Expo Go can still show the setup error.

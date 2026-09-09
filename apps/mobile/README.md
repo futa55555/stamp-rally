@@ -5,22 +5,27 @@ Expo SDK 57 / React Native 0.86 / NativeWind 4.2。旅行・ジャンル・ス�
 ## 設定・起動
 
 1. APIに追加migrationを適用して起動します（[API README](../api/README.md)）。適用順序は **migration → API → mobile** です。
-2. `apps/mobile/.env.example` を `apps/mobile/.env` にコピーし、API URLとGoogle OAuth client IDを設定します。
-3. Google CloudにWeb・iOS・AndroidのOAuthクライアントを用意します。WebのIDはAPIの `GOOGLE_OAUTH_CLIENT_ID` と `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` に同じ値を指定します。iOSのIDを `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` に指定すると、config pluginに渡すURL schemeを `app.config.ts` が生成します。自動検出やFirebaseの設定ファイルは使いません。
-4. Android OAuthクライアントに `com.futa.stamprally` と使用するビルドの署名SHA-1を登録します。Google Play配布時の署名も別途登録が必要です。iOS OAuthクライアントのBundle IDも `com.futa.stamprally` に揃えます。
-5. Apple DeveloperのApp IDでSign in with Appleを有効にし、APIの `APPLE_OAUTH_CLIENT_ID` を `com.futa.stamprally` に設定します。`app.json` には `usesAppleSignIn` とApple認証pluginを設定済みです。
+2. `apps/mobile/.env.example` を参考に `apps/mobile/.env` にAPI URL・Google OAuth client ID・必要ならApple Team IDを設定します。
+3. [ビルド前の手動設定](../../docs/build-setup.md)に従ってGoogle / Appleを登録します。local / dev / stg / prodのBundle ID・Android package・schemeはそれぞれ異なります。localは `com.futa.stamprally.local` です。
+4. 以前のネイティブ生成物がある場合は、同ガイドのprebuild手順で識別子・署名Teamを更新します。
 
 ```sh
 pnpm install
-pnpm --filter mobile exec expo run:ios
-pnpm --filter mobile exec expo run:android
+pnpm mobile:ios
+pnpm mobile:android
 # 既存の開発ビルドに接続する場合
-pnpm --filter mobile exec expo start --dev-client
+pnpm mobile:start
+# EAS developmentの環境変数で実機の開発ビルドに接続する場合
+pnpm mobile:start:remote
 ```
 
 Google認証は `react-native-nitro-google-signin` とNitro Modulesを使うため、Expo Goではなく開発ビルドを使用します。ネイティブ依存やOAuth URL schemeを変更した際は再ビルドしてください。iOSはGoogle＋Apple、AndroidはGoogleを表示します。Appleのnonceはログインのたびに生成し、OSとAPIに同じ値を渡します。
 
-API URLは端末から到達可能なものを指定してください。iOSシミュレーターは `http://localhost:3000`、Androidエミュレーターは `http://10.0.2.2:3000`、実機は到達可能な開発サーバーURLを使います。公開環境にはHTTPSを指定します。OAuth設定がない状態でもexportは可能ですが、Googleログイン時に設定エラーを表示します。
+API URLは必須です。iOSシミュレーターは `http://localhost:3000`、Androidエミュレーターは `http://10.0.2.2:3000`、remoteは端末から到達可能なHTTPS URLを指定してください。localではOAuth設定前でもexportできますが、Googleログイン時に設定エラーを表示します。remoteはAPI URL・Google Web / iOS client IDがないとビルドできません。
+
+`APP_VARIANT` は未指定時にlocal、通常はscripts / EAS build profileから指定します。`staging` profileはEASの `preview` 環境を使います。アプリ識別子は `app.config.ts` に集約し、EASプロジェクトは全環境共通です。環境変数の登録先、配布コマンド、XcodeのApple Account変更は[手動設定ガイド](../../docs/build-setup.md)を参照してください。
+
+remoteの必須値検証はEASの `eas-build-pre-install` と `start:remote` で実行します。EASは環境変数取得前にも `app.config.ts` を評価するため、config読込だけでは必須値エラーにしません。
 
 参照：[Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/)、[Google認証のExpo設定](https://react-native-nitro-google-sign-in.github.io/docs/setup/expo/)、[TanStack QueryのReact Native対応](https://tanstack.com/query/latest/docs/framework/react/react-native)。
 
