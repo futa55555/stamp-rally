@@ -12,7 +12,15 @@ export function PostImage({
 }: {
   post: Post;
   variant?: 'small' | 'large';
-} & Omit<Parameters<typeof PhotoImage>[0], 'url' | 'blurhash' | 'refresh'>) {
+} & Omit<
+  Parameters<typeof PhotoImage>[0],
+  | 'url'
+  | 'blurhash'
+  | 'blurhashSizing'
+  | 'imageWidth'
+  | 'imageHeight'
+  | 'refresh'
+>) {
   const { client, userId } = useData();
   const cache = useQueryClient();
   return (
@@ -20,6 +28,9 @@ export function PostImage({
       {...props}
       url={displayUrl(post, variant)}
       blurhash={post.blurhash}
+      blurhashSizing="image"
+      imageWidth={post.width}
+      imageHeight={post.height}
       refresh={async () => {
         const guard = client.sessionGuard();
         const queryKey = resourceKey(userId ?? '', `/posts/${post.id}`);

@@ -34,7 +34,11 @@ export function StampCard({
       className="min-w-0 flex-1 gap-2 active:opacity-pressed"
     >
       {photo ? (
-        <PostImage post={photo} className="aspect-square rounded-2xl" />
+        <PostImage
+          post={photo}
+          fit="cover"
+          className="aspect-square rounded-2xl"
+        />
       ) : (
         <View className="aspect-square items-center justify-center rounded-2xl bg-border">
           <Icon name="camera-outline" size={32} tone="textMuted" />

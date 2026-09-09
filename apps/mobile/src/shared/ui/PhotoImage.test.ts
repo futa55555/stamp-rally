@@ -131,3 +131,68 @@ it('keeps bundled image sources as native asset references', async () => {
   await render();
   expect(image().props.source).toBe(42);
 });
+
+it.each(['cover', 'contain'] as const)(
+  'decodes the original proportions before applying %s, independently of the frame',
+  async (fit) => {
+    await render({
+      fit,
+      imageWidth: 4000,
+      imageHeight: 3000,
+      className: 'aspect-square',
+    });
+    expect(image().props.placeholder).toMatchObject({ width: 32, height: 24 });
+    expect(image().props.contentFit).toBe(fit);
+    expect(image().props.placeholderContentFit).toBe(fit);
+    const landscapeKey = image().props.placeholder.cacheKey;
+
+    await render({ imageWidth: 3000, imageHeight: 4000 });
+    expect(image().props.placeholder).toMatchObject({ width: 24, height: 32 });
+    expect(image().props.placeholder.cacheKey).not.toBe(landscapeKey);
+  },
+);
+
+it.each([
+  { imageWidth: undefined, imageHeight: undefined },
+  { imageWidth: null, imageHeight: 3000 },
+  { imageWidth: 4000, imageHeight: 0 },
+  { imageWidth: NaN, imageHeight: 3000 },
+])(
+  'never falls back to a square decode with missing or invalid dimensions: %j',
+  async (dimensions) => {
+    await render(dimensions);
+    expect(image().props.placeholder).toBeUndefined();
+    await render({ imageWidth: 4000, imageHeight: 3000 });
+    expect(image().props.placeholder).toMatchObject({ width: 32, height: 24 });
+  },
+);
+
+it('waits for the cover frame and updates its decode when the frame changes', async () => {
+  await render({
+    blurhashSizing: 'container',
+    imageWidth: 4000,
+    imageHeight: 3000,
+  });
+  const originalImage = image();
+  const originalSource = image().props.source;
+  expect(image().props.placeholder).toBeUndefined();
+  const layout = async (width: number, height: number) => {
+    await act(async () => {
+      renderer!.root.findAllByType('View' as never)[0].props.onLayout({
+        nativeEvent: { layout: { width, height } },
+      });
+    });
+  };
+
+  await layout(0, 0);
+  expect(image().props.placeholder).toBeUndefined();
+  await layout(320, 200);
+  expect(image().props.placeholder).toMatchObject({ width: 32, height: 20 });
+  const landscapeKey = image().props.placeholder.cacheKey;
+  await layout(300, 400);
+  expect(image().props.placeholder).toMatchObject({ width: 24, height: 32 });
+  expect(image().props.placeholder.cacheKey).not.toBe(landscapeKey);
+  expect(image()).toBe(originalImage);
+  expect(image().props.source).toEqual(originalSource);
+  expect(props.refresh).not.toHaveBeenCalled();
+});

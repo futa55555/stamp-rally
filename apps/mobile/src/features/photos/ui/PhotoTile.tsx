@@ -30,7 +30,7 @@ export function PhotoTile({
         }
         className="active:opacity-pressed"
       >
-        <PostImage post={photo} className="aspect-square" />
+        <PostImage post={photo} fit="cover" className="aspect-square" />
         {photo.mediaType === 'VIDEO' ? (
           <View className="absolute bottom-2 left-2">
             <Icon name="play-circle" tone="onPhoto" />

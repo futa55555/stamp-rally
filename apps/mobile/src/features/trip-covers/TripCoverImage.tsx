@@ -9,7 +9,12 @@ export function TripCoverImage({
   ...props
 }: { trip: Pick<Trip, 'id' | 'coverImageUrl' | 'coverBlurhash'> } & Omit<
   Parameters<typeof PhotoImage>[0],
-  'url' | 'blurhash' | 'refresh'
+  | 'url'
+  | 'blurhash'
+  | 'blurhashSizing'
+  | 'imageWidth'
+  | 'imageHeight'
+  | 'refresh'
 >) {
   const { client, userId } = useData();
   const cache = useQueryClient();
@@ -18,6 +23,7 @@ export function TripCoverImage({
       {...props}
       url={trip.coverImageUrl}
       blurhash={trip.coverBlurhash}
+      blurhashSizing="container"
       refresh={async () => {
         const guard = client.sessionGuard();
         const queryKey = resourceKey(userId ?? '', `/trips/${trip.id}`);

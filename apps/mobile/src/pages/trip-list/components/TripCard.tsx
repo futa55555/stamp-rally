@@ -21,7 +21,9 @@ export function TripCard({ trip }: { trip: Trip }) {
       }
       className="overflow-hidden rounded-3xl border border-border bg-surface active:opacity-pressed"
     >
-      <TripCoverImage trip={trip} className="aspect-[1.6]" />
+      {trip.coverImageUrl ? (
+        <TripCoverImage trip={trip} className="aspect-[1.6]" />
+      ) : null}
       <View className="gap-3 p-4">
         <View className="flex-row items-center gap-3">
           <AppText variant="heading" className="flex-1">
