@@ -12,13 +12,13 @@ import {
   validateMediaSelection,
   type PickedMedia,
 } from '../../features/photos/model/inputs';
+import { SelectedMediaGrid } from '../../features/photos/ui/SelectedMediaGrid';
 import type { Genre, Stamp, Trip } from '../../features/trips/model/types';
 import { useUploads } from '../../features/uploads/UploadProvider';
 import { UploadList } from '../../features/uploads/UploadList';
 import { useTask } from '../../shared/hooks/useTask';
 import { AppText } from '../../shared/ui/AppText';
 import { Button } from '../../shared/ui/Button';
-import { IconButton } from '../../shared/ui/IconButton';
 import { SelectField } from '../../shared/ui/SelectField';
 
 export function PostEditorScreen() {
@@ -116,10 +116,9 @@ export function PostEditorScreen() {
     );
   }, [completedStampId, pending, focused, task.run, flow.finish]);
   const picker = usePhotoPicker((picked) => {
-    const selected = [...files, ...picked];
-    validateMediaSelection(selected);
-    setFiles(selected);
-  }, MAX_POST_PHOTOS - files.length);
+    validateMediaSelection(picked);
+    setFiles(picked);
+  }, MAX_POST_PHOTOS);
   return (
     <FormPage
       title="写真・動画を追加"
@@ -228,48 +227,47 @@ export function PostEditorScreen() {
           />
         </View>
       ) : null}
-      <AppText variant="heading">写真・動画 {files.length} / 30</AppText>
-      <AppText tone="textSecondary">
-        写真は1枚50 MBまで。動画は5本まで、1本1 GB・5分以内です。
-      </AppText>
-      {files.map((file, index) => (
-        <View
-          key={file.clientId}
-          className="flex-row items-center gap-2 rounded-lg bg-surfaceSubtle p-3"
-        >
-          <View className="flex-1 gap-1">
-            <AppText numberOfLines={1}>{file.fileName}</AppText>
-            <AppText variant="caption" tone="textSecondary">
-              {file.mediaType === 'VIDEO' ? '動画' : '写真'} ·{' '}
-              {(file.byteSize / 1_000_000).toFixed(1)} MB
-            </AppText>
-          </View>
-          <IconButton
-            icon="close-circle-outline"
-            label={`${index + 1}件目の選択を解除`}
-            disabled={locked}
-            onPress={() =>
-              setFiles((current) =>
-                current.filter((entry) => entry.clientId !== file.clientId),
-              )
-            }
-          />
-        </View>
-      ))}
-      <Button
-        label="ライブラリから選ぶ"
-        icon="image-multiple-outline"
-        variant="secondary"
-        disabled={locked || picker.pending || files.length >= 30}
-        onPress={picker.library}
-      />
-      <Button
-        label="カメラで撮影"
-        icon="camera-outline"
-        variant="secondary"
-        disabled={locked || picker.pending || files.length >= 30}
-        onPress={picker.camera}
-      />
+      <View className="gap-3">
+        <AppText variant="heading">
+          写真・動画 {files.length} / {MAX_POST_PHOTOS}
+        </AppText>
+        <AppText tone="textSecondary">
+          写真は1枚50 MBまで。動画は5本まで、1本1 GB・5分以内です。
+        </AppText>
+        {files.length ? (
+          <>
+            <SelectedMediaGrid files={files} />
+            <Button
+              label="選び直す"
+              icon="reload"
+              variant="secondary"
+              disabled={locked || picker.pending}
+              onPress={() => {
+                setFiles([]);
+                task.clearError();
+                picker.clearError();
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <Button
+              label="ライブラリから選ぶ"
+              icon="image-multiple-outline"
+              variant="secondary"
+              disabled={locked || picker.pending}
+              onPress={picker.library}
+            />
+            <Button
+              label="カメラで撮影"
+              icon="camera-outline"
+              variant="secondary"
+              disabled={locked || picker.pending}
+              onPress={picker.camera}
+            />
+          </>
+        )}
+      </View>
       {picker.pending ? (
         <AppText tone="textSecondary">原本を準備しています…</AppText>
       ) : null}

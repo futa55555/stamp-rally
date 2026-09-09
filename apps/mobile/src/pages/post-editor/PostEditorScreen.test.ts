@@ -41,6 +41,9 @@ vi.mock('../../features/editor/ui/FormPage', () => ({ FormPage: 'FormPage' }));
 vi.mock('../../features/photos/hooks/usePhotoPicker', () => ({
   usePhotoPicker: native.picker,
 }));
+vi.mock('../../features/photos/ui/SelectedMediaGrid', () => ({
+  SelectedMediaGrid: 'SelectedMediaGrid',
+}));
 vi.mock('../../features/uploads/UploadProvider', () => ({
   useUploads: native.uploads,
 }));
@@ -102,7 +105,13 @@ beforeEach(async () => {
   native.finish.mockResolvedValue(undefined);
   native.picker.mockImplementation((accept) => {
     pick = accept;
-    return { pending: false, error: null, library: vi.fn(), camera: vi.fn() };
+    return {
+      pending: false,
+      error: null,
+      clearError: vi.fn(),
+      library: vi.fn(),
+      camera: vi.fn(),
+    };
   });
   const server = new Map<string, UploadBatch>();
   let key = 0;
@@ -204,6 +213,82 @@ async function reconcile(batch: PendingBatch, statuses: UploadStatus[]) {
     }),
   );
 }
+
+describe('post media selection', () => {
+  const buttons = () => view!.root.findAllByType('Button' as never);
+  const previews = () => view!.root.findAllByType('SelectedMediaGrid' as never);
+
+  it('shows previews with reselect and upload after picking photos and videos', async () => {
+    const files: PickedMedia[] = [
+      photo('one'),
+      {
+        ...photo('video'),
+        mediaType: 'VIDEO',
+        mimeType: 'video/mp4',
+        uri: 'file:///picker/video.mp4',
+      },
+    ];
+    await mount();
+    expect(buttons().map((button) => button.props.label)).toEqual([
+      'ライブラリから選ぶ',
+      'カメラで撮影',
+    ]);
+    expect(form().props.disabled).toBe(true);
+    await act(async () => pick(files));
+    expect(previews()[0].props.files).toEqual(files);
+    expect(buttons().map((button) => button.props.label)).toEqual(['選び直す']);
+    expect(view!.root.findAllByType('IconButton' as never)).toHaveLength(0);
+    expect(form().props.saveLabel).toBe('アップロードを開始');
+    expect(form().props.disabled).toBe(false);
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it('clears a full selection, stays empty on cancellation and uploads only the new selection', async () => {
+    await mount();
+    await act(async () =>
+      pick(Array.from({ length: 30 }, (_, i) => photo(`${i}`))),
+    );
+    expect(previews()[0].props.files).toHaveLength(30);
+    expect(buttons()[0].props.disabled).toBe(false);
+    await act(async () => buttons()[0].props.onPress());
+    expect(previews()).toHaveLength(0);
+    expect(form().props.disabled).toBe(true);
+    expect(native.picker.mock.lastCall?.[1]).toBe(30);
+    // A cancelled picker does not call onPicked.
+    await act(async () => buttons()[0].props.onPress());
+    expect(previews()).toHaveLength(0);
+    expect(form().props.disabled).toBe(true);
+    const batch = await submit([photo('new')]);
+    expect(batch.files.map((file) => file.clientId)).toEqual(['new']);
+    expect(previews()).toHaveLength(0);
+    expect(buttons().every((button) => button.props.disabled)).toBe(true);
+    expect(form().props.disabled).toBe(true);
+  });
+
+  it('replaces the selection instead of appending another copy of the same photo', async () => {
+    await mount();
+    await act(async () => pick([photo('one'), photo('two')]));
+    await act(async () => pick([photo('one'), photo('three')]));
+    expect(
+      previews()[0].props.files.map((file: PickedMedia) => file.clientId),
+    ).toEqual(['one', 'three']);
+  });
+
+  it('keeps the selection on upload failure and clears the error when reselecting', async () => {
+    vi.spyOn(manager, 'add').mockRejectedValueOnce(
+      new Error('原本を保持できません。'),
+    );
+    await mount();
+    await act(async () => pick([photo('one')]));
+    await act(async () => form().props.onSave());
+    expect(form().props.error).toBe('原本を保持できません。');
+    expect(previews()[0].props.files).toEqual([photo('one')]);
+    expect(buttons()[0].props.disabled).toBe(false);
+    await act(async () => buttons()[0].props.onPress());
+    expect(previews()).toHaveLength(0);
+    expect(form().props.error).toBeNull();
+  });
+});
 
 describe('post destination selection', () => {
   const fields = () => view!.root.findAllByType('SelectField' as never);
