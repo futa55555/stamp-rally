@@ -1,19 +1,20 @@
 import { Transform } from 'class-transformer';
 import {
   IsArray,
+  IsUUID,
   IsDateString,
   IsString,
   Length,
   Matches,
   ValidateIf,
 } from 'class-validator';
-import {
-  DomainName,
-  HttpsUrl,
-  OptionalField,
-} from '../../common/validation.js';
+import { DomainName, OptionalField } from '../../common/validation.js';
 
 export class CreateTripDto {
+  @OptionalField()
+  @IsUUID()
+  clientRequestId?: string;
+
   @OptionalField()
   @IsArray()
   @IsString({ each: true })
@@ -31,8 +32,8 @@ export class CreateTripDto {
   endDate!: string;
 
   @ValidateIf((_, value) => value !== undefined && value !== null)
-  @HttpsUrl()
-  coverImageUrl?: string | null;
+  @IsUUID()
+  coverAssetId?: string | null;
 
   @OptionalField()
   @Transform(({ value }: { value: unknown }) =>

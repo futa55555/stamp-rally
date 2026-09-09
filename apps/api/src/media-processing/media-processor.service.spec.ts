@@ -37,6 +37,58 @@ const request = {
 };
 
 describe('MediaProcessor real image conversion', () => {
+  it('stores only a bounded WebP for a cropped cover and strips source metadata', async () => {
+    const input = await sharp({
+      create: {
+        width: 3200,
+        height: 2000,
+        channels: 4,
+        background: '#ff000080',
+      },
+    })
+      .png()
+      .toBuffer();
+    const { processor, uploaded } = setup(input);
+    const result = await processor.processCover(
+      'cover',
+      1,
+      'covers/staging/cover',
+    );
+    expect(uploaded.size).toBe(1);
+    expect(result.imageKey).toMatch(/^covers\/cover\/1\//);
+    expect(result).toMatchObject({ width: 2560, height: 1600 });
+    expect(
+      await sharp(uploaded.get(result.imageKey)!.data).metadata(),
+    ).toMatchObject({
+      format: 'webp',
+      width: 2560,
+      height: 1600,
+      hasAlpha: true,
+    });
+    expect(isBlurhashValid(result.blurhash).result).toBe(true);
+  });
+
+  it('rejects a cover with the wrong crop ratio or file type before publication', async () => {
+    for (const input of [
+      await sharp({
+        create: { width: 800, height: 800, channels: 3, background: '#fff' },
+      })
+        .png()
+        .toBuffer(),
+      await sharp({
+        create: { width: 800, height: 500, channels: 3, background: '#fff' },
+      })
+        .jpeg()
+        .toBuffer(),
+    ]) {
+      const { processor, uploaded } = setup(input);
+      await expect(
+        processor.processCover('cover', 1, 'staging'),
+      ).rejects.toThrow('INVALID_COVER_IMAGE');
+      expect(uploaded.size).toBe(0);
+    }
+  });
+
   it('keeps original bytes and panorama ratio while bounding both display sizes', async () => {
     const input = await sharp({
       create: { width: 6000, height: 1000, channels: 3, background: '#456789' },

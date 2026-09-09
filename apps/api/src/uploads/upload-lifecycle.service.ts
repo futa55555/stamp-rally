@@ -298,6 +298,17 @@ export class UploadLifecycleService {
         const protectedKeys = new Set(
           referenced.flatMap((post) => Object.values(post)),
         );
+        const covers = await this.prisma.coverAsset.findMany({
+          where: {
+            OR: [
+              { imageKey: { in: entry.keys } },
+              { stagingKey: { in: entry.keys } },
+            ],
+          },
+          select: { imageKey: true, stagingKey: true },
+        });
+        for (const cover of covers)
+          for (const key of Object.values(cover)) protectedKeys.add(key);
         await this.storage.delete(
           entry.keys.filter((key) => !protectedKeys.has(key)),
         );

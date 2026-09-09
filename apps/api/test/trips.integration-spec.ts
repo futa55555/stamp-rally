@@ -1,3 +1,4 @@
+import { CoverAssetsService } from '../src/covers/cover-assets.service.js';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -76,6 +77,7 @@ describe('Trip API integration', () => {
   async function cleanDatabase() {
     await prisma.trip.deleteMany();
     await prisma.uploadBatch.deleteMany();
+    await prisma.coverAsset.deleteMany();
     await prisma.mediaCleanup.deleteMany();
     await prisma.session.deleteMany();
     await prisma.authAccount.deleteMany();
@@ -167,6 +169,24 @@ describe('Trip API integration', () => {
     const processing = await prisma.post.findUniqueOrThrow({ where: { id } });
     await lifecycle.process(id, processing.processingVersion);
     return get(`/posts/${id}`, who);
+  }
+
+  async function cover(who = owner) {
+    const upload = await http<{ id: string }>('post', '/uploads/covers', who, {
+      clientRequestId: randomUUID(),
+      byteSize: 100,
+      mimeType: 'image/png',
+    });
+    const row = await prisma.coverAsset.findUniqueOrThrow({
+      where: { id: upload.id },
+    });
+    storage.objects.set(row.stagingKey!, {
+      byteSize: 100,
+      contentType: 'image/png',
+    });
+    await http('post', `/uploads/covers/${row.id}/complete`, who, {});
+    await app.get(CoverAssetsService).process(row.id);
+    return row.id;
   }
 
   async function tree(who = owner) {
@@ -308,7 +328,7 @@ describe('Trip API integration', () => {
       Page<{ id: string; trip: Input; invitedBy: Input }>
     >('/invitations', member);
     expect(pending.items).toHaveLength(1);
-    expect(pending.items[0].trip).toEqual({
+    expect(pending.items[0].trip).toMatchObject({
       id: trip.id,
       name: '秋の旅',
       startDate: '2026-09-07',
@@ -354,7 +374,7 @@ describe('Trip API integration', () => {
 
     await http('patch', `/trips/${trip.id}`, member, {
       name: '共同の旅',
-      coverImageUrl: 'https://example.com/cover.png',
+      coverAssetId: await cover(member),
     });
     await http('patch', `/genres/${genre.id}`, member, {
       name: 'ごはん',
@@ -380,7 +400,7 @@ describe('Trip API integration', () => {
 
     expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
       name: '共同の旅',
-      coverImageUrl: 'https://example.com/cover.png',
+      coverImageUrl: expect.stringContaining('https://media.example.test/'),
     });
     expect(await get(`/genres/${genre.id}`, owner)).toMatchObject({
       name: 'ごはん',
@@ -736,7 +756,7 @@ describe('Trip API integration', () => {
       name: 'Leap day',
       startDate: '2028-02-29',
       endDate: '2028-02-29',
-      coverImageUrl: null,
+      coverAssetId: null,
     });
     expect(trip).toMatchObject({
       startDate: '2028-02-29',
@@ -745,7 +765,7 @@ describe('Trip API integration', () => {
     });
     await http('patch', `/trips/${trip.id}`, owner, {
       endDate: '2028-03-01',
-      coverImageUrl: 'https://example.com/cover.jpg',
+      coverAssetId: await cover(),
     });
     expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
       startDate: '2028-02-29',
@@ -753,7 +773,7 @@ describe('Trip API integration', () => {
     });
     await http('patch', `/trips/${trip.id}`, owner, {
       startDate: '2028-03-01',
-      coverImageUrl: null,
+      coverAssetId: null,
     });
     expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
       startDate: '2028-03-01',
@@ -799,12 +819,12 @@ describe('Trip API integration', () => {
     await Promise.all([
       http('patch', `/trips/${trip.id}`, owner, { name: 'Concurrent name' }),
       http('patch', `/trips/${trip.id}`, owner, {
-        coverImageUrl: 'https://example.com/concurrent-cover.jpg',
+        coverAssetId: await cover(),
       }),
     ]);
     expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
       name: 'Concurrent name',
-      coverImageUrl: 'https://example.com/concurrent-cover.jpg',
+      coverImageUrl: expect.stringContaining('https://media.example.test/'),
       startDate: persisted.startDate,
       endDate: persisted.endDate,
     });
@@ -1492,6 +1512,311 @@ describe('Trip API integration', () => {
       await prisma.$executeRawUnsafe(
         'DROP FUNCTION reject_test_notification()',
       );
+    }
+  });
+  it('validates cover upload ownership, metadata and readiness, with idempotent preparation', async () => {
+    const input = {
+      clientRequestId: randomUUID(),
+      byteSize: 100,
+      mimeType: 'image/png',
+    };
+    await http('post', '/uploads/covers', null, input, 401);
+    await http(
+      'post',
+      '/uploads/covers',
+      owner,
+      { ...input, byteSize: 50_000_001 },
+      400,
+    );
+    await http(
+      'post',
+      '/uploads/covers',
+      owner,
+      { ...input, mimeType: 'video/mp4' },
+      400,
+    );
+    const [first, duplicate] = await Promise.all([
+      http('post', '/uploads/covers', owner, input),
+      http('post', '/uploads/covers', owner, input),
+    ]);
+    expect(first.id).toBe(duplicate.id);
+    await http(
+      'post',
+      '/uploads/covers',
+      owner,
+      { ...input, byteSize: 101 },
+      409,
+    );
+    await http('get', `/uploads/covers/${first.id}`, outsider, undefined, 404);
+    await http(
+      'post',
+      '/trips',
+      owner,
+      { ...tripInput, coverAssetId: first.id },
+      409,
+    );
+    const row = await prisma.coverAsset.findUniqueOrThrow({
+      where: { id: first.id },
+    });
+    storage.objects.set(row.stagingKey!, {
+      byteSize: 99,
+      contentType: 'image/png',
+    });
+    await http('post', `/uploads/covers/${first.id}/complete`, owner, {}, 400);
+    storage.objects.set(row.stagingKey!, {
+      byteSize: 100,
+      contentType: 'image/png',
+    });
+    await Promise.all([
+      http('post', `/uploads/covers/${first.id}/complete`, owner, {}),
+      http('post', `/uploads/covers/${first.id}/complete`, owner, {}),
+    ]);
+    await app.get(CoverAssetsService).process(first.id);
+    await http(
+      'post',
+      '/trips',
+      outsider,
+      { ...tripInput, coverAssetId: first.id },
+      404,
+    );
+    const trip = await http('post', '/trips', owner, {
+      ...tripInput,
+      coverAssetId: first.id,
+    });
+    expect(trip.coverImageUrl).toContain('https://media.example.test/');
+    await http('delete', `/uploads/covers/${first.id}`, owner, undefined, 409);
+    await http(
+      'post',
+      '/trips',
+      owner,
+      { ...tripInput, coverAssetId: first.id },
+      409,
+    );
+  });
+
+  it('creates a trip once after response loss and presents its private cover to members and invitees', async () => {
+    const id = await cover();
+    const input = {
+      ...tripInput,
+      coverAssetId: id,
+      clientRequestId: randomUUID(),
+      inviteeNames: ['Member'],
+    };
+    const [trip, retry] = await Promise.all([
+      http('post', '/trips', owner, input),
+      http('post', '/trips', owner, input),
+    ]);
+    expect(retry.id).toBe(trip.id);
+    expect(await prisma.trip.count()).toBe(1);
+    const stored = await prisma.trip.findUniqueOrThrow({
+      where: { id: trip.id },
+    });
+    expect(stored.coverImageUrl).toBeNull();
+    expect(stored.coverAssetId).toBe(id);
+    expect((await get<Page>('/trips', owner)).items[0].coverImageUrl).toBe(
+      trip.coverImageUrl,
+    );
+    const invitations = await get<Page<{ trip: Resource }>>(
+      '/invitations',
+      member,
+    );
+    expect(invitations.items[0].trip.coverImageUrl).toBe(trip.coverImageUrl);
+    const updated = await http('patch', `/trips/${trip.id}`, owner, {
+      name: 'Changed',
+    });
+    expect(updated.coverImageUrl).toBe(trip.coverImageUrl);
+    expect(await prisma.coverAsset.count()).toBe(1);
+    await http('get', `/trips/${trip.id}`, outsider, undefined, 404);
+    await http(
+      'patch',
+      `/trips/${trip.id}`,
+      owner,
+      { coverImageUrl: trip.coverImageUrl },
+      400,
+    );
+  });
+
+  it('replaces and removes covers atomically, preserving legacy URLs until an explicit change', async () => {
+    const trip = await http('post', '/trips', owner, tripInput);
+    await prisma.trip.update({
+      where: { id: trip.id },
+      data: { coverImageUrl: 'https://legacy.example.test/cover.jpg' },
+    });
+    await http('patch', `/trips/${trip.id}`, owner, { name: 'Legacy' });
+    expect((await get(`/trips/${trip.id}`, owner)).coverImageUrl).toBe(
+      'https://legacy.example.test/cover.jpg',
+    );
+    await join(trip.id);
+    const first = await cover(member);
+    await http('patch', `/trips/${trip.id}`, member, { coverAssetId: first });
+    const old = await prisma.coverAsset.findUniqueOrThrow({
+      where: { id: first },
+    });
+    const next = await cover();
+    await http(
+      'patch',
+      `/trips/${trip.id}`,
+      outsider,
+      { coverAssetId: next },
+      404,
+    );
+    expect(
+      await prisma.coverAsset.findUnique({ where: { id: first } }),
+    ).not.toBeNull();
+    await http('patch', `/trips/${trip.id}`, owner, { coverAssetId: next });
+    expect(
+      await prisma.coverAsset.findUnique({ where: { id: first } }),
+    ).toBeNull();
+    expect(
+      await prisma.mediaCleanup.findFirst({
+        where: { keys: { has: old.imageKey! } },
+      }),
+    ).not.toBeNull();
+    await http('patch', `/trips/${trip.id}`, member, { coverAssetId: null });
+    expect((await get(`/trips/${trip.id}`, owner)).coverImageUrl).toBeNull();
+    expect(
+      await prisma.coverAsset.findUnique({ where: { id: next } }),
+    ).toBeNull();
+  });
+
+  it('cleans abandoned covers, retains attached covers, and cannot republish cancelled processing', async () => {
+    const attached = await cover();
+    const trip = await http('post', '/trips', owner, {
+      ...tripInput,
+      coverAssetId: attached,
+    });
+    const abandoned = await cover();
+    await prisma.coverAsset.updateMany({
+      data: { expiresAt: new Date(Date.now() - 1) },
+    });
+    const covers = app.get(CoverAssetsService);
+    await covers.cleanup();
+    expect(
+      await prisma.coverAsset.findUnique({ where: { id: attached } }),
+    ).not.toBeNull();
+    expect(
+      await prisma.coverAsset.findUnique({ where: { id: abandoned } }),
+    ).toBeNull();
+    const processing = await http('post', '/uploads/covers', owner, {
+      clientRequestId: randomUUID(),
+      byteSize: 100,
+      mimeType: 'image/png',
+    });
+    await prisma.coverAsset.update({
+      where: { id: processing.id },
+      data: { status: 'PROCESSING' },
+    });
+    const processor = app.get(MediaProcessor);
+    const spy = vi
+      .spyOn(processor, 'processCover')
+      .mockImplementationOnce(async () => {
+        await covers.cancel(owner.id, processing.id);
+        return {
+          imageKey: 'covers/cancelled.webp',
+          blurhash: 'test',
+          width: 800,
+          height: 500,
+        };
+      });
+    try {
+      await covers.process(processing.id);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(
+      await prisma.coverAsset.findUnique({ where: { id: processing.id } }),
+    ).toBeNull();
+    expect(
+      await prisma.mediaCleanup.findFirst({
+        where: { keys: { has: 'covers/cancelled.webp' } },
+      }),
+    ).not.toBeNull();
+    const asset = await prisma.coverAsset.findUniqueOrThrow({
+      where: { id: attached },
+    });
+    await prisma.trip.delete({ where: { id: trip.id } });
+    expect(
+      await prisma.coverAsset.findUnique({ where: { id: attached } }),
+    ).toBeNull();
+    expect(
+      await prisma.mediaCleanup.findFirst({
+        where: { keys: { has: asset.imageKey! } },
+      }),
+    ).not.toBeNull();
+  });
+  it('rolls back a cover replacement if the trip update cannot commit', async () => {
+    const first = await cover();
+    const trip = await http('post', '/trips', owner, {
+      ...tripInput,
+      coverAssetId: first,
+    });
+    await join(trip.id);
+    const next = await cover(member);
+    const old = await prisma.coverAsset.findUniqueOrThrow({
+      where: { id: first },
+    });
+    await prisma.$executeRawUnsafe(
+      `CREATE FUNCTION reject_cover_notification() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'test cover rollback'; END; $$ LANGUAGE plpgsql`,
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE TRIGGER reject_cover_notification BEFORE INSERT ON notifications FOR EACH ROW EXECUTE FUNCTION reject_cover_notification()`,
+    );
+    try {
+      await http(
+        'patch',
+        `/trips/${trip.id}`,
+        member,
+        { coverAssetId: next },
+        500,
+      );
+      expect(
+        (await prisma.trip.findUniqueOrThrow({ where: { id: trip.id } }))
+          .coverAssetId,
+      ).toBe(first);
+      expect(
+        await prisma.coverAsset.findUnique({ where: { id: first } }),
+      ).not.toBeNull();
+      expect(
+        await prisma.coverAsset.findUnique({ where: { id: next } }),
+      ).not.toBeNull();
+      expect(
+        await prisma.mediaCleanup.findFirst({
+          where: { keys: { has: old.imageKey! } },
+        }),
+      ).toBeNull();
+    } finally {
+      await prisma.$executeRawUnsafe(
+        'DROP TRIGGER reject_cover_notification ON notifications',
+      );
+      await prisma.$executeRawUnsafe(
+        'DROP FUNCTION reject_cover_notification()',
+      );
+    }
+  });
+
+  it('serializes attaching a cover against cancellation without publishing a deleted image', async () => {
+    const trip = await http('post', '/trips', owner, tripInput);
+    const id = await cover();
+    const results = await Promise.all([
+      request(app.getHttpServer())
+        .patch(`/trips/${trip.id}`)
+        .set('Authorization', `Bearer ${owner.accessToken}`)
+        .send({ coverAssetId: id }),
+      request(app.getHttpServer())
+        .delete(`/uploads/covers/${id}`)
+        .set('Authorization', `Bearer ${owner.accessToken}`),
+    ]);
+    const current = await prisma.trip.findUniqueOrThrow({
+      where: { id: trip.id },
+    });
+    if (current.coverAssetId) {
+      expect(results.map((result) => result.status)).toEqual([200, 409]);
+      expect(
+        await prisma.coverAsset.findUnique({ where: { id } }),
+      ).not.toBeNull();
+    } else {
+      expect(results.map((result) => result.status)).toEqual([404, 204]);
+      expect(await prisma.coverAsset.findUnique({ where: { id } })).toBeNull();
     }
   });
 });

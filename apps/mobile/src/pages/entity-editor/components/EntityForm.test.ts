@@ -2,7 +2,11 @@ import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
 import { expect, it, vi } from 'vitest';
 import { EntityForm } from './EntityForm';
-const native = vi.hoisted(() => ({ createTrip: vi.fn(), finish: vi.fn() }));
+const native = vi.hoisted(() => ({
+  createTrip: vi.fn(),
+  finish: vi.fn(),
+  prepare: vi.fn(),
+}));
 vi.mock('../../../features/app-data/AppDataProvider', () => ({
   useData: () => ({
     userId: 'viewer',
@@ -23,10 +27,20 @@ vi.mock('./TextField', () => ({ TextField: 'TextField' }));
 vi.mock('./DateField', () => ({ DateField: 'DateField' }));
 vi.mock('./LocationsField', () => ({ LocationsField: 'LocationsField' }));
 vi.mock('./CoverField', () => ({ CoverField: 'CoverField' }));
+vi.mock('../../../features/trip-covers/useCoverUpload', () => ({
+  useCoverUpload: (uri: string | null) => ({
+    uri,
+    changed: false,
+    prepare: () => native.prepare(),
+    saved: vi.fn(),
+    finish: vi.fn(),
+  }),
+}));
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 it('retains draft input on refetch and retries failed navigation without repeating creation', async () => {
   const warning = vi.spyOn(console, 'error').mockImplementation(() => {});
+  native.prepare.mockReset().mockResolvedValue({});
   native.createTrip.mockReset().mockResolvedValue({ id: 'created' });
   native.finish
     .mockReset()
@@ -79,7 +93,7 @@ it('retains draft input on refetch and retries failed navigation without repeati
       startDate: initial.startDate,
       endDate: initial.endDate,
       locations: [],
-      coverImageUrl: null,
+      clientRequestId: undefined,
     });
     expect(native.finish).toHaveBeenCalledTimes(2);
     expect(native.finish).toHaveBeenLastCalledWith({
@@ -87,6 +101,62 @@ it('retains draft input on refetch and retries failed navigation without repeati
     });
     await act(async () => view.unmount());
   } finally {
+    warning.mockRestore();
+  }
+});
+
+it('keeps the form when cover preparation fails and saves only after a successful retry', async () => {
+  const warning = vi.spyOn(console, 'error').mockImplementation(() => {});
+  native.prepare
+    .mockReset()
+    .mockRejectedValueOnce(new Error('画像送信失敗'))
+    .mockResolvedValue({
+      coverAssetId: '12345678-1234-4234-8234-123456789abc',
+    });
+  native.createTrip.mockReset().mockResolvedValue({ id: 'created' });
+  native.finish.mockReset().mockResolvedValue(undefined);
+  let view!: ReturnType<typeof create>;
+  try {
+    await act(async () => {
+      view = create(
+        createElement(EntityForm, {
+          kind: 'trip',
+          parentLabel: '',
+          initial: {
+            name: '旅行',
+            description: '',
+            startDate: '2026-09-09',
+            endDate: '2026-09-09',
+            locations: [],
+            coverImageUrl: null,
+          },
+        }),
+      );
+    });
+    await act(async () =>
+      view.root.findByType('FormPage' as never).props.onSave(),
+    );
+    expect(native.createTrip).not.toHaveBeenCalled();
+    expect(native.finish).not.toHaveBeenCalled();
+    expect(view.root.findByType('FormPage' as never).props.error).toBe(
+      '画像送信失敗',
+    );
+    expect(view.root.findByType('TextField' as never).props.value).toBe('旅行');
+    await act(async () =>
+      view.root.findByType('FormPage' as never).props.onSave(),
+    );
+    expect(native.createTrip).toHaveBeenCalledExactlyOnceWith(
+      'viewer',
+      expect.objectContaining({
+        coverAssetId: '12345678-1234-4234-8234-123456789abc',
+      }),
+    );
+    expect(native.createTrip.mock.calls[0][1]).not.toHaveProperty(
+      'coverImageUrl',
+    );
+    expect(native.finish).toHaveBeenCalledOnce();
+  } finally {
+    await act(async () => view.unmount());
     warning.mockRestore();
   }
 });

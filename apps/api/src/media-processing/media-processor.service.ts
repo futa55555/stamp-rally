@@ -20,6 +20,7 @@ export interface ProcessMediaInput {
   version: number;
   mediaType: 'IMAGE' | 'VIDEO';
   stagingKey: string;
+  purpose?: 'cover';
 }
 export interface ProcessedMedia {
   originalKey: string;
@@ -71,6 +72,22 @@ export class MediaProcessor {
     );
   }
 
+  async processCover(id: string, attempt: number, stagingKey: string) {
+    const result = await this.process({
+      postId: id,
+      version: attempt,
+      stagingKey,
+      mediaType: 'IMAGE',
+      purpose: 'cover',
+    });
+    return {
+      imageKey: result.largeKey,
+      blurhash: result.blurhash,
+      width: result.width,
+      height: result.height,
+    };
+  }
+
   processLegacy(
     input: Omit<ProcessMediaInput, 'stagingKey'> & { url: string },
   ): Promise<ProcessedMedia> {
@@ -91,11 +108,12 @@ export class MediaProcessor {
   ): Promise<ProcessedMedia> {
     const directory = await mkdtemp(join(tmpdir(), 'stamp-media-'));
     const original = join(directory, 'original');
-    const prefix = `media/${input.postId}/${input.version}/${randomUUID()}`;
+    const cover = input.purpose === 'cover';
+    const prefix = `${cover ? 'covers' : 'media'}/${input.postId}/${input.version}/${randomUUID()}`;
     const keys = {
-      originalKey: `${prefix}/original`,
+      originalKey: `${prefix}/${cover ? 'large.webp' : 'original'}`,
       largeKey: `${prefix}/large.webp`,
-      smallKey: `${prefix}/small.webp`,
+      smallKey: `${prefix}/${cover ? 'large.webp' : 'small.webp'}`,
       playbackKey:
         input.mediaType === 'VIDEO' ? `${prefix}/playback.mp4` : null,
     };
@@ -117,6 +135,20 @@ export class MediaProcessor {
         imagePath = video.posterPath;
       } else {
         mimeType = await this.validateImage(original);
+        if (cover) {
+          const dimensions = await sharp(original).metadata();
+          const rotated = (dimensions.orientation ?? 1) >= 5;
+          const ratio = rotated
+            ? (dimensions.height ?? 0) / (dimensions.width ?? 1)
+            : (dimensions.width ?? 0) / (dimensions.height ?? 1);
+          if (
+            mimeType !== 'image/png' ||
+            !dimensions.width ||
+            !dimensions.height ||
+            Math.abs(ratio - 1.6) > 0.01
+          )
+            throw new InvalidMediaError('INVALID_COVER_IMAGE');
+        }
       }
       const largePath = join(directory, 'large.webp');
       const smallPath = join(directory, 'small.webp');
@@ -131,7 +163,7 @@ export class MediaProcessor {
         .clone()
         .resize({
           width: 2560,
-          height: 2560,
+          height: cover ? 1600 : 2560,
           fit: 'inside',
           withoutEnlargement: true,
         })
@@ -170,10 +202,13 @@ export class MediaProcessor {
       );
       // Upload the SAME local bytes that were decoded, never copy a mutable signed PUT target.
       const uploads: Array<[string, string, string]> = [
-        [keys.originalKey, original, mimeType],
         [keys.largeKey, largePath, 'image/webp'],
-        [keys.smallKey, smallPath, 'image/webp'],
       ];
+      if (!cover)
+        uploads.push(
+          [keys.originalKey, original, mimeType],
+          [keys.smallKey, smallPath, 'image/webp'],
+        );
       if (keys.playbackKey)
         uploads.push([
           keys.playbackKey,

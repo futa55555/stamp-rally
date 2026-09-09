@@ -1,13 +1,15 @@
-import { isURL } from 'class-validator';
+import { isURL, isUUID } from 'class-validator';
 
 export class InvalidTripError extends Error {}
 
 export interface TripInput {
+  clientRequestId?: string;
   locations?: string[];
   name: string;
   startDate: string;
   endDate: string;
   coverImageUrl?: string | null;
+  coverAssetId?: string | null;
 }
 
 export function calendarDate(value: string): Date {
@@ -38,6 +40,7 @@ export class Trip {
     public readonly totalGenreCount = 0,
     public readonly completedGenreCount = 0,
     public locations: string[] = [],
+    public coverAssetId: string | null = null,
   ) {}
 
   get isCompleted(): boolean {
@@ -57,6 +60,11 @@ export class Trip {
     if (calendarDate(input.startDate) > calendarDate(input.endDate)) {
       throw new InvalidTripError('startDate must not be after endDate');
     }
+    if (
+      input.coverAssetId != null &&
+      (typeof input.coverAssetId !== 'string' || !isUUID(input.coverAssetId))
+    )
+      throw new InvalidTripError('Invalid cover asset ID');
     let coverImageUrl: string | null = null;
     if (input.coverImageUrl !== undefined && input.coverImageUrl !== null) {
       if (typeof input.coverImageUrl !== 'string') {
@@ -98,16 +106,23 @@ export class Trip {
       startDate:
         input.startDate === undefined ? this.startDate : input.startDate,
       endDate: input.endDate === undefined ? this.endDate : input.endDate,
+      coverAssetId:
+        input.coverAssetId === undefined
+          ? this.coverAssetId
+          : input.coverAssetId,
       coverImageUrl:
-        input.coverImageUrl === undefined
-          ? this.coverImageUrl
-          : input.coverImageUrl,
+        input.coverAssetId !== undefined
+          ? null
+          : input.coverImageUrl === undefined
+            ? this.coverImageUrl
+            : input.coverImageUrl,
     });
     this.locations = next.locations ?? [];
     this.name = next.name;
     this.startDate = next.startDate;
     this.endDate = next.endDate;
     this.coverImageUrl = next.coverImageUrl ?? null;
+    this.coverAssetId = next.coverAssetId ?? null;
   }
 
   toJSON() {

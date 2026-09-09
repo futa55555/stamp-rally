@@ -1,6 +1,9 @@
 import { useLocalSearchParams } from 'expo-router';
 import type { EntityKind } from '../../features/editor/model/types';
-import type { NamedInput, TripInput } from '../../features/trips/model/inputs';
+import type {
+  NamedInput,
+  TripFormValues,
+} from '../../features/trips/model/inputs';
 import type { Trip, Genre, Stamp } from '../../features/trips/model/types';
 import { useDetail } from '../../features/app-data/api/queries';
 import { localDate } from '../../shared/lib/dates';
@@ -22,7 +25,7 @@ export function EntityEditorScreen({ kind }: { kind: EntityKind }) {
   const query = useDetail<Trip | Genre | Stamp>(path, enabled);
   if (query.isPending || (query.error && !query.data))
     return <QueryState query={query} />;
-  const initial: TripInput & NamedInput = {
+  const initial: TripFormValues & NamedInput = {
     name: '',
     description: '',
     startDate: localDate(new Date()),

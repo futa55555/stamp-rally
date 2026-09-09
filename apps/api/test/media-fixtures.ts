@@ -36,6 +36,10 @@ export class TestObjectStorage {
     return Promise.resolve(this.signed(`${key}/part/${partNumber}`));
   }
 
+  listObjects() {
+    return Promise.resolve({ objects: [], cursor: undefined });
+  }
+
   head(key: string) {
     const object = this.objects.get(key);
     if (!object)
@@ -94,6 +98,9 @@ export class TestMediaQueue {
     this.jobs.push({ postId, version });
     return Promise.resolve();
   }
+  enqueueCover(_id: string) {
+    return Promise.resolve();
+  }
   enqueueCleanup() {
     return Promise.resolve();
   }
@@ -105,6 +112,21 @@ export class TestMediaQueue {
 /** Encoding itself is exercised by the processor tests, not these HTTP tests. */
 export class TestMediaProcessor {
   constructor(private readonly storage: TestObjectStorage) {}
+
+  async processCover(id: string, attempt: number, stagingKey: string) {
+    await this.storage.head(stagingKey);
+    const imageKey = `covers/${id}/${attempt}/large.webp`;
+    this.storage.objects.set(imageKey, {
+      byteSize: 50,
+      contentType: 'image/webp',
+    });
+    return {
+      imageKey,
+      blurhash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+      width: 1600,
+      height: 1000,
+    };
+  }
 
   async processLegacy(input: {
     postId: string;

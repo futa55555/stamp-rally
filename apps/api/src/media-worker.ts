@@ -1,3 +1,5 @@
+import { CoverAssetsModule } from './covers/cover-assets.module.js';
+import { CoverAssetsService } from './covers/cover-assets.service.js';
 import 'reflect-metadata';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -12,6 +14,7 @@ import { UploadLifecycleService } from './uploads/upload-lifecycle.service.js';
     ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
     UploadLifecycleModule,
+    CoverAssetsModule,
   ],
 })
 class MediaWorkerModule {}
@@ -22,9 +25,14 @@ async function main(): Promise<void> {
   try {
     const queue = app.get(MediaQueue);
     const lifecycle = app.get(UploadLifecycleService);
+    const covers = app.get(CoverAssetsService);
     await queue.startWorkers({
+      cover: (id) => covers.process(id),
       process: (postId, version) => lifecycle.process(postId, version),
-      cleanup: () => lifecycle.cleanup(),
+      cleanup: async () => {
+        await covers.cleanup();
+        await lifecycle.cleanup();
+      },
       migrateLegacy: (postId) => lifecycle.migrateLegacy(postId),
     });
   } catch (error) {

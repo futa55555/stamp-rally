@@ -7,6 +7,7 @@ export const MEDIA_PROCESS_QUEUE = 'media-process';
 export const MEDIA_CLEANUP_QUEUE = 'media-cleanup';
 export const MEDIA_RECONCILE_QUEUE = 'media-reconcile';
 export const MEDIA_LEGACY_QUEUE = 'media-legacy';
+export const COVER_PROCESS_QUEUE = 'cover-process';
 export interface ProcessJob {
   postId: string;
   version: number;
@@ -18,6 +19,7 @@ export interface CleanupJob {
 export interface MediaJobHandlers {
   process(postId: string, version: number): Promise<void>;
   cleanup(): Promise<void>;
+  cover?(id: string): Promise<void>;
   migrateLegacy(postId: string): Promise<void>;
 }
 
@@ -50,7 +52,11 @@ export class MediaQueue implements OnModuleDestroy {
     boss.on('error', (error) => this.logger.error(error.message));
     try {
       await boss.start();
-      for (const name of [MEDIA_PROCESS_QUEUE, MEDIA_LEGACY_QUEUE]) {
+      for (const name of [
+        MEDIA_PROCESS_QUEUE,
+        MEDIA_LEGACY_QUEUE,
+        COVER_PROCESS_QUEUE,
+      ]) {
         await boss.createQueue(name, {
           retryLimit: 3,
           retryDelay: 30,
@@ -83,6 +89,15 @@ export class MediaQueue implements OnModuleDestroy {
       MEDIA_PROCESS_QUEUE,
       { postId, version },
       { singletonKey: `${postId}:${version}`, singletonSeconds: 60 },
+    );
+  }
+
+  async enqueueCover(id: string): Promise<void> {
+    const boss = await this.connection();
+    await boss.send(
+      COVER_PROCESS_QUEUE,
+      { id },
+      { singletonKey: id, singletonSeconds: 60 },
     );
   }
 
@@ -126,6 +141,15 @@ export class MediaQueue implements OnModuleDestroy {
           );
       },
     );
+    if (handlers.cover)
+      await boss.work<{ id: string }>(
+        COVER_PROCESS_QUEUE,
+        { batchSize: 1 },
+        async (jobs) => {
+          for (const job of jobs)
+            await this.withCodecSlot(() => handlers.cover!(job.data.id));
+        },
+      );
     await boss.work<CleanupJob>(
       MEDIA_CLEANUP_QUEUE,
       { batchSize: 1 },

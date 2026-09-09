@@ -2,7 +2,7 @@ import { QueryState } from '../../shared/ui/QueryState';
 import { usePullToRefresh } from '../../shared/hooks/usePullToRefresh';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTrip } from '../../features/trips/hooks';
-import { PhotoImage } from '../../shared/ui/PhotoImage';
+import { TripCoverImage } from '../../features/trip-covers/TripCoverImage';
 import { Screen } from '../../shared/ui/Screen';
 import { StateView } from '../../shared/ui/StateView';
 import { FavoritePhotosSection } from './sections/FavoritePhotosSection';
@@ -34,8 +34,8 @@ export function TripDetailScreen() {
         contentContainerClassName={trip.coverImageUrl ? '' : 'pt-6'}
       >
         {trip.coverImageUrl ? (
-          <PhotoImage
-            url={trip.coverImageUrl}
+          <TripCoverImage
+            trip={trip}
             label={trip.name}
             className="w-full aspect-[1.6]"
           />

@@ -1,3 +1,4 @@
+import { CoverPresenter } from '../covers/cover-presenter.service.js';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 import { Prisma } from '../generated/prisma/client.js';
@@ -23,6 +24,7 @@ const invitationInclude = {
       startDate: true,
       endDate: true,
       coverImageUrl: true,
+      coverAssetId: true,
     },
   },
   invitee: { select: { id: true, name: true } },
@@ -33,20 +35,23 @@ type InvitationRecord = Prisma.TripInvitationGetPayload<{
   include: typeof invitationInclude;
 }>;
 
-function presentInvitation(invitation: InvitationRecord) {
-  return {
-    ...invitation,
-    trip: {
-      ...invitation.trip,
-      startDate: invitation.trip.startDate.toISOString().slice(0, 10),
-      endDate: invitation.trip.endDate.toISOString().slice(0, 10),
-    },
-  };
-}
-
 @Injectable()
 export class InvitationRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly covers: CoverPresenter,
+  ) {}
+
+  private async presentInvitation(invitation: InvitationRecord) {
+    return {
+      ...invitation,
+      trip: await this.covers.present({
+        ...invitation.trip,
+        startDate: invitation.trip.startDate.toISOString().slice(0, 10),
+        endDate: invitation.trip.endDate.toISOString().slice(0, 10),
+      }),
+    };
+  }
 
   async createInitial(
     tx: Prisma.TransactionClient,
@@ -99,7 +104,8 @@ export class InvitationRepository {
         where,
         include: invitationInclude,
       });
-      if (existing?.status === 'PENDING') return presentInvitation(existing);
+      if (existing?.status === 'PENDING')
+        return this.presentInvitation(existing);
 
       const invitation = existing
         ? await tx.tripInvitation.update({
@@ -111,7 +117,7 @@ export class InvitationRepository {
             data: { tripId, inviteeId: invitee.id, invitedById: inviterId },
             include: invitationInclude,
           });
-      return presentInvitation(invitation);
+      return this.presentInvitation(invitation);
     });
   }
 
@@ -137,7 +143,8 @@ export class InvitationRepository {
         throw new InvitationNotFoundError('Invitation not found');
 
       const status = decideInvitation(invitation.status, decision);
-      if (invitation.status === status) return presentInvitation(invitation);
+      if (invitation.status === status)
+        return this.presentInvitation(invitation);
 
       if (status === 'ACCEPTED') {
         await tx.tripMember.upsert({
@@ -153,7 +160,7 @@ export class InvitationRepository {
         data: { status },
         include: invitationInclude,
       });
-      return presentInvitation(updated);
+      return this.presentInvitation(updated);
     });
   }
 
@@ -168,7 +175,12 @@ export class InvitationRepository {
       take: query.limit + 1,
     });
     const page = paginate(rows, query.limit);
-    return { ...page, items: page.items.map(presentInvitation) };
+    return {
+      ...page,
+      items: await Promise.all(
+        page.items.map((row) => this.presentInvitation(row)),
+      ),
+    };
   }
 
   private async write<T>(

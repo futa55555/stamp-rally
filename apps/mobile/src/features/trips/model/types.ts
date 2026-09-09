@@ -5,6 +5,8 @@ export type Trip = {
   startDate: string;
   endDate: string;
   coverImageUrl: string | null;
+  coverAssetId?: string | null;
+  coverBlurhash?: string | null;
   createdById: string;
   createdAt: string;
   updatedAt: string;

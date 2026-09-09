@@ -26,16 +26,33 @@ export class TripRepository {
   ): Promise<Trip> {
     const row = await tx.trip.create({
       data: {
+        clientRequestId: input.clientRequestId,
         locations: input.locations ?? [],
         name: input.name,
         startDate: calendarDate(input.startDate),
         endDate: calendarDate(input.endDate),
-        coverImageUrl: input.coverImageUrl ?? null,
+        coverImageUrl: input.coverAssetId
+          ? null
+          : (input.coverImageUrl ?? null),
+        coverAssetId: input.coverAssetId ?? null,
         createdById: userId,
         members: { create: { userId } },
       },
     });
     return this.toDomain(row);
+  }
+
+  async findByRequestId(
+    userId: string,
+    clientRequestId: string,
+    tx: Prisma.TransactionClient,
+  ) {
+    const row = await tx.trip.findUnique({
+      where: {
+        createdById_clientRequestId: { createdById: userId, clientRequestId },
+      },
+    });
+    return row ? this.toDomain(row) : null;
   }
 
   async findById(
@@ -72,7 +89,8 @@ export class TripRepository {
         name: trip.name,
         startDate: calendarDate(trip.startDate),
         endDate: calendarDate(trip.endDate),
-        coverImageUrl: trip.coverImageUrl,
+        coverImageUrl: trip.coverAssetId ? null : trip.coverImageUrl,
+        coverAssetId: trip.coverAssetId,
       },
     });
     const progress = await this.progress([row.id], tx);
@@ -124,6 +142,7 @@ export class TripRepository {
       progress?.totalGenreCount ?? 0,
       progress?.completedGenreCount ?? 0,
       row.locations,
+      row.coverAssetId,
     );
   }
 }

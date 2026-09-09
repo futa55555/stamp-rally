@@ -26,6 +26,7 @@ model User {
   notifications       Notification[]
   posts               Post[]
   uploadBatches       UploadBatch[]
+  coverAssets         CoverAsset[]
   createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -74,11 +75,14 @@ model Session {
 
 model Trip {
   id            String   @id @default(uuid()) @db.Uuid
+  clientRequestId String? @map("client_request_id") @db.Uuid
   name          String   @db.VarChar(100)
   locations     String[] @default([])
   startDate     DateTime @map("start_date") @db.Date
   endDate       DateTime @map("end_date") @db.Date
   coverImageUrl String?  @map("cover_image_url") @db.VarChar(2048)
+  coverAssetId  String?  @unique @map("cover_asset_id") @db.Uuid
+  coverAsset    CoverAsset? @relation(fields: [coverAssetId], references: [id], onDelete: SetNull)
   createdById   String   @map("created_by_id") @db.Uuid
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -89,6 +93,7 @@ model Trip {
   genres        Genre[]
   notifications Notification[]
 
+  @@unique([createdById, clientRequestId])
   @@index([createdById])
   @@index([createdAt, id])
   @@map("trips")
@@ -177,6 +182,31 @@ enum MediaStatus {
   READY
   FAILED
   CANCELLED
+}
+
+model CoverAsset {
+  id String @id @default(uuid()) @db.Uuid
+  authorId String? @map("author_id") @db.Uuid
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  clientRequestId String @map("client_request_id") @db.Uuid
+  status MediaStatus @default(PENDING)
+  byteSize Int @map("byte_size")
+  mimeType String @map("mime_type") @db.VarChar(127)
+  stagingKey String? @map("staging_key")
+  imageKey String? @map("image_key")
+  blurhash String?
+  width Int?
+  height Int?
+  errorCode String? @map("error_code")
+  processingAttempts Int @default(0) @map("processing_attempts")
+  processingStartedAt DateTime? @map("processing_started_at") @db.Timestamptz(3)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  trip Trip?
+
+  @@unique([authorId, clientRequestId])
+  @@index([status, expiresAt])
+  @@map("cover_assets")
 }
 
 model UploadBatch {
