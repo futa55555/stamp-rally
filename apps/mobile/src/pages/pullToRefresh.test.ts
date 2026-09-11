@@ -35,6 +35,9 @@ vi.mock('../features/trips/hooks', () => ({
   useGenre: native.query,
   useStamp: native.query,
 }));
+vi.mock('../features/trips/navigation/useTripHeader', () => ({
+  useTripHeader: () => {},
+}));
 vi.mock('../features/notifications/hooks', () => ({
   useNotifications: native.query,
 }));

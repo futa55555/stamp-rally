@@ -1,4 +1,4 @@
-import { FlatList, Platform, type FlatListProps } from 'react-native';
+import { FlatList, type FlatListProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type ListScreenProps<Item> = Pick<
@@ -15,15 +15,9 @@ type ListScreenProps<Item> = Pick<
 
 export function ListScreen<Item>(props: ListScreenProps<Item>) {
   return (
-    <SafeAreaView
-      // NativeTabs already handles the bottom safe area on Android.
-      // On iOS, place the list inside it so the inset isn't added to its content.
-      edges={
-        Platform.OS === 'ios' ? ['bottom', 'left', 'right'] : ['left', 'right']
-      }
-      className="flex-1 bg-background"
-    >
+    <SafeAreaView edges={['left', 'right']} className="flex-1 bg-background">
       <FlatList
+        contentInsetAdjustmentBehavior="automatic"
         {...props}
         className="flex-1"
         contentContainerClassName={[

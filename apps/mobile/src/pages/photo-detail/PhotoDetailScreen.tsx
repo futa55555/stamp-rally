@@ -98,7 +98,7 @@ function PhotoDetail({ postId, source, ...origin }: PhotoDetailParams) {
 
   return (
     <View className="flex-1 bg-background">
-      <PageHeader title={title} onBack={goBack} />
+      <PageHeader title={mediaLabel} backTitle={title} onBack={goBack} />
       <SafeAreaView edges={['left', 'right']} className="flex-1">
         {query.isPending || (query.error && !task.pending) ? (
           <QueryState query={query} />

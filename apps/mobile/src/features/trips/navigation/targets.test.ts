@@ -12,16 +12,33 @@ describe('API navigation hierarchy', () => {
           stampId: 'stamp',
           mediaType: type === 'video' ? 'VIDEO' : 'IMAGE',
         })
-        .mockResolvedValueOnce({ id: 'stamp', genreId: 'genre' })
-        .mockResolvedValueOnce({ id: 'genre', tripId: 'trip' })
-        .mockResolvedValueOnce({ id: 'trip' });
+        .mockResolvedValueOnce({
+          id: 'stamp',
+          genreId: 'genre',
+          name: '朝の散歩',
+        })
+        .mockResolvedValueOnce({
+          id: 'genre',
+          tripId: 'trip',
+          name: 'まち歩き',
+        })
+        .mockResolvedValueOnce({ id: 'trip', name: '京都旅行' });
       expect(
         await resolveApiTarget({ request }, { type, postId: 'photo' }),
       ).toEqual([
         { name: 'index', params: undefined },
-        { name: 'trip/[tripId]', params: { tripId: 'trip' } },
-        { name: 'genre/[genreId]', params: { genreId: 'genre' } },
-        { name: 'stamp/[stampId]', params: { stampId: 'stamp' } },
+        {
+          name: 'trip/[tripId]',
+          params: { tripId: 'trip', title: '京都旅行' },
+        },
+        {
+          name: 'genre/[genreId]',
+          params: { genreId: 'genre', title: 'まち歩き' },
+        },
+        {
+          name: 'stamp/[stampId]',
+          params: { stampId: 'stamp', title: '朝の散歩' },
+        },
         { name: 'photo/[postId]', params: { postId: 'photo' } },
       ]);
       expect(request.mock.calls.map(([config]) => config.url)).toEqual([

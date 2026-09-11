@@ -1,26 +1,27 @@
-import { PageHeader } from '../../shared/ui/Header';
 import { Stack, useRouter } from 'expo-router';
-import { useAppTheme } from '../../shared/theme/ThemeProvider';
+import { useStackScreenOptions } from '../../shared/navigation/useStackScreenOptions';
+import { headerButtonOptions } from '../../shared/navigation/headerButtonOptions';
 export default function Layout() {
-  const theme = useAppTheme();
+  const options = useStackScreenOptions();
   const router = useRouter();
   return (
     <Stack
-      screenOptions={{
-        header: ({ options }) => (
-          <PageHeader
-            title={options.title ?? '参加申請'}
-            backLabel="戻る"
-            onBack={() => {
-              if (router.canGoBack()) router.back();
-              else router.replace('/trips');
-            }}
-          />
-        ),
-        headerStyle: { backgroundColor: theme.colors.surface },
-        headerTintColor: theme.colors.text,
-        contentStyle: { backgroundColor: theme.colors.background },
-      }}
+      screenOptions={({ route, navigation }) => ({
+        ...options,
+        // This nested stack's first screen returns to the root navigator.
+        ...(navigation.getState()?.routes[0]?.key === route.key
+          ? headerButtonOptions({
+              side: 'left',
+              label: '戻る',
+              symbol: 'chevron.left',
+              icon: 'arrow-left',
+              onPress: () => {
+                if (router.canGoBack()) router.back();
+                else router.replace('/trips');
+              },
+            })
+          : {}),
+      })}
     >
       <Stack.Screen name="index" options={{ title: '参加申請' }} />
       <Stack.Screen name="[id]" options={{ title: '申請の確認' }} />
