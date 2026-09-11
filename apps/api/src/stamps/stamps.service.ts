@@ -18,9 +18,9 @@ export class StampsService {
   ) {}
 
   async create(userId: string, dto: CreateStampDto): Promise<Stamp> {
-    await this.access.requireGenre(userId, dto.genreId);
+    await this.access.requireTrip(userId, dto.tripId);
     return this.stamps.create(
-      { genreId: dto.genreId, ...this.validate(dto) },
+      { tripId: dto.tripId, genreIds: dto.genreIds, ...this.validate(dto) },
       userId,
     );
   }
@@ -54,6 +54,7 @@ export class StampsService {
     return this.stamps.update(
       id,
       {
+        genreIds: dto.genreIds,
         name: dto.name === undefined ? undefined : values.name,
         description:
           dto.description === undefined ? undefined : values.description,

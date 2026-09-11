@@ -10,14 +10,19 @@ describe('StampsService', () => {
     findById: vi.fn(),
     update: vi.fn(),
   };
-  const access = { requireGenre: vi.fn(), requireStamp: vi.fn() };
+  const access = {
+    requireTrip: vi.fn(),
+    requireGenre: vi.fn(),
+    requireStamp: vi.fn(),
+  };
   const service = new StampsService(
     repo as unknown as StampRepository,
     access as unknown as TripAccessService,
   );
   const current = {
     id: 'stamp',
-    genreId: 'genre',
+    tripId: 'genre',
+    genreIds: ['genre'],
     name: '既存',
     description: '既存の説明',
   };
@@ -28,11 +33,16 @@ describe('StampsService', () => {
   });
 
   it('allows participants to create children after the parent already exists', async () => {
-    await service.create('participant', { genreId: 'genre', name: '  新規  ' });
-    expect(access.requireGenre).toHaveBeenCalledWith('participant', 'genre');
+    await service.create('participant', {
+      tripId: 'genre',
+      genreIds: ['genre'],
+      name: '  新規  ',
+    });
+    expect(access.requireTrip).toHaveBeenCalledWith('participant', 'genre');
     expect(repo.create).toHaveBeenCalledWith(
       {
-        genreId: 'genre',
+        tripId: 'genre',
+        genreIds: ['genre'],
         name: '新規',
         description: '',
       },
@@ -48,6 +58,7 @@ describe('StampsService', () => {
       {
         name: '改名',
         description: undefined,
+        genreIds: undefined,
       },
       'participant',
     );
@@ -59,6 +70,7 @@ describe('StampsService', () => {
       'stamp',
       {
         name: undefined,
+        genreIds: undefined,
         description: '',
       },
       'participant',
@@ -76,9 +88,14 @@ describe('StampsService', () => {
   );
 
   it('denies parent-scoped create and list operations before repository access', async () => {
+    access.requireTrip.mockRejectedValue(new NotFoundException());
     access.requireGenre.mockRejectedValue(new NotFoundException());
     await expect(
-      service.create('outsider', { genreId: 'genre', name: '新規' }),
+      service.create('outsider', {
+        tripId: 'genre',
+        genreIds: ['genre'],
+        name: '新規',
+      }),
     ).rejects.toBeInstanceOf(NotFoundException);
     await expect(
       service.findAll('outsider', { genreId: 'genre', limit: 20 }),

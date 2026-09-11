@@ -51,7 +51,7 @@ describe('Post repository publication boundaries', () => {
       where: {
         id: 'post',
         status: 'READY',
-        stamp: { genre: { trip: { members: { some: { userId: 'user' } } } } },
+        stamp: { trip: { members: { some: { userId: 'user' } } } },
       },
     });
     expect(context.storage.signGet).not.toHaveBeenCalled();

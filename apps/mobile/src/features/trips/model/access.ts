@@ -32,6 +32,6 @@ export function requireStampAccess(
 ) {
   const stamp = data.stamps.find((item) => item.id === stampId);
   if (!stamp) throw new Error('スタンプが見つかりません。');
-  const genre = requireGenreAccess(data, userId, stamp.genreId);
-  return { stamp, genre };
+  const trip = requireTripAccess(data, userId, stamp.tripId);
+  return { stamp, trip };
 }

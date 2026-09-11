@@ -1,3 +1,4 @@
+import { stampGenreContext } from '../../features/trips/navigation/genreContext';
 import { useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
@@ -26,6 +27,7 @@ export function PostEditorScreen() {
     stampId?: string;
     genreId?: string;
     tripId?: string;
+    viaGenreId?: string;
     batchId?: string;
     initialTripId?: string;
     initialGenreId?: string;
@@ -44,13 +46,19 @@ export function PostEditorScreen() {
     `/stamps/${params.initialStampId}`,
     !destination && !!params.initialStampId && !params.initialGenreId,
   );
-  const initialGenreId = params.initialGenreId ?? initialStamp.data?.genreId;
+  const initialGenreId =
+    params.initialGenreId ??
+    stampGenreContext(initialStamp.data, params.viaGenreId);
   const initialGenre = useDetail<Genre>(
     `/genres/${initialGenreId}`,
     !destination && !!initialGenreId && !params.initialTripId,
   );
   const { tripId, genreId, stampId } = destination ?? {
-    tripId: params.tripId ?? params.initialTripId ?? initialGenre.data?.tripId,
+    tripId:
+      params.tripId ??
+      params.initialTripId ??
+      initialStamp.data?.tripId ??
+      initialGenre.data?.tripId,
     genreId: params.genreId ?? initialGenreId,
     stampId: params.stampId ?? params.initialStampId,
   };
@@ -113,9 +121,22 @@ export function PostEditorScreen() {
       return;
     navigationAttempted.current = true;
     void task.run(() =>
-      flow.finish({ target: { type: 'stamp', stampId: completedStampId } }),
+      flow.finish({
+        target: { type: 'stamp', stampId: completedStampId },
+        ...((params.viaGenreId ?? genreId)
+          ? { viaGenreId: params.viaGenreId ?? genreId }
+          : {}),
+      }),
     );
-  }, [completedStampId, pending, focused, task.run, flow.finish]);
+  }, [
+    completedStampId,
+    pending,
+    focused,
+    task.run,
+    flow.finish,
+    params.viaGenreId,
+    genreId,
+  ]);
   const picker = usePhotoPicker((picked) => {
     validateMediaSelection(picked);
     setFiles(picked);
@@ -158,6 +179,9 @@ export function PostEditorScreen() {
           void task.run(() =>
             flow.finish({
               target: { type: 'stamp', stampId: completedStampId },
+              ...((params.viaGenreId ?? genreId)
+                ? { viaGenreId: params.viaGenreId ?? genreId }
+                : {}),
             }),
           );
           return;

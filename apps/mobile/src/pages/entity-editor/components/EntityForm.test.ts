@@ -9,11 +9,19 @@ const native = vi.hoisted(() => ({
   templates: vi.fn(),
   guard: vi.fn(),
   updateTrip: vi.fn(),
+  createStamp: vi.fn(),
+  updateStamp: vi.fn(),
+  genres: vi.fn(),
 }));
 vi.mock('../../../features/app-data/AppDataProvider', () => ({
   useData: () => ({
     userId: 'viewer',
-    actions: { createTrip: native.createTrip, updateTrip: native.updateTrip },
+    actions: {
+      createTrip: native.createTrip,
+      updateTrip: native.updateTrip,
+      createStamp: native.createStamp,
+      updateStamp: native.updateStamp,
+    },
   }),
 }));
 vi.mock('../../../features/editor/EditorProvider', () => ({
@@ -36,6 +44,10 @@ vi.mock('../../../shared/ui/AppText', () => ({ AppText: 'AppText' }));
 vi.mock('./TextField', () => ({ TextField: 'TextField' }));
 vi.mock('./DateField', () => ({ DateField: 'DateField' }));
 vi.mock('./LocationsField', () => ({ LocationsField: 'LocationsField' }));
+vi.mock('../../../features/app-data/api/queries', () => ({
+  useList: (...args: unknown[]) => native.genres(...args),
+}));
+vi.mock('./StampGenresField', () => ({ StampGenresField: 'StampGenresField' }));
 vi.mock('./CoverField', () => ({ CoverField: 'CoverField' }));
 vi.mock('../../../features/trip-covers/useCoverUpload', () => ({
   useCoverUpload: (uri: string | null) => ({
@@ -50,9 +62,143 @@ vi.mock('../../../features/trip-covers/useCoverUpload', () => ({
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 beforeEach(() => {
+  native.genres.mockReset().mockReturnValue({
+    data: [],
+    isPending: false,
+    error: null,
+    invalidate: vi.fn(),
+  });
   native.templates
     .mockReset()
     .mockReturnValue({ ready: true, genres: [], selection: {} });
+});
+
+it('creates a stamp with multiple genres, requires a selection, and retains the draft after failure', async () => {
+  const warning = vi.spyOn(console, 'error').mockImplementation(() => {});
+  native.createStamp
+    .mockReset()
+    .mockRejectedValueOnce(new Error('保存失敗'))
+    .mockResolvedValueOnce({ id: 'stamp' });
+  native.finish.mockReset().mockResolvedValue(undefined);
+  native.genres.mockReturnValue({
+    data: [
+      { id: 'food', name: 'グルメ' },
+      { id: 'park', name: '遊園地' },
+    ],
+    isPending: false,
+    error: null,
+    invalidate: vi.fn(),
+  });
+  let view!: ReturnType<typeof create>;
+  const initial = {
+    name: 'パークのグルメ',
+    description: '',
+    startDate: '',
+    endDate: '',
+    locations: [],
+    coverImageUrl: null,
+  };
+  try {
+    await act(async () => {
+      view = create(
+        createElement(EntityForm, {
+          kind: 'stamp',
+          tripId: 'trip',
+          genreId: 'food',
+          viaGenreId: 'food',
+          initial,
+          parentLabel: 'グルメ',
+        }),
+      );
+    });
+    const field = () => view.root.findByType('StampGenresField' as never);
+    const form = () => view.root.findByType('FormPage' as never);
+    expect(field().props.selected).toEqual(['food']);
+    expect(native.genres).toHaveBeenCalledWith(
+      '/genres',
+      { tripId: 'trip' },
+      true,
+    );
+    await act(async () => field().props.onChange([]));
+    expect(form().props.disabled).toBe(true);
+    await act(async () => form().props.onSave());
+    expect(native.createStamp).not.toHaveBeenCalled();
+    await act(async () => field().props.onChange(['food', 'park']));
+    expect(native.guard).toHaveBeenLastCalledWith(true, false);
+    await act(async () => form().props.onSave());
+    expect(field().props.selected).toEqual(['food', 'park']);
+    expect(form().props.error).toBe('保存失敗');
+    await act(async () => form().props.onSave());
+    expect(native.createStamp).toHaveBeenLastCalledWith('viewer', {
+      tripId: 'trip',
+      genreIds: ['food', 'park'],
+      name: initial.name,
+      description: '',
+    });
+    expect(native.finish).toHaveBeenCalledWith({
+      target: { type: 'stamp', stampId: 'stamp' },
+      viaGenreId: 'food',
+    });
+  } finally {
+    if (view) await act(async () => view.unmount());
+    warning.mockRestore();
+  }
+});
+
+it('edits memberships without reassigning the trip and preserves selections on refetch', async () => {
+  const warning = vi.spyOn(console, 'error').mockImplementation(() => {});
+  native.updateStamp.mockReset().mockResolvedValue({ id: 'stamp' });
+  native.finish.mockReset().mockResolvedValue(undefined);
+  const initial = {
+    name: '夜景',
+    description: '',
+    genreIds: ['view', 'memory'],
+    startDate: '',
+    endDate: '',
+    locations: [],
+    coverImageUrl: null,
+  };
+  const props = {
+    kind: 'stamp' as const,
+    id: 'stamp',
+    tripId: 'trip',
+    viaGenreId: 'view',
+    initial,
+    parentLabel: '',
+  };
+  let view!: ReturnType<typeof create>;
+  try {
+    await act(async () => {
+      view = create(createElement(EntityForm, props));
+    });
+    await act(async () =>
+      view.root
+        .findByType('StampGenresField' as never)
+        .props.onChange(['memory']),
+    );
+    await act(async () =>
+      view.update(
+        createElement(EntityForm, {
+          ...props,
+          initial: { ...initial, genreIds: ['view'] },
+        }),
+      ),
+    );
+    expect(
+      view.root.findByType('StampGenresField' as never).props.selected,
+    ).toEqual(['memory']);
+    await act(async () =>
+      view.root.findByType('FormPage' as never).props.onSave(),
+    );
+    expect(native.updateStamp).toHaveBeenCalledExactlyOnceWith(
+      'viewer',
+      'stamp',
+      { name: '夜景', description: '', genreIds: ['memory'] },
+    );
+  } finally {
+    if (view) await act(async () => view.unmount());
+    warning.mockRestore();
+  }
 });
 
 it('retains draft input on refetch and retries failed navigation without repeating creation', async () => {

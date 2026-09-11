@@ -11,10 +11,11 @@ import { QueryState } from '../../shared/ui/QueryState';
 import { EntityForm } from './components/EntityForm';
 
 export function EntityEditorScreen({ kind }: { kind: EntityKind }) {
-  const { id, tripId, genreId } = useLocalSearchParams<{
+  const { id, tripId, genreId, viaGenreId } = useLocalSearchParams<{
     id?: string;
     tripId?: string;
     genreId?: string;
+    viaGenreId?: string;
   }>();
   const path = id
     ? `/${kind}s/${id}`
@@ -25,7 +26,7 @@ export function EntityEditorScreen({ kind }: { kind: EntityKind }) {
   const query = useDetail<Trip | Genre | Stamp>(path, enabled);
   if (query.isPending || (query.error && !query.data))
     return <QueryState query={query} />;
-  const initial: TripFormValues & NamedInput = {
+  const initial: TripFormValues & NamedInput & { genreIds?: string[] } = {
     name: '',
     description: '',
     startDate: localDate(new Date()),
@@ -39,8 +40,13 @@ export function EntityEditorScreen({ kind }: { kind: EntityKind }) {
       key={`${kind}-${id ?? tripId ?? genreId ?? 'new'}`}
       kind={kind}
       id={id}
-      tripId={tripId}
+      tripId={
+        kind === 'stamp'
+          ? (query.data as Genre | Stamp | undefined)?.tripId
+          : tripId
+      }
       genreId={genreId}
+      viaGenreId={viaGenreId ?? genreId}
       initial={initial}
       parentLabel={!id ? (query.data?.name ?? '') : ''}
     />

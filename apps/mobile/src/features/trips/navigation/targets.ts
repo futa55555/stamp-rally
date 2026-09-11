@@ -1,3 +1,4 @@
+import { stampGenreContext } from './genreContext';
 import type { AppData } from '../../app-data/model/types';
 import type { NotificationTarget } from '../../notifications/model/types';
 import type { TripRoute } from './types';
@@ -6,6 +7,7 @@ export function resolveTarget(
   data: AppData,
   target: NotificationTarget,
   userId: string,
+  viaGenreId?: string,
 ): TripRoute[] | null {
   if (target.type === 'invitation' || target.type === 'invitation-link')
     return null;
@@ -15,9 +17,13 @@ export function resolveTarget(
       : undefined;
   const stampId = target.type === 'stamp' ? target.stampId : post?.stampId;
   const stamp = stampId ? data.stamps.find((s) => s.id === stampId) : undefined;
-  const genreId = target.type === 'genre' ? target.genreId : stamp?.genreId;
+  const genreId =
+    target.type === 'genre'
+      ? target.genreId
+      : stampGenreContext(stamp, viaGenreId);
   const genre = genreId ? data.genres.find((g) => g.id === genreId) : undefined;
-  const tripId = target.type === 'trip' ? target.tripId : genre?.tripId;
+  const tripId =
+    target.type === 'trip' ? target.tripId : (stamp?.tripId ?? genre?.tripId);
   if (
     !tripId ||
     !data.trips.some((t) => t.id === tripId) ||
@@ -37,9 +43,15 @@ export function resolveTarget(
   if (genre)
     routes.push({ name: 'genre/[genreId]', params: { genreId: genre.id } });
   if (stamp)
-    routes.push({ name: 'stamp/[stampId]', params: { stampId: stamp.id } });
+    routes.push({
+      name: 'stamp/[stampId]',
+      params: { stampId: stamp.id, viaGenreId: genre?.id },
+    });
   if (post)
-    routes.push({ name: 'photo/[postId]', params: { postId: post.id } });
+    routes.push({
+      name: 'photo/[postId]',
+      params: { postId: post.id, viaGenreId: genre?.id },
+    });
   return routes;
 }
 
@@ -50,6 +62,7 @@ export async function resolveApiTarget(
     'request'
   >,
   target: NotificationTarget,
+  viaGenreId?: string,
 ): Promise<TripRoute[]> {
   if (target.type === 'invitation' || target.type === 'invitation-link')
     throw new Error('参加申請の画面から確認してください。');
@@ -65,13 +78,17 @@ export async function resolveApiTarget(
         url: `/stamps/${stampId}`,
       })
     : undefined;
-  const genreId = target.type === 'genre' ? target.genreId : stamp?.genreId;
+  const genreId =
+    target.type === 'genre'
+      ? target.genreId
+      : stampGenreContext(stamp, viaGenreId);
   const genre = genreId
     ? await client.request<import('../model/types').Genre>({
         url: `/genres/${genreId}`,
       })
     : undefined;
-  const tripId = target.type === 'trip' ? target.tripId : genre?.tripId;
+  const tripId =
+    target.type === 'trip' ? target.tripId : (stamp?.tripId ?? genre?.tripId);
   const trip = await client.request<import('../model/types').Trip>({
     url: `/trips/${tripId}`,
   });
@@ -87,9 +104,12 @@ export async function resolveApiTarget(
   if (stamp)
     routes.push({
       name: 'stamp/[stampId]',
-      params: { stampId: stamp.id, title: stamp.name },
+      params: { stampId: stamp.id, title: stamp.name, viaGenreId: genre?.id },
     });
   if (post)
-    routes.push({ name: 'photo/[postId]', params: { postId: post.id } });
+    routes.push({
+      name: 'photo/[postId]',
+      params: { postId: post.id, viaGenreId: genre?.id },
+    });
   return routes;
 }

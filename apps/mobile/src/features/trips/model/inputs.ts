@@ -18,4 +18,8 @@ export type NamedInput = Pick<Genre, 'name' | 'description'>;
 
 export type CreateGenreInput = NamedInput & { tripId: string };
 
-export type CreateStampInput = NamedInput & { genreId: string };
+export type StampInput = NamedInput & { genreIds?: string[] };
+export type CreateStampInput = NamedInput & {
+  tripId: string;
+  genreIds: string[];
+};

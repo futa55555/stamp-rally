@@ -8,10 +8,12 @@ export function EditableTitle({
   title,
   kind,
   id,
+  viaGenreId,
 }: {
   title: string;
   kind: EntityKind;
   id: string;
+  viaGenreId?: string;
 }) {
   const router = useRouter();
   return (
@@ -27,7 +29,10 @@ export function EditableTitle({
         accessibilityRole="button"
         accessibilityLabel="編集"
         onPress={() =>
-          router.push({ pathname: `/editor/${kind}`, params: { id } })
+          router.push({
+            pathname: `/editor/${kind}`,
+            params: { id, ...(viaGenreId ? { viaGenreId } : {}) },
+          })
         }
         className="min-h-12 flex-row items-center gap-1 px-2 active:opacity-pressed"
       >

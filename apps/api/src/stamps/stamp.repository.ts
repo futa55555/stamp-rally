@@ -15,8 +15,10 @@ import { CreateStampDto } from './dto/create-stamp.dto.js';
 import { ListStampsDto } from './dto/list-stamps.dto.js';
 import { UpdateStampDto } from './dto/update-stamp.dto.js';
 import { Stamp } from './entities/stamp.entity.js';
+import { genreMemberships, requireStampGenres } from './stamp-genres.js';
 
 const completion = {
+  genres: genreMemberships,
   posts: { where: { status: 'READY' as const }, take: 1, select: { id: true } },
 } as const;
 
@@ -34,25 +36,25 @@ export class StampRepository {
 
   async create(input: CreateStampDto, userId: string): Promise<Stamp> {
     return serializable(this.prisma, async (tx) => {
+      await requireStampGenres(tx, input.tripId, input.genreIds);
       const row = await tx.stamp.create({
         data: {
-          genreId: input.genreId,
+          tripId: input.tripId,
+          genres: { create: input.genreIds.map((genreId) => ({ genreId })) },
           name: input.name,
           description: input.description ?? '',
         },
-      });
-      const genre = await tx.genre.findUniqueOrThrow({
-        where: { id: row.genreId },
+        include: completion,
       });
       await notifyMembers(
         tx,
         userId,
-        genre.tripId,
+        row.tripId,
         'スタンプが作成されました',
         row.name,
         { type: 'stamp', stampId: row.id },
       );
-      return this.toDomain({ ...row, posts: [] });
+      return this.toDomain(row);
     });
   }
 
@@ -67,7 +69,10 @@ export class StampRepository {
 
   async findAll(query: ListStampsDto, userId: string) {
     const rows = await this.prisma.stamp.findMany({
-      where: { genreId: query.genreId, ...paginationWhere(query, 'asc') },
+      where: {
+        genres: { some: { genreId: query.genreId } },
+        ...paginationWhere(query, 'asc'),
+      },
       include: completion,
       orderBy: paginationOrder('asc'),
       take: query.limit + 1,
@@ -92,25 +97,42 @@ export class StampRepository {
         where: { id },
         include: completion,
       });
+      if (input.genreIds)
+        await requireStampGenres(tx, current.tripId, input.genreIds);
+      const membershipChanged =
+        input.genreIds !== undefined &&
+        (input.genreIds.length !== current.genres.length ||
+          current.genres.some(
+            ({ genreId }) => !input.genreIds!.includes(genreId),
+          ));
       const changed =
+        membershipChanged ||
         (input.name !== undefined && input.name !== current.name) ||
         (input.description !== undefined &&
           input.description !== current.description);
       const row = changed
         ? await tx.stamp.update({
             where: { id },
-            data: { name: input.name, description: input.description },
+            data: {
+              name: input.name,
+              description: input.description,
+              ...(membershipChanged
+                ? {
+                    genres: {
+                      deleteMany: {},
+                      create: input.genreIds!.map((genreId) => ({ genreId })),
+                    },
+                  }
+                : {}),
+            },
             include: completion,
           })
         : current;
       if (changed) {
-        const genre = await tx.genre.findUniqueOrThrow({
-          where: { id: row.genreId },
-        });
         await notifyMembers(
           tx,
           userId,
-          genre.tripId,
+          row.tripId,
           'スタンプが更新されました',
           row.name,
           { type: 'stamp', stampId: id },
@@ -142,12 +164,16 @@ export class StampRepository {
   }
 
   private toDomain(
-    row: PrismaStamp & { posts: { id: string }[] },
+    row: PrismaStamp & {
+      posts: { id: string }[];
+      genres: { genreId: string }[];
+    },
     stats?: StampMediaStats,
   ): Stamp {
     return new Stamp(
       row.id,
-      row.genreId,
+      row.tripId,
+      row.genres.map(({ genreId }) => genreId),
       row.name,
       row.description,
       row.createdAt,

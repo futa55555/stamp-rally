@@ -9,11 +9,19 @@ function useEditorFlow() {
   const navigation = useNavigation('/');
   const { client, userId } = useData();
   const [finishing, setFinishing] = useState(false);
-  const finish = async ({ target }: { target?: NotificationTarget }) => {
+  const finish = async ({
+    target,
+    viaGenreId,
+  }: {
+    target?: NotificationTarget;
+    viaGenreId?: string;
+  }) => {
     const assertCurrent = client.sessionGuard();
     setFinishing(true);
     try {
-      const routes = target ? await resolveApiTarget(client, target) : null;
+      const routes = target
+        ? await resolveApiTarget(client, target, viaGenreId)
+        : null;
       assertCurrent();
       if (client.snapshot().user?.id !== userId) return;
       // Let the removal guard observe finishing before dispatching the reset.

@@ -139,7 +139,7 @@ describe('PostsService', () => {
     const post = {
       id: 'post',
       tripId: 'trip',
-      genreId: 'genre',
+      genreIds: ['genre'],
       stampId: 'stamp',
     };
     repository.findById.mockResolvedValue(post);

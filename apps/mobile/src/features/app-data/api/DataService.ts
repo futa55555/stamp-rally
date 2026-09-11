@@ -6,6 +6,7 @@ import type {
   CreateGenreInput,
   CreateStampInput,
   NamedInput,
+  StampInput,
   TripInput,
   CreateTripInput,
 } from '../../trips/model/inputs';
@@ -27,7 +28,7 @@ export interface DataService {
   createGenre(userId: string, input: CreateGenreInput): Promise<Genre>;
   updateGenre(userId: string, id: string, input: NamedInput): Promise<Genre>;
   createStamp(userId: string, input: CreateStampInput): Promise<Stamp>;
-  updateStamp(userId: string, id: string, input: NamedInput): Promise<Stamp>;
+  updateStamp(userId: string, id: string, input: StampInput): Promise<Stamp>;
   createPosts(userId: string, input: CreatePostsInput): Promise<Post[]>;
   deletePost(userId: string, postId: string): Promise<void>;
 }

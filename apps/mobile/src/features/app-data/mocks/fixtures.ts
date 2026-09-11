@@ -75,7 +75,8 @@ export function createDemoData(now = new Date()): AppData {
     description: string,
   ): Stamp => ({
     id: id(4, index),
-    genreId: id(3, genreIndex),
+    genreIds: [id(3, genreIndex)],
+    tripId: genres.find((genre) => genre.id === id(3, genreIndex))!.tripId,
     name,
     description,
     createdAt: time(-8 + index / 10),
@@ -108,8 +109,8 @@ export function createDemoData(now = new Date()): AppData {
     return {
       id: id(5, index),
       stampId: parent.id,
-      genreId: parent.genreId,
-      tripId: genres.find((g) => g.id === parent.genreId)!.tripId,
+      genreIds: [...parent.genreIds],
+      tripId: parent.tripId,
       author: { id: users[userIndex].id, name: users[userIndex].name },
       mediaType: 'IMAGE',
       readAt: null,
@@ -129,7 +130,7 @@ export function createDemoData(now = new Date()): AppData {
   ];
   for (const s of stamps) s.isCompleted = posts.some((p) => p.stampId === s.id);
   for (const g of genres) {
-    const children = stamps.filter((s) => s.genreId === g.id);
+    const children = stamps.filter((s) => s.genreIds.includes(g.id));
     g.totalStampCount = children.length;
     g.completedStampCount = children.filter((s) => s.isCompleted).length;
     g.isCompleted = children.length > 0 && children.every((s) => s.isCompleted);

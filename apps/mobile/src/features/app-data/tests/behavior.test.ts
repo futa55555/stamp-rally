@@ -86,7 +86,9 @@ describe('read state and shared favorites', () => {
       hasUnreadPhotos(complete.data!, DEMO_USER_ID, { stampId: first.stampId }),
     ).toBe(false);
     expect(
-      hasUnreadPhotos(complete.data!, DEMO_USER_ID, { genreId: first.genreId }),
+      hasUnreadPhotos(complete.data!, DEMO_USER_ID, {
+        genreId: first.genreIds[0],
+      }),
     ).toBe(true);
     expect(before.data.readPhotoIds[DEMO_USER_ID]).toEqual([]);
   });
@@ -240,9 +242,15 @@ describe('notification navigation', () => {
     ).toEqual([
       { name: 'index', params: undefined },
       { name: 'trip/[tripId]', params: { tripId: photo.tripId } },
-      { name: 'genre/[genreId]', params: { genreId: photo.genreId } },
-      { name: 'stamp/[stampId]', params: { stampId: photo.stampId } },
-      { name: 'photo/[postId]', params: { postId: photo.id } },
+      { name: 'genre/[genreId]', params: { genreId: photo.genreIds[0] } },
+      {
+        name: 'stamp/[stampId]',
+        params: { stampId: photo.stampId, viaGenreId: photo.genreIds[0] },
+      },
+      {
+        name: 'photo/[postId]',
+        params: { postId: photo.id, viaGenreId: photo.genreIds[0] },
+      },
     ]);
   });
 

@@ -16,10 +16,13 @@ export function initializePostDraft(
 ): PostDraft {
   let { tripId, genreId, stampId } = scope;
   if (stampId) {
-    const { genre } = requireStampAccess(data, userId, stampId);
-    if (genreId && genreId !== genre.id)
+    const { stamp } = requireStampAccess(data, userId, stampId);
+    if (genreId && !stamp.genreIds.includes(genreId))
       throw new Error('投稿先のジャンルが一致しません。');
-    genreId = genre.id;
+    genreId ??= stamp.genreIds[0];
+    if (tripId && tripId !== stamp.tripId)
+      throw new Error('投稿先の旅行が一致しません。');
+    tripId = stamp.tripId;
   }
   if (genreId) {
     const genre = requireGenreAccess(data, userId, genreId);

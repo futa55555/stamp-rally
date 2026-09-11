@@ -51,7 +51,7 @@ describe('domain creation and shared progress', () => {
     expect(genres).toHaveLength(1);
     expect(
       data.stamps
-        .filter((stamp) => stamp.genreId === genres[0].id)
+        .filter((stamp) => stamp.genreIds[0] === genres[0].id)
         .map((stamp) => stamp.name),
     ).toEqual(['海を見る', '山を見る']);
     const edited = await service.updateTrip(DEMO_USER_ID, trip.id, {
@@ -110,7 +110,8 @@ describe('domain creation and shared progress', () => {
     });
     const stamp = await service.createStamp(DEMO_USER_ID, {
       ...named,
-      genreId: genre.id,
+      tripId: genre.tripId,
+      genreIds: [genre.id],
     });
     apply({ type: 'stampSaved', stamp });
     const before = state.data!;
@@ -124,7 +125,7 @@ describe('domain creation and shared progress', () => {
     for (const post of posts) {
       expect(post).toMatchObject({
         stampId: stamp.id,
-        genreId: genre.id,
+        genreIds: [genre.id],
         tripId: trip.id,
         mediaType: 'IMAGE',
         isFavorite: false,
@@ -162,7 +163,8 @@ describe('domain creation and shared progress', () => {
     ).toEqual([posts[0].id]);
     const another = await service.createStamp(DEMO_USER_ID, {
       ...named,
-      genreId: genre.id,
+      tripId: genre.tripId,
+      genreIds: [genre.id],
     });
     apply({ type: 'stampSaved', stamp: another });
     expect(state.data!.genres.find((g) => g.id === genre.id)).toMatchObject({
@@ -219,7 +221,7 @@ describe('domain creation and shared progress', () => {
     });
     expect(updated.createdAt).toBe(trip.createdAt);
     expect(newGenre.tripId).toBe(genre.tripId);
-    expect(newStamp.genreId).toBe(stamp.genreId);
+    expect(newStamp.genreIds[0]).toBe(stamp.genreIds[0]);
     expect(newStamp.isCompleted).toBe(stamp.isCompleted);
     expect(snapshot.trips[0].name).toBe(trip.name);
     expect((await service.load()).trips[0].name).toBe('更新した旅');
@@ -253,7 +255,8 @@ describe('domain creation and shared progress', () => {
     await expect(
       service.createStamp(DEMO_USER_ID, {
         ...named,
-        genreId: initial.genres[0].id,
+        tripId: initial.genres[0].tripId,
+        genreIds: [initial.genres[0].id],
       }),
     ).rejects.toThrow();
     await expect(

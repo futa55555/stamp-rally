@@ -381,3 +381,92 @@ describe('TripTemplatesService', () => {
     ).toThrow(BadRequestException);
   });
 });
+
+describe('bundled template memberships', () => {
+  it('shares night scenery across locations and activities with both genres', () => {
+    const service = new TripTemplatesService();
+    const preview = service.preview({
+      locations: ['大阪府'],
+      activityPresets: ['贅沢ディナー', '夜景'],
+    });
+    const memberships = preview.genres.filter((genre) =>
+      genre.stamps.some((stamp) => stamp.title === '夜景を楽しむ'),
+    );
+    expect(memberships.map((genre) => genre.name)).toEqual(['景色', '思い出']);
+    for (const genre of memberships) {
+      expect(
+        genre.stamps.filter((stamp) => stamp.title === '夜景を楽しむ'),
+      ).toEqual([
+        {
+          title: '夜景を楽しむ',
+          sources: [
+            { type: 'location', name: '大阪府' },
+            { type: 'activity', name: '贅沢ディナー' },
+            { type: 'activity', name: '夜景' },
+          ],
+        },
+      ]);
+    }
+  });
+
+  it.each([
+    [
+      '遊園地・テーマパーク',
+      'パークならではのフードを食べる',
+      ['グルメ', '遊園地'],
+    ],
+    [
+      '遊園地・テーマパーク',
+      'パークならではのドリンクを飲む',
+      ['グルメ', '遊園地'],
+    ],
+    ['ものづくり体験', '制作途中の様子を写真に撮る', ['ものづくり', '思い出']],
+    ['ものづくり体験', '完成した作品を記念に残す', ['ものづくり', '思い出']],
+    ['夜景', '水面に映る光を写真に撮る', ['景色', '思い出']],
+    ['ゆっくり', 'カフェでひと休みする', ['グルメ', '休息']],
+    ['ものづくり体験', 'カフェでひと休みする', ['グルメ', '休息']],
+    ['歴史探訪', '古い町並みを散歩する', ['歴史・文化', 'まち歩き']],
+    ['歴史探訪', '老舗の名物を食べる', ['歴史・文化', 'グルメ']],
+    ['歴史探訪', '歴史にちなんだおみやげを買う', ['歴史・文化', 'おみやげ']],
+  ] as const)(
+    '%s: %s belongs to each relevant genre',
+    (activity, title, expected) => {
+      const preview = new TripTemplatesService().preview({
+        activityPresets: [activity],
+      });
+      expect(
+        preview.genres
+          .filter((genre) =>
+            genre.stamps.some((stamp) => stamp.title === title),
+          )
+          .map((genre) => genre.name),
+      ).toEqual(expected);
+    },
+  );
+
+  it('removes replaced titles from every preset and leaves the two craft milestones distinct', () => {
+    const service = new TripTemplatesService();
+    const catalog = service.catalog();
+    const preview = service.preview({
+      locations: catalog.locations.map((preset) => preset.name),
+      activityPresets: catalog.activities.map((preset) => preset.name),
+    });
+    const titles = preview.genres.flatMap((genre) =>
+      genre.stamps.map((stamp) => stamp.title),
+    );
+    for (const replaced of [
+      '街の夜景を眺める',
+      '夜景を背景に記念写真を撮る',
+      '完成した作品を写真に撮る',
+      '作品と一緒に記念写真を撮る',
+      'お互いの作品を並べて写真に撮る',
+    ])
+      expect(titles).not.toContain(replaced);
+    const craft = service.preview({ activityPresets: ['ものづくり体験'] });
+    expect(
+      craft.genres
+        .find((genre) => genre.name === '思い出')
+        ?.stamps.map((stamp) => stamp.title),
+    ).toEqual(['制作途中の様子を写真に撮る', '完成した作品を記念に残す']);
+  });
+});

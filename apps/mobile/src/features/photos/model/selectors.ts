@@ -19,7 +19,7 @@ export function hasUnreadPhotos(
     (p) =>
       ('stampId' in scope
         ? p.stampId === scope.stampId
-        : p.genreId === scope.genreId) && isUnreadPhoto(data, userId, p),
+        : p.genreIds.includes(scope.genreId)) && isUnreadPhoto(data, userId, p),
   );
 }
 

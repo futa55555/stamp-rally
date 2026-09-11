@@ -7,7 +7,7 @@ export function withProgress(data: AppData): AppData {
     isCompleted: posted.has(s.id),
   }));
   const genres = data.genres.map((g) => {
-    const children = stamps.filter((s) => s.genreId === g.id);
+    const children = stamps.filter((s) => s.genreIds.includes(g.id));
     const completedStampCount = children.filter((s) => s.isCompleted).length;
     return {
       ...g,
@@ -28,5 +28,11 @@ export function withProgress(data: AppData): AppData {
         children.length > 0 && completedGenreCount === children.length,
     };
   });
-  return { ...data, trips, genres, stamps };
+  const posts = data.posts.map((post) => ({
+    ...post,
+    genreIds:
+      stamps.find((stamp) => stamp.id === post.stampId)?.genreIds ??
+      post.genreIds,
+  }));
+  return { ...data, trips, genres, stamps, posts };
 }

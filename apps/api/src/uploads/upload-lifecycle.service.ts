@@ -147,14 +147,14 @@ export class UploadLifecycleService {
             where: { id: postId },
             select: {
               author: { select: { name: true } },
-              stamp: { select: { genre: { select: { tripId: true } } } },
+              stamp: { select: { tripId: true } },
             },
           });
           const label = row.mediaType === 'IMAGE' ? '写真' : '動画';
           await notifyMembers(
             tx,
             row.authorId,
-            current.stamp.genre.tripId,
+            current.stamp.tripId,
             `${label}が追加されました`,
             `${current.author.name ?? '仲間'}が${label}を追加しました`,
             { type: row.mediaType === 'IMAGE' ? 'photo' : 'video', postId },

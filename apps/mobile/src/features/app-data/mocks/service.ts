@@ -47,6 +47,24 @@ export function createMockService(
     if (!item) throw new Error('対象のデータが見つかりませんでした。');
     return item;
   };
+  const membership = (userId: string, tripId: string, genreIds: string[]) => {
+    requireTripAccess(data, userId, tripId);
+    if (
+      !genreIds.length ||
+      new Set(genreIds).size !== genreIds.length ||
+      genreIds.some(
+        (id) => !data.genres.some((g) => g.id === id && g.tripId === tripId),
+      )
+    )
+      throw new Error('同じ旅行のジャンルを1つ以上選んでください。');
+    return data.genres
+      .filter((g) => genreIds.includes(g.id))
+      .sort(
+        (a, b) =>
+          a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+      )
+      .map((g) => g.id);
+  };
   return {
     async load() {
       await delay();
@@ -142,10 +160,16 @@ export function createMockService(
           hasUnreadPhotos: false,
         };
         genres.push(genre);
-        for (const title of titles)
+        for (const title of titles) {
+          const shared = stamps.find((stamp) => stamp.name === title);
+          if (shared) {
+            shared.genreIds.push(genre.id);
+            continue;
+          }
           stamps.push({
             id: id(),
-            genreId: genre.id,
+            tripId: trip.id,
+            genreIds: [genre.id],
             name: title,
             description: '',
             createdAt: now,
@@ -154,6 +178,7 @@ export function createMockService(
             hasUnreadPhotos: false,
             photoCount: 0,
           });
+        }
       }
       data = withProgress({
         ...data,
@@ -215,12 +240,13 @@ export function createMockService(
     },
     async createStamp(userId, input) {
       await delay();
-      requireGenreAccess(data, userId, input.genreId);
+      const genreIds = membership(userId, input.tripId, input.genreIds);
       const values = validateNamedInput(input);
       const now = new Date().toISOString();
       const stamp: Stamp = {
         ...values,
-        genreId: input.genreId,
+        tripId: input.tripId,
+        genreIds,
         id: id(),
         createdAt: now,
         updatedAt: now,
@@ -234,8 +260,14 @@ export function createMockService(
     async updateStamp(userId, stampId, input) {
       await delay();
       const { stamp: current } = requireStampAccess(data, userId, stampId);
+      const genreIds = membership(
+        userId,
+        current.tripId,
+        input.genreIds ?? current.genreIds,
+      );
       const stamp = {
         ...current,
+        genreIds,
         ...validateNamedInput(input),
         updatedAt: new Date().toISOString(),
       };
@@ -245,7 +277,7 @@ export function createMockService(
     async createPosts(userId, input) {
       await delay();
       const user = find(data.users, userId);
-      const { stamp, genre } = requireStampAccess(data, userId, input.stampId);
+      const { stamp } = requireStampAccess(data, userId, input.stampId);
       if (!input.mediaUrls.length || input.mediaUrls.length > MAX_POST_PHOTOS)
         throw new Error(`写真は1〜${MAX_POST_PHOTOS}枚選んでください。`);
       const urls = input.mediaUrls.map(validateMediaUri);
@@ -253,8 +285,8 @@ export function createMockService(
       const posts: Post[] = urls.map((mediaUrl) => ({
         id: id(),
         stampId: stamp.id,
-        genreId: genre.id,
-        tripId: genre.tripId,
+        genreIds: [...stamp.genreIds],
+        tripId: stamp.tripId,
         author: { id: user.id, name: user.name },
         mediaType: 'IMAGE',
         readAt: null,

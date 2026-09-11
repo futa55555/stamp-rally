@@ -168,14 +168,14 @@ describe('PostsController', () => {
     repository.findById.mockResolvedValue({
       id: postId,
       stampId,
-      genreId,
+      genreIds: [genreId],
       tripId,
     });
     await request(app.getHttpServer())
       .get(`/posts/${postId}`)
       .set('Authorization', 'Bearer token')
       .expect(200)
-      .expect({ id: postId, stampId, genreId, tripId });
+      .expect({ id: postId, stampId, genreIds: [genreId], tripId });
     repository.setFavorite.mockResolvedValue({ id: postId, isFavorite: false });
     await request(app.getHttpServer())
       .patch(`/posts/${postId}/favorite`)

@@ -115,16 +115,17 @@ export class GenreRepository {
           WHERE EXISTS (SELECT 1 FROM posts p WHERE p.stamp_id = s.id AND p.status = 'READY')
         )::int AS "completedStampCount",
         EXISTS (
-          SELECT 1 FROM stamps us JOIN posts p ON p.stamp_id = us.id
+          SELECT 1 FROM stamp_genres us JOIN posts p ON p.stamp_id = us.stamp_id
           WHERE us.genre_id = g.id AND p.status = 'READY' AND p.author_id <> ${userId}::uuid
           AND NOT EXISTS (SELECT 1 FROM photo_reads r WHERE r.post_id = p.id AND r.user_id = ${userId}::uuid)
         ) AS "hasUnreadMedia",
         EXISTS (
-          SELECT 1 FROM stamps us JOIN posts p ON p.stamp_id = us.id
+          SELECT 1 FROM stamp_genres us JOIN posts p ON p.stamp_id = us.stamp_id
           WHERE us.genre_id = g.id AND p.status = 'READY' AND p.media_type = 'IMAGE' AND p.author_id <> ${userId}::uuid
           AND NOT EXISTS (SELECT 1 FROM photo_reads r WHERE r.post_id = p.id AND r.user_id = ${userId}::uuid)
         ) AS "hasUnreadPhotos"
-      FROM genres g LEFT JOIN stamps s ON s.genre_id = g.id
+      FROM genres g LEFT JOIN stamp_genres sg ON sg.genre_id = g.id
+      LEFT JOIN stamps s ON s.id = sg.stamp_id
       WHERE g.id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
       GROUP BY g.id
     `);

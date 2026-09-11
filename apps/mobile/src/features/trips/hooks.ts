@@ -8,6 +8,7 @@ import type { Post } from '../photos/model/types';
 import type { User } from '../auth/model/types';
 import type { Genre, Stamp, Trip } from './model/types';
 import { sortTrips } from './model/selectors';
+import { stampGenreContext } from './navigation/genreContext';
 
 export function useTrips() {
   const today = useToday();
@@ -67,7 +68,10 @@ export function useTrip(tripId: string) {
     favorites: (favorites.data ?? []).map((photo) => ({
       ...photo,
       genreName:
-        genres.data?.find((genre) => genre.id === photo.genreId)?.name ?? '',
+        genres.data
+          ?.filter((genre) => photo.genreIds.includes(genre.id))
+          .map((genre) => genre.name)
+          .join(', ') ?? '',
       stampName:
         stamps.find((query) => query.data?.id === photo.stampId)?.data?.name ??
         '',
@@ -92,18 +96,24 @@ export function useGenre(genreId: string) {
     })),
   };
 }
-export function useStamp(stampId: string) {
+export function useStamp(stampId: string, viaGenreId?: string) {
   const stamp = useDetail<Stamp>(`/stamps/${stampId}`, !!stampId);
-  const genre = useDetail<Genre>(
-    `/genres/${stamp.data?.genreId}`,
+  const trip = useDetail<Trip>(`/trips/${stamp.data?.tripId}`, !!stamp.data);
+  const genres = useList<Genre>(
+    '/genres',
+    { tripId: stamp.data?.tripId },
     !!stamp.data,
   );
-  const trip = useDetail<Trip>(`/trips/${genre.data?.tripId}`, !!genre.data);
   const photos = useList<Post>('/posts', { stampId }, !!stamp.data);
   return {
-    ...combineQueries(stamp, genre, trip, photos),
+    ...combineQueries(stamp, genres, trip, photos),
     stamp: stamp.data,
-    genre: genre.data,
+    genres: (genres.data ?? []).filter((genre) =>
+      stamp.data?.genreIds.includes(genre.id),
+    ),
+    genre: genres.data?.find(
+      (genre) => genre.id === stampGenreContext(stamp.data, viaGenreId),
+    ),
     trip: trip.data,
     photos: photos.data ?? [],
   };

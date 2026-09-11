@@ -5,7 +5,7 @@ import { initializePostDraft, selectPostScope } from './draft';
 describe('contextual post drafts', () => {
   const data = createDemoData();
   const stamp = data.stamps[0];
-  const genre = data.genres.find((g) => g.id === stamp.genreId)!;
+  const genre = data.genres.find((g) => g.id === stamp.genreIds[0])!;
   const tripId = genre.tripId;
 
   it('fills exactly the known hierarchy from each entry point', () => {

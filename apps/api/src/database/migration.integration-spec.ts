@@ -54,6 +54,13 @@ const tripTemplatesMigration = readFileSync(
   ),
   'utf8',
 );
+const stampGenresMigration = readFileSync(
+  new URL(
+    '../../prisma/migrations/20260912010000_stamp_genres/migration.sql',
+    import.meta.url,
+  ),
+  'utf8',
+);
 
 describe('Trip domain migration integration', () => {
   let client: Client;
@@ -85,6 +92,102 @@ describe('Trip domain migration integration', () => {
       schemaCreated = false;
       await client.end();
     }
+  });
+
+  it('backfills memberships without merging names or modifying posts, reads and timestamps', async () => {
+    const owner = randomUUID(),
+      trip = randomUUID(),
+      genre = randomUUID(),
+      secondGenre = randomUUID(),
+      stamp = randomUUID(),
+      secondStamp = randomUUID(),
+      post = randomUUID();
+    const timestamp = new Date('2026-09-09T03:00:00Z');
+    await client.query('INSERT INTO users (id,name) VALUES ($1,$2)', [
+      owner,
+      'Owner',
+    ]);
+    await client.query(migration);
+    await client.query(removeCommentsMigration);
+    await client.query(mobileMigration);
+    await client.query(
+      "INSERT INTO trips (id,name,start_date,end_date,created_by_id,updated_at) VALUES ($1,'Trip','2026-09-09','2026-09-09',$2,$3)",
+      [trip, owner, timestamp],
+    );
+    for (const id of [genre, secondGenre])
+      await client.query(
+        "INSERT INTO genres (id,trip_id,name,updated_at) VALUES ($1,$2,'Genre',$3)",
+        [id, trip, timestamp],
+      );
+    for (const [id, parent] of [
+      [stamp, genre],
+      [secondStamp, secondGenre],
+    ])
+      await client.query(
+        "INSERT INTO stamps (id,genre_id,name,description,created_at,updated_at) VALUES ($1,$2,'同名スタンプ','説明',$3,$3)",
+        [id, parent, timestamp],
+      );
+    await client.query(
+      "INSERT INTO posts (id,stamp_id,author_id,media_type,media_url,is_favorite,created_at,updated_at) VALUES ($1,$2,$3,'IMAGE','https://legacy.test/photo.jpg',true,$4,$4)",
+      [post, stamp, owner, timestamp],
+    );
+    await client.query(
+      'INSERT INTO photo_reads (user_id,post_id,read_at) VALUES ($1,$2,$3)',
+      [owner, post, timestamp],
+    );
+    await client.query(mediaMigration);
+    const originalPosts = (
+      await client.query('SELECT * FROM posts ORDER BY id')
+    ).rows;
+    const originalStamps = (
+      await client.query('SELECT * FROM stamps ORDER BY id')
+    ).rows;
+    const originalReads = (await client.query('SELECT * FROM photo_reads'))
+      .rows;
+    await client.query(stampGenresMigration);
+    expect(
+      (await client.query('SELECT * FROM stamps ORDER BY id')).rows,
+    ).toEqual(
+      originalStamps.map(({ genre_id: _genre, ...row }) => ({
+        ...row,
+        trip_id: trip,
+      })),
+    );
+    expect(
+      (await client.query('SELECT * FROM stamp_genres ORDER BY stamp_id')).rows,
+    ).toEqual(
+      originalStamps.map((row) => ({
+        stamp_id: row.id,
+        genre_id: row.genre_id,
+      })),
+    );
+    expect(
+      (await client.query('SELECT * FROM posts ORDER BY id')).rows,
+    ).toEqual(originalPosts);
+    expect((await client.query('SELECT * FROM photo_reads')).rows).toEqual(
+      originalReads,
+    );
+    await client.query(
+      'INSERT INTO stamp_genres (stamp_id,genre_id) VALUES ($1,$2)',
+      [stamp, secondGenre],
+    );
+    await expect(
+      client.query(
+        'INSERT INTO stamp_genres (stamp_id,genre_id) VALUES ($1,$2)',
+        [stamp, secondGenre],
+      ),
+    ).rejects.toMatchObject({ code: '23505' });
+    await client.query(
+      'DELETE FROM stamp_genres WHERE stamp_id=$1 AND genre_id=$2',
+      [stamp, genre],
+    );
+    expect((await client.query('SELECT * FROM posts')).rows).toEqual(
+      originalPosts,
+    );
+    await client.query('DELETE FROM trips WHERE id=$1', [trip]);
+    expect((await client.query('SELECT * FROM stamps')).rows).toEqual([]);
+    expect((await client.query('SELECT * FROM stamp_genres')).rows).toEqual([]);
+    expect((await client.query('SELECT * FROM posts')).rows).toEqual([]);
   });
 
   it('reports duplicate names, aborts before domain DDL, and preserves existing users', async () => {
