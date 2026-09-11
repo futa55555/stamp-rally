@@ -1,5 +1,5 @@
 import type { NativeStackNavigationOptions } from 'expo-router';
-import { Platform } from 'react-native';
+import { Platform, type ImageSourcePropType } from 'react-native';
 import type { IconName } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
 
@@ -7,13 +7,15 @@ export function headerButtonOptions({
   side = 'right',
   label,
   symbol,
+  imageSource,
   icon,
   onPress,
   disabled = false,
 }: {
   side?: 'left' | 'right';
   label: string;
-  symbol: 'plus' | 'xmark' | 'chevron.left';
+  symbol: 'camera' | 'xmark' | 'chevron.left';
+  imageSource?: ImageSourcePropType;
   icon: IconName;
   onPress: () => void;
   disabled?: boolean;
@@ -29,7 +31,9 @@ export function headerButtonOptions({
           type: 'button',
           label,
           accessibilityLabel: label,
-          icon: { type: 'sfSymbol', name: symbol },
+          icon: imageSource
+            ? { type: 'image', source: imageSource, tinted: true }
+            : { type: 'sfSymbol', name: symbol },
           onPress,
           disabled,
         },

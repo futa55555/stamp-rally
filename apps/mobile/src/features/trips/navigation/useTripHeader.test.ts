@@ -16,6 +16,9 @@ vi.mock('expo-router', () => ({
 }));
 vi.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
 vi.mock('../../../shared/ui/IconButton', () => ({ IconButton: 'IconButton' }));
+vi.mock('../../../shared/navigation/usePostHeaderIcon', () => ({
+  usePostHeaderIcon: () => ({ uri: 'file:///camera-plus-outline.png' }),
+}));
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const data = createDemoData();
@@ -76,7 +79,11 @@ it('shows the current stamp title, leaves Back to the native stack, and preserve
   expect(options.headerBackTitle).toBeUndefined();
   expect(options.headerLeft).toBeUndefined();
   const [post] = options.unstable_headerRightItems();
-  expect(post.icon).toEqual({ type: 'sfSymbol', name: 'plus' });
+  expect(post.icon).toEqual({
+    type: 'image',
+    source: { uri: 'file:///camera-plus-outline.png' },
+    tinted: true,
+  });
   expect(post.accessibilityLabel).toBe('投稿を追加');
   post.onPress();
   expect(native.router.push).toHaveBeenCalledWith({
