@@ -1,3 +1,5 @@
+import { useRef, useState } from 'react';
+import type { TextInput } from 'react-native';
 import { Pressable, View } from 'react-native';
 import { AppText } from '../../../shared/ui/AppText';
 import { Button } from '../../../shared/ui/Button';
@@ -11,6 +13,66 @@ import type { useTripTemplates } from '../../../features/trip-templates/useTripT
 import { TextField } from './TextField';
 
 type Templates = ReturnType<typeof useTripTemplates>;
+
+function ActivityChip({
+  label,
+  selected,
+  expanded,
+  removable = false,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  expanded?: boolean;
+  removable?: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole={
+        expanded !== undefined || removable ? 'button' : 'checkbox'
+      }
+      accessibilityLabel={removable ? `${label}を削除` : label}
+      accessibilityState={
+        expanded !== undefined
+          ? { expanded, disabled }
+          : removable
+            ? { disabled }
+            : { checked: selected, disabled }
+      }
+      disabled={disabled}
+      hitSlop={6}
+      onPress={onPress}
+      className={[
+        'min-h-8 max-w-full flex-row items-center gap-1 rounded-full px-3 py-1.5 active:opacity-pressed',
+        selected ? 'bg-primary' : 'bg-chipBackground',
+        disabled ? 'opacity-disabled' : '',
+      ].join(' ')}
+    >
+      {expanded !== undefined ? (
+        <Icon
+          name={expanded ? 'minus' : 'plus'}
+          size={14}
+          tone={selected ? 'onPrimary' : 'onChip'}
+        />
+      ) : selected && !removable ? (
+        <Icon name="check" size={14} tone="onPrimary" />
+      ) : null}
+      <AppText
+        variant="caption"
+        tone={selected ? 'onPrimary' : 'onChip'}
+        className="shrink font-semibold"
+      >
+        {label}
+      </AppText>
+      {removable ? (
+        <Icon name="close" size={16} tone={selected ? 'onPrimary' : 'onChip'} />
+      ) : null}
+    </Pressable>
+  );
+}
 
 function CheckRow({
   label,
@@ -62,6 +124,24 @@ export function ActivitiesField({
   onChange: (values: string[]) => void;
   onCustomChange: (values: string[]) => void;
 }) {
+  const [customExpanded, setCustomExpanded] = useState(false);
+  const [customDraft, setCustomDraft] = useState('');
+  const customInputRef = useRef<TextInput>(null);
+  const customActivity = customDraft.trim();
+  const customError =
+    Array.from(customActivity).length > 100
+      ? 'やりたいことは100文字以内で入力してください。'
+      : customActivity &&
+          custom.some((value) => value.trim() === customActivity)
+        ? 'このやりたいことは追加済みです。'
+        : null;
+  const canAddCustom = !disabled && !!customActivity && !customError;
+  const addCustomActivity = () => {
+    if (!canAddCustom) return;
+    onCustomChange([...custom, customActivity]);
+    setCustomDraft('');
+    customInputRef.current?.focus();
+  };
   return (
     <View className="gap-2">
       <AppText variant="label">やりたいこと（任意）</AppText>
@@ -71,21 +151,30 @@ export function ActivitiesField({
       {templates.presetsPending ? (
         <AppText tone="textSecondary">やりたいことを読み込み中…</AppText>
       ) : null}
-      {templates.presets?.activities.map(({ name }) => (
-        <CheckRow
-          key={name}
-          label={name}
-          checked={selected.includes(name)}
+      <View className="flex-row flex-wrap gap-2">
+        {templates.presets?.activities.map(({ name }) => (
+          <ActivityChip
+            key={name}
+            label={name}
+            selected={selected.includes(name)}
+            disabled={disabled}
+            onPress={() =>
+              onChange(
+                selected.includes(name)
+                  ? selected.filter((value) => value !== name)
+                  : [...selected, name],
+              )
+            }
+          />
+        ))}
+        <ActivityChip
+          label="その他"
+          selected={customExpanded}
+          expanded={customExpanded}
           disabled={disabled}
-          onPress={() =>
-            onChange(
-              selected.includes(name)
-                ? selected.filter((value) => value !== name)
-                : [...selected, name],
-            )
-          }
+          onPress={() => setCustomExpanded((expanded) => !expanded)}
         />
-      ))}
+      </View>
       <ErrorMessage message={templates.presetsError} />
       {templates.presetsError ? (
         <Button
@@ -95,14 +184,46 @@ export function ActivitiesField({
           disabled={disabled}
         />
       ) : null}
-      <TextField
-        label="その他のやりたいこと（任意）"
-        value={custom.join('\n')}
-        onChangeText={(text) => onCustomChange(text.split('\n'))}
-        multiline
-        disabled={disabled}
-        hint="1行に1つ、100文字以内。自由入力した内容は旅のメモとして保存されます。"
-      />
+      {customExpanded ? (
+        <View className="gap-2">
+          <View className="flex-row items-center gap-2">
+            <View className="min-w-0 flex-1">
+              <TextField
+                label="その他のやりたいこと（任意）"
+                value={customDraft}
+                onChangeText={setCustomDraft}
+                inputRef={customInputRef}
+                autoFocus
+                hideLabel
+                disabled={disabled}
+                hint="100文字以内。自由入力した内容は旅のメモとして保存されます。"
+              />
+            </View>
+            <Button
+              label="追加"
+              disabled={!canAddCustom}
+              onPress={addCustomActivity}
+            />
+          </View>
+          <ErrorMessage message={customError} />
+        </View>
+      ) : null}
+      {custom.length ? (
+        <View className="flex-row flex-wrap gap-2">
+          {custom.map((value, index) => (
+            <ActivityChip
+              key={index}
+              label={value}
+              selected
+              removable
+              disabled={disabled}
+              onPress={() =>
+                onCustomChange(custom.filter((_, i) => i !== index))
+              }
+            />
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }

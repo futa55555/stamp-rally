@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import { TextInput, View } from 'react-native';
 import { useAppTheme } from '../../../shared/theme/ThemeProvider';
 import { AppText } from '../../../shared/ui/AppText';
@@ -9,6 +10,8 @@ export function TextField({
   disabled = false,
   hint,
   hideLabel = false,
+  autoFocus = false,
+  inputRef,
 }: {
   label: string;
   value: string;
@@ -17,12 +20,15 @@ export function TextField({
   disabled?: boolean;
   hint?: string;
   hideLabel?: boolean;
+  autoFocus?: boolean;
+  inputRef?: Ref<TextInput>;
 }) {
   const theme = useAppTheme();
   return (
     <View className="gap-2">
       {!hideLabel ? <AppText variant="label">{label}</AppText> : null}
       <TextInput
+        ref={inputRef}
         testID={'input-' + label}
         accessibilityLabel={label}
         accessibilityHint={hint}
@@ -30,6 +36,7 @@ export function TextField({
         onChangeText={onChangeText}
         multiline={multiline}
         editable={!disabled}
+        autoFocus={autoFocus}
         autoCapitalize="none"
         allowFontScaling
         selectionColor={theme.colors.primary}
