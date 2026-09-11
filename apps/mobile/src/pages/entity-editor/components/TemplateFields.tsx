@@ -77,11 +77,13 @@ function ActivityChip({
 function CheckRow({
   label,
   checked,
+  emphasized = false,
   disabled,
   onPress,
 }: {
   label: string;
   checked: boolean | 'mixed';
+  emphasized?: boolean;
   disabled: boolean;
   onPress: () => void;
 }) {
@@ -92,7 +94,7 @@ function CheckRow({
       accessibilityState={{ checked, disabled }}
       disabled={disabled}
       onPress={onPress}
-      className="min-h-12 flex-row items-center gap-3 py-3 active:opacity-pressed"
+      className="min-h-8 max-w-full flex-row items-center gap-1.5 py-1 active:opacity-pressed"
     >
       <Icon
         name={
@@ -102,9 +104,15 @@ function CheckRow({
               ? 'checkbox-marked'
               : 'checkbox-blank-outline'
         }
+        size={18}
         tone={disabled ? 'textMuted' : checked ? 'primary' : 'textSecondary'}
       />
-      <AppText className="min-w-0 flex-1">{label}</AppText>
+      <AppText
+        variant={emphasized ? 'label' : 'caption'}
+        className="min-w-0 flex-1"
+      >
+        {label}
+      </AppText>
     </Pressable>
   );
 }
@@ -240,25 +248,29 @@ export function TemplateCandidatesField({
   disabled: boolean;
 }) {
   return (
-    <View className="gap-3">
-      <AppText variant="label">旅のスタンプ</AppText>
-      <CheckRow
-        label="テンプレートを使う"
-        checked={useTemplate}
-        disabled={disabled}
-        onPress={() => onUseTemplateChange(!useTemplate)}
-      />
+    <View className="gap-2">
+      <View className="flex-row flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <AppText variant="label">旅のスタンプ</AppText>
+        <CheckRow
+          label="テンプレートを使う"
+          checked={useTemplate}
+          disabled={disabled}
+          onPress={() => onUseTemplateChange(!useTemplate)}
+        />
+      </View>
       {!useTemplate ? (
-        <AppText tone="textSecondary">
+        <AppText variant="caption" tone="textSecondary">
           ジャンル・スタンプを追加せずに旅行を作成します。
         </AppText>
       ) : (
         <>
           <AppText variant="caption" tone="textSecondary">
-            作成するスタンプを選んでください。ジャンルを選ぶと、まとめて切り替えられます。
+            スタンプを選択。ジャンル名でまとめて切り替えられます。
           </AppText>
           {templates.pending ? (
-            <AppText tone="textSecondary">スタンプ候補を読み込み中…</AppText>
+            <AppText variant="caption" tone="textSecondary">
+              スタンプ候補を読み込み中…
+            </AppText>
           ) : null}
           <ErrorMessage message={templates.error} />
           {templates.error ? (
@@ -274,15 +286,16 @@ export function TemplateCandidatesField({
             return (
               <View
                 key={genre.name}
-                className="rounded-2xl border border-border px-4 py-2"
+                className="rounded-xl border border-border px-3 py-1"
               >
                 <CheckRow
                   label={genre.name}
                   checked={checked}
+                  emphasized
                   disabled={disabled || !templates.ready}
                   onPress={() => templates.toggleGenre(genre, checked !== true)}
                 />
-                <View className="pl-6">
+                <View className="pl-5">
                   {genre.stamps.map(({ title }) => (
                     <CheckRow
                       key={title}
@@ -301,7 +314,7 @@ export function TemplateCandidatesField({
             );
           })}
           {templates.ready && !templates.genres.length ? (
-            <AppText tone="textSecondary">
+            <AppText variant="caption" tone="textSecondary">
               行き先ややりたいことに合う候補があると、ここに表示されます。そのまま旅行を作成することもできます。
             </AppText>
           ) : null}
