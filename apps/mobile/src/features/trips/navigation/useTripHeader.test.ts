@@ -21,7 +21,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const data = createDemoData();
 const trip = data.trips[0];
 const genre = data.genres.find((item) => item.tripId === trip.id)!;
-const stamp = data.stamps.find((item) => item.genreId === genre.id)!;
+const stamp = data.stamps.find((item) => item.genreIds.includes(genre.id))!;
 const index = { name: 'index', key: 'list-key' };
 const tripRoute = {
   name: 'trip/[tripId]',

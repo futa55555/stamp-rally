@@ -38,7 +38,8 @@ export type Stamp = {
   videoCount?: number;
   mediaCount?: number;
   id: string;
-  genreId: string;
+  tripId: string;
+  genreIds: string[];
   name: string;
   description: string;
   createdAt: string;

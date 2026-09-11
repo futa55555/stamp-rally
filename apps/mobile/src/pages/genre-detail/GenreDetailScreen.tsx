@@ -59,7 +59,11 @@ export function GenreDetailScreen() {
         }
         renderItem={({ item }) =>
           item ? (
-            <StampCard stamp={item} photo={representatives[item.id]} />
+            <StampCard
+              stamp={item}
+              photo={representatives[item.id]}
+              genreId={genreId}
+            />
           ) : (
             <View className="flex-1" />
           )

@@ -25,6 +25,9 @@ import {
 import { useTripTemplates } from '../../../features/trip-templates/useTripTemplates';
 import { selectedGenres } from '../../../features/trip-templates/selection';
 import { ActivitiesField, TemplateCandidatesField } from './TemplateFields';
+import { useList } from '../../../features/app-data/api/queries';
+import type { Genre } from '../../../features/trips/model/types';
+import { StampGenresField } from './StampGenresField';
 
 const labels = { trip: '旅行', genre: 'ジャンル', stamp: 'スタンプ' };
 
@@ -33,6 +36,7 @@ export function EntityForm({
   id,
   tripId,
   genreId,
+  viaGenreId,
   initial,
   parentLabel,
 }: {
@@ -40,7 +44,8 @@ export function EntityForm({
   id?: string;
   tripId?: string;
   genreId?: string;
-  initial: TripFormValues & NamedInput;
+  viaGenreId?: string;
+  initial: TripFormValues & NamedInput & { genreIds?: string[] };
   parentLabel: string;
 }) {
   const { actions, userId } = useData();
@@ -50,6 +55,15 @@ export function EntityForm({
     null,
   );
   const [values, setValues] = useState(initial);
+  const [originalGenreIds] = useState(
+    initial.genreIds ?? (genreId ? [genreId] : []),
+  );
+  const [genreIds, setGenreIds] = useState(originalGenreIds);
+  const genres = useList<Genre>(
+    '/genres',
+    { tripId },
+    kind === 'stamp' && !!tripId,
+  );
   const newTrip = kind === 'trip' && !id;
   const [activityPresets, setActivityPresets] = useState<string[]>([]);
   const [customActivities, setCustomActivities] = useState<string[]>([]);
@@ -66,6 +80,9 @@ export function EntityForm({
   const dirty =
     !savedTarget &&
     (cover.changed ||
+      (kind === 'stamp' &&
+        (genreIds.length !== originalGenreIds.length ||
+          genreIds.some((id) => !originalGenreIds.includes(id)))) ||
       (newTrip &&
         (activityPresets.length > 0 ||
           customActivities.some(Boolean) ||
@@ -87,7 +104,10 @@ export function EntityForm({
     void task
       .run(async () => {
         if (savedTarget) {
-          await flow.finish({ target: savedTarget });
+          await flow.finish({
+            target: savedTarget,
+            ...(viaGenreId ? { viaGenreId } : {}),
+          });
           return;
         }
         let target: NotificationTarget;
@@ -129,18 +149,24 @@ export function EntityForm({
             : await actions.createGenre(userId!, { ...input, tripId: tripId! });
           target = { type: 'genre', genreId: genre.id };
         } else {
-          const input = { name: values.name, description: values.description };
+          if (!genreIds.length)
+            throw new Error('ジャンルを1つ以上選んでください。');
+          const input = {
+            name: values.name,
+            description: values.description,
+            genreIds,
+          };
           const stamp = id
             ? await actions.updateStamp(userId!, id, input)
             : await actions.createStamp(userId!, {
                 ...input,
-                genreId: genreId!,
+                tripId: tripId!,
               });
           target = { type: 'stamp', stampId: stamp.id };
         }
         // A failed ancestor fetch can be retried without creating the entity twice.
         setSavedTarget(target);
-        await flow.finish({ target });
+        await flow.finish({ target, ...(viaGenreId ? { viaGenreId } : {}) });
       })
       .finally(cover.finish);
   };
@@ -150,7 +176,12 @@ export function EntityForm({
       pending={pending}
       error={task.error}
       onSave={save}
-      disabled={!savedTarget && newTrip && useTemplate && !templates.ready}
+      disabled={
+        !savedTarget &&
+        ((newTrip && useTemplate && !templates.ready) ||
+          (kind === 'stamp' &&
+            (!genreIds.length || genres.isPending || !!genres.error)))
+      }
       saveLabel={
         coverPicking
           ? '画像を準備中…'
@@ -172,6 +203,19 @@ export function EntityForm({
         hint="1〜100文字"
         hideLabel={kind === 'trip'}
       />
+      {kind === 'stamp' ? (
+        <StampGenresField
+          genres={genres.data ?? []}
+          selected={genreIds}
+          onChange={setGenreIds}
+          disabled={
+            pending || !!savedTarget || genres.isPending || !!genres.error
+          }
+          pending={genres.isPending}
+          error={genres.error?.message ?? null}
+          onRetry={genres.invalidate}
+        />
+      ) : null}
       {kind === 'trip' ? (
         <>
           <DateField

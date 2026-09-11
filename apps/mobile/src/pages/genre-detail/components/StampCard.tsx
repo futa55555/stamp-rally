@@ -9,9 +9,11 @@ import { UnreadBadge } from '../../../shared/ui/UnreadBadge';
 export function StampCard({
   stamp,
   photo,
+  genreId,
 }: {
   stamp: ReturnType<typeof useGenre>['stamps'][number];
   photo?: Post;
+  genreId: string;
 }) {
   const router = useRouter();
   return (
@@ -28,7 +30,7 @@ export function StampCard({
       onPress={() =>
         router.push({
           pathname: '/trips/stamp/[stampId]',
-          params: { stampId: stamp.id },
+          params: { stampId: stamp.id, viaGenreId: genreId },
         })
       }
       className="min-w-0 flex-1 gap-2 active:opacity-pressed"

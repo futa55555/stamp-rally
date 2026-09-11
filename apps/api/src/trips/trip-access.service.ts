@@ -28,38 +28,37 @@ export class TripAccessService {
   async requireStamp(
     userId: string,
     stampId: string,
-  ): Promise<{ tripId: string; genreId: string }> {
+  ): Promise<{ tripId: string }> {
     const stamp = await this.prisma.stamp.findFirst({
       where: {
         id: stampId,
-        genre: { trip: { members: { some: { userId } } } },
+        trip: { members: { some: { userId } } },
       },
-      select: { genreId: true, genre: { select: { tripId: true } } },
+      select: { tripId: true },
     });
     if (!stamp) throw new NotFoundException('Stamp not found');
-    return { tripId: stamp.genre.tripId, genreId: stamp.genreId };
+    return { tripId: stamp.tripId };
   }
 
   async requirePost(
     userId: string,
     postId: string,
-  ): Promise<{ tripId: string; genreId: string; stampId: string }> {
+  ): Promise<{ tripId: string; stampId: string }> {
     const post = await this.prisma.post.findFirst({
       where: {
         id: postId,
-        stamp: { genre: { trip: { members: { some: { userId } } } } },
+        stamp: { trip: { members: { some: { userId } } } },
       },
       select: {
         stampId: true,
         stamp: {
-          select: { genreId: true, genre: { select: { tripId: true } } },
+          select: { tripId: true },
         },
       },
     });
     if (!post) throw new NotFoundException('Post not found');
     return {
-      tripId: post.stamp.genre.tripId,
-      genreId: post.stamp.genreId,
+      tripId: post.stamp.tripId,
       stampId: post.stampId,
     };
   }

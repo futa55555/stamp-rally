@@ -78,7 +78,7 @@ function setup() {
     findUnique: vi.fn(async () => (row ? { ...row } : null)),
     findUniqueOrThrow: vi.fn(async () => ({
       author: { name: 'Owner' },
-      stamp: { genre: { tripId: 'trip' } },
+      stamp: { tripId: 'trip' },
     })),
   };
   const notification = { createMany: vi.fn(async () => ({ count: 1 })) };

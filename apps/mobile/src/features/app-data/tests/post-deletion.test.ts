@@ -69,7 +69,7 @@ describe('post deletion', () => {
     expect(data.stamps.find((s) => s.id === post.stampId)?.isCompleted).toBe(
       false,
     );
-    expect(data.genres.find((g) => g.id === post.genreId)).toMatchObject({
+    expect(data.genres.find((g) => g.id === post.genreIds[0])).toMatchObject({
       totalStampCount: 1,
       completedStampCount: 0,
       isCompleted: false,

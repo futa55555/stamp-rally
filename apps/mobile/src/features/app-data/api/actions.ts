@@ -12,6 +12,7 @@ import type {
   CreateGenreInput,
   CreateStampInput,
   NamedInput,
+  StampInput,
 } from '../../trips/model/inputs';
 import type { Post } from '../../photos/model/types';
 import type { AppNotification } from '../../notifications/model/types';
@@ -126,7 +127,7 @@ export function createActions(
       mutate<Genre>('PATCH', `/genres/${id}`, input),
     createStamp: (_userId: string, input: CreateStampInput) =>
       mutate<Stamp>('POST', '/stamps', input),
-    updateStamp: (_userId: string, id: string, input: NamedInput) =>
+    updateStamp: (_userId: string, id: string, input: StampInput) =>
       mutate<Stamp>('PATCH', `/stamps/${id}`, input),
     setFavorite: (id: string, isFavorite: boolean) =>
       mutate<Post>('PATCH', `/posts/${id}/favorite`, { isFavorite }),

@@ -86,7 +86,7 @@ beforeEach(async () => {
   native.detail.mockImplementation((path: string) => ({
     data:
       path === '/stamps/stamp'
-        ? { id: 'stamp', genreId: 'genre' }
+        ? { id: 'stamp', tripId: 'trip', genreIds: ['genre'] }
         : path === '/genres/genre'
           ? { id: 'genre', tripId: 'trip' }
           : undefined,
@@ -378,7 +378,11 @@ describe('post destination selection', () => {
     }));
     await mount();
     expect(fields().every((field) => field.props.disabled)).toBe(true);
-    details.set('/stamps/stamp', { id: 'stamp', genreId: 'genre' });
+    details.set('/stamps/stamp', {
+      id: 'stamp',
+      tripId: 'trip',
+      genreIds: ['genre'],
+    });
     await act(async () => view!.update(createElement(PostEditorScreen)));
     expect(fields().every((field) => field.props.disabled)).toBe(true);
     details.set('/genres/genre', { id: 'genre', tripId: 'trip' });
@@ -412,6 +416,7 @@ describe('post destination selection', () => {
     await reconcile(batch, ['READY']);
     expect(native.finish).toHaveBeenCalledExactlyOnceWith({
       target: { type: 'stamp', stampId: 'new-stamp' },
+      viaGenreId: 'new-genre',
     });
   });
 });

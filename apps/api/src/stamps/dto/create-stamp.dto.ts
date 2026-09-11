@@ -1,4 +1,4 @@
-import { IsUUID } from 'class-validator';
+import { ArrayMinSize, ArrayUnique, IsArray, IsUUID } from 'class-validator';
 import {
   Description,
   DomainName,
@@ -7,7 +7,13 @@ import {
 
 export class CreateStampDto {
   @IsUUID()
-  genreId!: string;
+  tripId!: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayUnique()
+  @IsUUID('all', { each: true })
+  genreIds!: string[];
 
   @DomainName()
   name!: string;

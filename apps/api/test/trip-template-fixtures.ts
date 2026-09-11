@@ -24,6 +24,15 @@ const fixtures: TripTemplatePresets = {
   ],
   activities: [
     {
+      name: '夜景',
+      template: {
+        genres: [
+          { name: '景色', stamps: [{ title: '夜景を楽しむ' }] },
+          { name: '思い出', stamps: [{ title: '夜景を楽しむ' }] },
+        ],
+      },
+    },
+    {
       name: '温泉',
       template: {
         genres: [{ name: '温泉', stamps: [{ title: '露天風呂につかる' }] }],

@@ -41,18 +41,29 @@ export class TripRepository {
         coverAssetId: input.coverAssetId ?? null,
         createdById: userId,
         members: { create: { userId } },
-        genres: {
-          create: genres
-            .filter((genre) => genre.stamps.length > 0)
-            .map((genre) => ({
-              name: genre.name,
-              stamps: {
-                create: genre.stamps.map((stamp) => ({ name: stamp.title })),
-              },
-            })),
-        },
       },
     });
+    // A title identifies one new template stamp across the selected genres.
+    const stamps = new Map<string, string[]>();
+    for (const genre of genres.filter((genre) => genre.stamps.length > 0)) {
+      const created = await tx.genre.create({
+        data: { tripId: row.id, name: genre.name },
+      });
+      for (const { title } of genre.stamps) {
+        const ids = stamps.get(title) ?? [];
+        if (!ids.includes(created.id)) ids.push(created.id);
+        stamps.set(title, ids);
+      }
+    }
+    for (const [name, genreIds] of stamps) {
+      await tx.stamp.create({
+        data: {
+          tripId: row.id,
+          name,
+          genres: { create: genreIds.map((genreId) => ({ genreId })) },
+        },
+      });
+    }
     const progress = await this.progress([row.id], tx);
     return this.toDomain(row, progress.get(row.id));
   }
@@ -132,10 +143,10 @@ export class TripRepository {
     const rows = await tx.$queryRaw<TripProgress[]>(Prisma.sql`
       SELECT t.id, COUNT(g.id)::int AS "totalGenreCount",
         COUNT(g.id) FILTER (
-          WHERE EXISTS (SELECT 1 FROM stamps s WHERE s.genre_id = g.id)
+          WHERE EXISTS (SELECT 1 FROM stamp_genres s WHERE s.genre_id = g.id)
             AND NOT EXISTS (
-              SELECT 1 FROM stamps s WHERE s.genre_id = g.id
-                AND NOT EXISTS (SELECT 1 FROM posts p WHERE p.stamp_id = s.id AND p.status = 'READY')
+              SELECT 1 FROM stamp_genres s WHERE s.genre_id = g.id
+                AND NOT EXISTS (SELECT 1 FROM posts p WHERE p.stamp_id = s.stamp_id AND p.status = 'READY')
             )
         )::int AS "completedGenreCount"
       FROM trips t

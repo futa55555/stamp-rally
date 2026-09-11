@@ -138,27 +138,31 @@ domain APIには `Authorization: Bearer <accessToken>` と `ACTIVE` が必要で
 | GET /genres?tripId=...       | trip内のgenre一覧と達成集計                                                                                                       |
 | GET /genres/:id              | genre詳細と達成集計                                                                                                               |
 | PATCH /genres/:id            | name・descriptionの部分更新                                                                                                       |
-| POST /stamps                 | `{ genreId, name, description? }`                                                                                                 |
+| POST /stamps                 | `{ tripId, genreIds, name, description? }`                                                                                        |
 | GET /stamps?genreId=...      | genre内のstamp一覧と達成状態                                                                                                      |
 | GET /stamps/:id              | stamp詳細と達成状態                                                                                                               |
-| PATCH /stamps/:id            | name・descriptionの部分更新                                                                                                       |
+| PATCH /stamps/:id            | name・description・genreIdsの部分更新                                                                                             |
 | POST /uploads/batches        | 写真・動画の追加を予約。詳細は[アップロード仕様](../../docs/media-uploads.md)                                                     |
 | GET /posts/:id/original      | 権限確認後、共有・保存用の原本URLを発行                                                                                           |
 | GET /posts                   | `tripId / genreId / stampId` のいずれか1つで一覧                                                                                  |
 | GET /posts/:id               | 投稿詳細                                                                                                                          |
 | PATCH /posts/:id/favorite    | `{ isFavorite: true }` または `false`                                                                                             |
 
-リソースIDはUUIDです。genre・stampの親は変更できません。postの内容編集、trip・genre・stampの削除、退出・除名は今回のAPIには含みません。
+リソースIDはUUIDです。genreのtripとstampのtripは変更できません。stampの所属genreは同じtrip内で変更できます。postの内容編集、trip・genre・stampの削除、退出・除名は今回のAPIには含みません。
 
 ### trip・genre・stamp
 
 tripの期間は `YYYY-MM-DD` の暦日で、開始日≦終了日（同日可）。時刻・タイムゾーンは持ちません。過去・未来の期間も指定でき、期間外の投稿・編集も可能です。
 
-新規Tripでは、`activityPresets` に選択した活動presetの名前、`customActivities` に自由入力した活動を保存できます。両方とも文字列配列で、省略時は空配列です。`selectedGenres` は `{ name, stamps: [{ title }] }[]`。場所・活動presetから得られる候補だけを選択でき、選択分のgenre・stampをTripと同じtransactionで作成します。同一genre内の重複stampをまとめ、stampが0件のgenreは作成しません。選択を省略するか空配列にすると、活動情報を保存して空のTripを作成します。
+新規Tripでは、`activityPresets` に選択した活動presetの名前、`customActivities` に自由入力した活動を保存できます。両方とも文字列配列で、省略時は空配列です。`selectedGenres` は `{ name, stamps: [{ title }] }[]`。場所・活動presetから得られる候補だけを選択でき、選択分のgenre・stampをTripと同じtransactionで作成します。候補はgenreごとに選択でき、保存時には同じtitleを1つのstampにまとめ、選択されたgenreすべてに紐付けます。stampが0件のgenreは作成しません。既存stampや手動で作成した同名stampは統合しません。選択を省略するか空配列にすると、活動情報を保存して空のTripを作成します。
 
 場所は前後空白除去後にpresetの `name` / `aliases` と完全一致で照合します。一致しない場所と自由入力の活動はTripに保存し、候補生成には使いません。活動・genre・stampの名前を使う選択方式のため、表記を統一してください。previewの各stampには `sources: [{ type: 'location' | 'activity', name }]` が付きます。
 
 `20260912000000_trip_templates` をAPI更新前に適用してください。既存Tripの活動情報は空配列になり、既存のgenre・stampは維持されます。Trip編集時に候補を再生成する処理はありません。JSONの仮presetはAPIに同梱されるため、内容を更新したらAPIを再ビルド・再起動します。
+
+stampは必ず1つのtripと、そのtrip内の1つ以上のgenreに所属します。stampレスポンスは `tripId` と `genreIds` を返し、`genreIds` はgenreの `createdAt, id` 昇順です。作成時の `genreIds` は必須、更新時は省略可能で、指定時は所属全体を置き換えます。空配列・重複・存在しないgenre・別tripのgenreは400です。並び順だけの変更は更新通知を発生させません。
+
+`20260912010000_stamp_genres` は既存stampにtripと中間テーブルの所属を補完し、stamp ID・投稿・既読・お気に入り・日時を維持します。既存の同名stampは別々のままです。旧API・旧workerは旧カラムを参照するため、更新時はAPIとworkerを停止し、`pnpm api:migrate` → `pnpm api:generate` → APIのbuildを実行して両方を再起動してください。mobileも同時に更新します。旧 `genreId` のstamp作成・レスポンスとの互換性はありません。
 
 trip・genre・stampの名前は前後空白を除去した1〜100文字。descriptionは最大2,000文字で、省略時は空文字です。tripの代表画像URLは任意で、`null` で解除できます。部分更新は少なくとも1項目が必要です。
 
@@ -176,7 +180,7 @@ postは1件の写真または動画です。原本・派生のkeyとBlurHashをD
 
 件数・容量・形式・API契約・R2設定・ワーカー起動・既存データ移行は[アップロード仕様](../../docs/media-uploads.md)を参照してください。R2未設定でも他のAPI機能とストレージを置き換えたテストは実行できます。
 
-stampに紐付くコンテンツはpostのみです。投稿者は認証中のユーザーから設定します。投稿には `author: { id, name }` と `tripId / genreId / stampId` を含めます。
+stampに紐付くコンテンツはpostのみです。投稿者は認証中のユーザーから設定します。投稿には `author: { id, name }` と `tripId / genreIds / stampId` を含めます。`genreIds` は所属stampの現在のgenre一覧で、post自体は1つのstampにのみ紐付きます。
 
 お気に入りはpost共通のbooleanです。全参加者が設定・解除でき、個人別の状態や自動toggleではありません。`GET /posts` の `favoritesOnly=true` でお気に入りだけを返し、省略・falseでは全投稿を返します。
 
@@ -197,7 +201,7 @@ tripページからはgenreとstamp、genreページからはstampを一覧API�
 | Genre    | `totalStampCount / completedStampCount / isCompleted` |
 | Trip     | `totalGenreCount / completedGenreCount / isCompleted` |
 
-Genre・Tripは子が1件以上あり、そのすべてが達成済みなら達成済みです。お気に入りは達成に影響しません。途中で未達成のstamp・genreを追加すると、親も未達成に戻ります。集計は全配下を対象とし、一覧のページサイズには影響されません。
+Genre・Tripは子が1件以上あり、そのすべてが達成済みなら達成済みです。複数genreに属するstampの達成・投稿・未読は各genreの集計に反映されます。tripの投稿一覧・お気に入りでは重複しません。投稿を既読にすると、その投稿由来の未読はすべての所属genreで解消します。お気に入りは達成に影響しません。途中で未達成のstamp・genreを追加すると、親も未達成に戻ります。集計は全配下を対象とし、一覧のページサイズには影響されません。
 
 一覧は `{ items, nextCursor }`。`limit` は既定20・最大100、続きは返された `cursor` を指定します。cursorは不透明な値として扱ってください。trip・post・招待は作成日時の降順、genre・stamp・参加者は昇順です。同時刻はIDで順序を確定します。
 

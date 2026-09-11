@@ -11,7 +11,7 @@ import { StampsService } from './stamps.service.js';
 describe('StampsController', () => {
   let app: INestApplication;
   const id = '31fc6c40-7810-4b31-9d59-8b7042479410';
-  const valid = { genreId: id, name: '  名前  ' };
+  const valid = { tripId: id, genreIds: [id], name: '  名前  ' };
   const service = {
     create: vi.fn(),
     findAll: vi.fn(),
@@ -61,18 +61,27 @@ describe('StampsController', () => {
       .expect(201);
     expect(service.create).toHaveBeenCalledWith(
       'participant',
-      expect.objectContaining({ genreId: id, name: '名前' }),
+      expect.objectContaining({ tripId: id, genreIds: [id], name: '名前' }),
     );
   });
 
   it.each([
     {},
-    { genreId: id, name: '' },
-    { genreId: id, name: null },
-    { genreId: id, name: '有効', description: null },
-    { genreId: 'invalid', name: '有効' },
-    { genreId: id, name: '有効', description: 'あ'.repeat(2001) },
-    { genreId: id, name: '有効', extra: true },
+    { ...valid, genreIds: [] },
+    { ...valid, genreIds: [id, id] },
+    { ...valid, genreIds: null },
+    { ...valid, genreIds: ['invalid'] },
+    { tripId: id, genreIds: [id], name: '' },
+    { tripId: id, genreIds: [id], name: null },
+    { tripId: id, genreIds: [id], name: '有効', description: null },
+    { tripId: 'invalid', genreIds: ['invalid'], name: '有効' },
+    {
+      tripId: id,
+      genreIds: [id],
+      name: '有効',
+      description: 'あ'.repeat(2001),
+    },
+    { tripId: id, genreIds: [id], name: '有効', extra: true },
   ])('rejects invalid create payloads %o', async (body) => {
     await request(app.getHttpServer())
       .post('/stamps')
@@ -84,6 +93,11 @@ describe('StampsController', () => {
 
   it.each([
     { name: null },
+    { genreIds: [] },
+    { genreIds: [id, id] },
+    { genreIds: null },
+    { genreIds: ['invalid'] },
+    { tripId: id },
     { description: null },
     { genreId: id },
     { name: 'あ'.repeat(101) },

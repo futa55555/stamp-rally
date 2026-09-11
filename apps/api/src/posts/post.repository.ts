@@ -1,3 +1,4 @@
+import { genreMemberships } from '../stamps/stamp-genres.js';
 import { serializable } from '../database/transaction.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
@@ -15,7 +16,7 @@ const postInclude = (userId: string) =>
   ({
     reads: { where: { userId }, select: { readAt: true } },
     author: { select: { id: true, name: true } },
-    stamp: { select: { genreId: true, genre: { select: { tripId: true } } } },
+    stamp: { select: { tripId: true, genres: genreMemberships } },
   }) satisfies Prisma.PostInclude;
 
 type PostRecord = Prisma.PostGetPayload<{
@@ -34,7 +35,7 @@ export class PostRepository {
       where: {
         id,
         status: 'READY',
-        stamp: { genre: { trip: { members: { some: { userId } } } } },
+        stamp: { trip: { members: { some: { userId } } } },
       },
     });
     if (!row?.originalKey)
@@ -54,7 +55,7 @@ export class PostRepository {
       where: {
         id,
         status: 'READY',
-        stamp: { genre: { trip: { members: { some: { userId } } } } },
+        stamp: { trip: { members: { some: { userId } } } },
       },
       include: postInclude(userId),
     });
@@ -64,9 +65,9 @@ export class PostRepository {
   async list(scope: PostScope, query: ListPostsDto, userId: string) {
     const scopeWhere: Prisma.PostWhereInput =
       scope.type === 'trip'
-        ? { stamp: { genre: { tripId: scope.id } } }
+        ? { stamp: { tripId: scope.id } }
         : scope.type === 'genre'
-          ? { stamp: { genreId: scope.id } }
+          ? { stamp: { genres: { some: { genreId: scope.id } } } }
           : { stampId: scope.id };
     const rows = await this.prisma.post.findMany({
       where: {
@@ -96,7 +97,7 @@ export class PostRepository {
         where: {
           id,
           status: 'READY',
-          stamp: { genre: { trip: { members: { some: { userId } } } } },
+          stamp: { trip: { members: { some: { userId } } } },
         },
         data: { isFavorite },
       });
@@ -115,7 +116,7 @@ export class PostRepository {
         where: {
           id,
           status: 'READY',
-          stamp: { genre: { trip: { members: { some: { userId } } } } },
+          stamp: { trip: { members: { some: { userId } } } },
         },
         select: { id: true },
       });
@@ -161,8 +162,8 @@ export class PostRepository {
     return new Post(
       row.id,
       row.stampId,
-      row.stamp.genreId,
-      row.stamp.genre.tripId,
+      row.stamp.genres.map(({ genreId }) => genreId),
+      row.stamp.tripId,
       row.author,
       row.mediaType,
       row.mediaType === 'IMAGE' ? large.url : playback!.url,

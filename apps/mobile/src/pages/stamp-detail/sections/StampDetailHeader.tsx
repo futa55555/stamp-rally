@@ -5,21 +5,32 @@ import { AppText } from '../../../shared/ui/AppText';
 export function StampDetailHeader({
   stamp,
   tripName,
-  genreName,
+  genreNames,
+  viaGenreId,
 }: {
   stamp: Stamp;
   tripName?: string;
-  genreName?: string;
+  genreNames: string[];
+  viaGenreId?: string;
 }) {
-  const parentNames = [tripName, genreName].filter(Boolean).join(' > ');
   return (
     <View className="gap-4 px-4 py-6">
-      {parentNames ? (
-        <AppText variant="caption" tone="primary">
-          {parentNames}
+      <View className="gap-1">
+        {tripName ? (
+          <AppText variant="caption" tone="primary">
+            {tripName}
+          </AppText>
+        ) : null}
+        <AppText variant="caption" tone="textSecondary">
+          {genreNames.join(', ')}
         </AppText>
-      ) : null}
-      <EditableTitle title={stamp.name} kind="stamp" id={stamp.id} />
+      </View>
+      <EditableTitle
+        title={stamp.name}
+        kind="stamp"
+        id={stamp.id}
+        viaGenreId={viaGenreId}
+      />
       {stamp.description ? (
         <AppText tone="textSecondary">{stamp.description}</AppText>
       ) : null}
