@@ -18,6 +18,9 @@ vi.mock('expo-router', () => ({
   useRouter: () => ({}),
   useNavigation: () => ({}),
 }));
+vi.mock('expo-router/react-navigation', () => ({
+  useHeaderHeight: () => 106,
+}));
 vi.mock('react-native', () => ({
   Platform: { OS: 'ios' },
   View: 'View',
@@ -28,6 +31,7 @@ vi.mock('react-native', () => ({
 }));
 vi.mock('react-native-safe-area-context', () => ({
   SafeAreaView: 'SafeAreaView',
+  useSafeAreaInsets: () => ({ top: 62, bottom: 98, left: 0, right: 0 }),
 }));
 vi.mock('../features/trips/hooks', () => ({
   useTrips: native.query,
