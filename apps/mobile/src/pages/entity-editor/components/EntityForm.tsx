@@ -17,7 +17,14 @@ import { useTask } from '../../../shared/hooks/useTask';
 import { AppText } from '../../../shared/ui/AppText';
 import { DateField } from './DateField';
 import { TextField } from './TextField';
-import { validateTripInput } from '../../../features/trips/model/validation';
+import {
+  normalizeLocations,
+  validateDomainName,
+  validateTripInput,
+} from '../../../features/trips/model/validation';
+import { useTripTemplates } from '../../../features/trip-templates/useTripTemplates';
+import { selectedGenres } from '../../../features/trip-templates/selection';
+import { ActivitiesField, TemplateCandidatesField } from './TemplateFields';
 
 const labels = { trip: '旅行', genre: 'ジャンル', stamp: 'スタンプ' };
 
@@ -43,6 +50,15 @@ export function EntityForm({
     null,
   );
   const [values, setValues] = useState(initial);
+  const newTrip = kind === 'trip' && !id;
+  const [activityPresets, setActivityPresets] = useState<string[]>([]);
+  const [customActivities, setCustomActivities] = useState<string[]>([]);
+  const [useTemplate, setUseTemplate] = useState(true);
+  const templates = useTripTemplates(
+    newTrip,
+    values.locations,
+    activityPresets,
+  );
   const task = useTask();
   const [coverPicking, setCoverPicking] = useState(false);
   const cover = useCoverUpload(initial.coverImageUrl);
@@ -50,6 +66,11 @@ export function EntityForm({
   const dirty =
     !savedTarget &&
     (cover.changed ||
+      (newTrip &&
+        (activityPresets.length > 0 ||
+          customActivities.some(Boolean) ||
+          !useTemplate ||
+          Object.values(templates.selection).some((checked) => !checked))) ||
       JSON.stringify(values.locations) !== JSON.stringify(original.locations) ||
       (
         [
@@ -71,6 +92,20 @@ export function EntityForm({
         }
         let target: NotificationTarget;
         if (kind === 'trip') {
+          if (newTrip && useTemplate && !templates.ready)
+            throw new Error(
+              'スタンプ候補の読み込みを待つか、テンプレートを使わずに作成してください。',
+            );
+          const activities = newTrip
+            ? {
+                activityPresets: activityPresets.map(validateDomainName),
+                customActivities:
+                  normalizeLocations(customActivities).map(validateDomainName),
+                selectedGenres: useTemplate
+                  ? selectedGenres(templates.genres, templates.selection)
+                  : [],
+              }
+            : {};
           const input: TripInput = validateTripInput({
             name: values.name,
             startDate: values.startDate,
@@ -82,6 +117,7 @@ export function EntityForm({
             ? await actions.updateTrip(userId!, id, input)
             : await actions.createTrip(userId!, {
                 ...input,
+                ...activities,
                 clientRequestId: cover.requestId,
               });
           cover.saved();
@@ -114,6 +150,7 @@ export function EntityForm({
       pending={pending}
       error={task.error}
       onSave={save}
+      disabled={!savedTarget && newTrip && useTemplate && !templates.ready}
       saveLabel={
         coverPicking
           ? '画像を準備中…'
@@ -147,6 +184,16 @@ export function EntityForm({
             onChange={(locations) => setValues((v) => ({ ...v, locations }))}
             disabled={pending || !!savedTarget}
           />
+          {newTrip ? (
+            <ActivitiesField
+              templates={templates}
+              selected={activityPresets}
+              custom={customActivities}
+              disabled={pending || !!savedTarget}
+              onChange={setActivityPresets}
+              onCustomChange={setCustomActivities}
+            />
+          ) : null}
           <CoverField
             uri={cover.uri}
             tripId={id}
@@ -155,6 +202,14 @@ export function EntityForm({
             onPendingChange={setCoverPicking}
             disabled={pending || !!savedTarget}
           />
+          {newTrip ? (
+            <TemplateCandidatesField
+              templates={templates}
+              useTemplate={useTemplate}
+              onUseTemplateChange={setUseTemplate}
+              disabled={pending || !!savedTarget}
+            />
+          ) : null}
         </>
       ) : (
         <TextField

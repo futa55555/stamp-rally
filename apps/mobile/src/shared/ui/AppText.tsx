@@ -24,6 +24,8 @@ const tones: Record<ColorToken, string> = {
   onPrimary: 'text-onPrimary',
   active: 'text-active',
   activeBackground: 'text-activeBackground',
+  chipBackground: 'text-chipBackground',
+  onChip: 'text-onChip',
   favorite: 'text-favorite',
   favoriteBackground: 'text-favoriteBackground',
   unread: 'text-unread',

@@ -10,6 +10,8 @@ import { ObjectStorageService } from '../src/storage/object-storage.service.js';
 import { MediaProcessor } from '../src/media-processing/media-processor.service.js';
 import { MediaQueue } from '../src/media-processing/media-queue.service.js';
 import { UploadLifecycleService } from '../src/uploads/upload-lifecycle.service.js';
+import { TripTemplatesService } from '../src/trip-templates/trip-templates.service.js';
+import { TestTripTemplatesService } from './trip-template-fixtures.js';
 import {
   TestMediaProcessor,
   TestMediaQueue,
@@ -25,6 +27,8 @@ interface Actor {
 interface Resource {
   id: string;
   locations: string[];
+  activityPresets: string[];
+  customActivities: string[];
   readAt: string | null;
   hasUnreadPhotos: boolean;
   photoCount: number;
@@ -242,6 +246,8 @@ describe('Trip API integration', () => {
       .useValue(new TestMediaProcessor(storage))
       .overrideProvider(MediaQueue)
       .useValue(queue)
+      .overrideProvider(TripTemplatesService)
+      .useValue(new TestTripTemplatesService())
       .compile();
     prisma = moduleRef.get(PrismaService);
     tokens = moduleRef.get(AuthTokenService);
@@ -264,6 +270,245 @@ describe('Trip API integration', () => {
     await app.close();
   });
 
+  describe('trip templates', () => {
+    type Selection = { name: string; stamps: { title: string }[] }[];
+    type Preview = {
+      genres: {
+        name: string;
+        stamps: {
+          title: string;
+          sources: { type: 'location' | 'activity'; name: string }[];
+        }[];
+      }[];
+    };
+    const templateInput = {
+      locations: ['沖縄'],
+      activityPresets: ['海'],
+    };
+    const preview = (input: Input = templateInput) =>
+      http<Preview>('post', '/trip-templates/preview', owner, input, 200);
+    const selectAll = (result: Preview): Selection =>
+      result.genres.map((genre) => ({
+        name: genre.name,
+        stamps: genre.stamps.map(({ title }) => ({ title })),
+      }));
+
+    it('lists presets and merges exact aliases with shared activity candidates without writing data', async () => {
+      const catalog = await get<{
+        locations: { name: string; aliases: string[] }[];
+        activities: { name: string }[];
+      }>('/trip-templates/presets', owner);
+      expect(catalog.locations.map(({ name }) => name)).toEqual(
+        expect.arrayContaining(['沖縄県', '北海道']),
+      );
+      expect(catalog.activities.map(({ name }) => name)).toEqual(
+        expect.arrayContaining(['温泉', '海', '登山']),
+      );
+      const result = await preview();
+      expect(
+        await preview({ ...templateInput, locations: ['  沖縄県  '] }),
+      ).toEqual(result);
+      const beach = result.genres
+        .find(({ name }) => name === '景色')!
+        .stamps.filter(({ title }) => title === '海辺を散歩する');
+      expect(beach).toHaveLength(1);
+      expect(beach[0].sources).toEqual([
+        { type: 'location', name: '沖縄県' },
+        { type: 'activity', name: '海' },
+      ]);
+      expect(await preview({ locations: ['那覇市', '沖縄旅行'] })).toEqual({
+        genres: [],
+      });
+      expect(await prisma.trip.count()).toBe(0);
+    });
+
+    it('creates only selected stamps and deduplicates selections while omitting empty genres', async () => {
+      const result = await preview();
+      const first = result.genres[0];
+      const selection = {
+        name: first.name,
+        stamps: [{ title: first.stamps[0].title }],
+      };
+      const trip = await http('post', '/trips', owner, {
+        ...tripInput,
+        ...templateInput,
+        selectedGenres: [
+          { ...selection, stamps: [...selection.stamps, ...selection.stamps] },
+          selection,
+          { name: result.genres[1].name, stamps: [] },
+        ],
+      });
+      expect(trip.totalGenreCount).toBe(1);
+      expect(trip.completedGenreCount).toBe(0);
+      const genres = await get<Page>('/genres', owner, { tripId: trip.id });
+      expect(genres.items).toHaveLength(1);
+      expect(genres.items[0]).toMatchObject({
+        name: first.name,
+        totalStampCount: 1,
+      });
+      const stamps = await get<Page>('/stamps', owner, {
+        genreId: genres.items[0].id,
+      });
+      expect(stamps.items).toHaveLength(1);
+      expect(stamps.items[0]).toMatchObject({
+        name: first.stamps[0].title,
+        description: '',
+      });
+      expect(await prisma.notification.count()).toBe(0);
+    });
+
+    it.each([undefined, []])(
+      'saves activity metadata and unmatched places with empty selection %j',
+      async (selectedGenres) => {
+        const trip = await http('post', '/trips', owner, {
+          ...tripInput,
+          locations: ['  架空の街  ', '沖縄'],
+          activityPresets: ['温泉'],
+          customActivities: ['  海  ', '星を見る', ''],
+          ...(selectedGenres === undefined ? {} : { selectedGenres }),
+        });
+        expect(trip).toMatchObject({
+          locations: ['架空の街', '沖縄'],
+          activityPresets: ['温泉'],
+          customActivities: ['海', '星を見る'],
+          totalGenreCount: 0,
+        });
+        expect(await prisma.genre.count()).toBe(0);
+        expect(await prisma.stamp.count()).toBe(0);
+        expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
+          activityPresets: trip.activityPresets,
+          customActivities: trip.customActivities,
+        });
+      },
+    );
+
+    it('retains activities and existing children when editing trip metadata', async () => {
+      const selectedGenres = selectAll(await preview());
+      const trip = await http('post', '/trips', owner, {
+        ...tripInput,
+        ...templateInput,
+        customActivities: ['星を見る'],
+        selectedGenres,
+      });
+      const before = await prisma.stamp.findMany({ orderBy: { id: 'asc' } });
+      const updated = await http('patch', `/trips/${trip.id}`, owner, {
+        name: '更新した旅行',
+        locations: ['北海道'],
+      });
+      expect(updated).toMatchObject({
+        name: '更新した旅行',
+        locations: ['北海道'],
+        activityPresets: ['海'],
+        customActivities: ['星を見る'],
+        totalGenreCount: selectedGenres.length,
+      });
+      expect(await prisma.stamp.findMany({ orderBy: { id: 'asc' } })).toEqual(
+        before,
+      );
+    });
+
+    it('creates one complete hierarchy and cover on concurrent requests and returns accurate replay counts', async () => {
+      const selectedGenres = selectAll(await preview());
+      const coverAssetId = await cover();
+      const input = {
+        ...tripInput,
+        ...templateInput,
+        selectedGenres,
+        coverAssetId,
+        clientRequestId: randomUUID(),
+      };
+      const [created, concurrent] = await Promise.all([
+        http('post', '/trips', owner, input),
+        http('post', '/trips', owner, input),
+      ]);
+      // A replay must return the committed result even if the available presets changed.
+      const replay = await http('post', '/trips', owner, {
+        ...input,
+        activityPresets: ['削除されたpreset'],
+        selectedGenres: [
+          { name: '削除されたgenre', stamps: [{ title: '古い候補' }] },
+        ],
+      });
+      for (const trip of [created, concurrent, replay]) {
+        expect(trip).toMatchObject({
+          id: created.id,
+          activityPresets: ['海'],
+          totalGenreCount: selectedGenres.length,
+          coverImageUrl: expect.stringContaining('https://media.example.test/'),
+        });
+      }
+      expect(await prisma.trip.count()).toBe(1);
+      expect(await prisma.tripMember.count()).toBe(1);
+      expect(await prisma.genre.count()).toBe(selectedGenres.length);
+      expect(await prisma.stamp.count()).toBe(
+        selectedGenres.reduce((count, genre) => count + genre.stamps.length, 0),
+      );
+      expect(await prisma.coverAsset.count()).toBe(1);
+    });
+
+    it('rejects unknown activities and selections before persisting any hierarchy', async () => {
+      for (const body of [
+        { activityPresets: ['知らないpreset'] },
+        {
+          selectedGenres: [
+            { name: '候補にないgenre', stamps: [{ title: '海辺を散歩する' }] },
+          ],
+        },
+        {
+          selectedGenres: [
+            { name: '景色', stamps: [{ title: '候補にないstamp' }] },
+          ],
+        },
+      ]) {
+        await http(
+          'post',
+          '/trips',
+          owner,
+          { ...tripInput, ...templateInput, ...body },
+          400,
+        );
+      }
+      expect(await prisma.trip.count()).toBe(0);
+      expect(await prisma.genre.count()).toBe(0);
+      expect(await prisma.stamp.count()).toBe(0);
+    });
+
+    it('rolls back the whole hierarchy if creating a stamp fails and allows retry with the same cover', async () => {
+      const selectedGenres = selectAll(await preview());
+      const coverAssetId = await cover();
+      const input = {
+        ...tripInput,
+        ...templateInput,
+        selectedGenres,
+        coverAssetId,
+        clientRequestId: randomUUID(),
+      };
+      await prisma.$executeRawUnsafe(
+        `CREATE FUNCTION reject_template_stamp() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'test template rollback'; END; $$ LANGUAGE plpgsql`,
+      );
+      await prisma.$executeRawUnsafe(
+        `CREATE TRIGGER reject_template_stamp BEFORE INSERT ON stamps FOR EACH ROW EXECUTE FUNCTION reject_template_stamp()`,
+      );
+      try {
+        await http('post', '/trips', owner, input, 500);
+        expect(await prisma.trip.count()).toBe(0);
+        expect(await prisma.tripMember.count()).toBe(0);
+        expect(await prisma.genre.count()).toBe(0);
+        expect(await prisma.stamp.count()).toBe(0);
+        expect(
+          await prisma.coverAsset.findUnique({ where: { id: coverAssetId } }),
+        ).not.toBeNull();
+      } finally {
+        await prisma.$executeRawUnsafe(
+          'DROP TRIGGER reject_template_stamp ON stamps',
+        );
+        await prisma.$executeRawUnsafe('DROP FUNCTION reject_template_stamp()');
+      }
+      const trip = await http('post', '/trips', owner, input);
+      expect(trip.totalGenreCount).toBe(selectedGenres.length);
+    });
+  });
+
   it('creates a private hierarchy with date-only periods and empty defaults', async () => {
     const { trip, genre, stamp } = await tree();
 
@@ -275,6 +520,8 @@ describe('Trip API integration', () => {
       totalGenreCount: 0,
       completedGenreCount: 0,
       isCompleted: false,
+      activityPresets: [],
+      customActivities: [],
     });
     expect(genre).toMatchObject({
       name: '食事',
@@ -432,6 +679,8 @@ describe('Trip API integration', () => {
     const onboarding = await actor('Newcomer', 'ONBOARDING');
     const { trip, genre, stamp } = await tree();
     const requests: [Method, string, Input?][] = [
+      ['get', '/trip-templates/presets'],
+      ['post', '/trip-templates/preview', { locations: ['沖縄'] }],
       ['get', '/trips'],
       ['post', '/trips', tripInput],
       ['get', `/trips/${trip.id}/members`],

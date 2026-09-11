@@ -69,6 +69,31 @@ describe('TripsController', () => {
     );
   });
 
+  it('accepts activity metadata and validates nested template selection', async () => {
+    await request(app.getHttpServer())
+      .post('/trips')
+      .set('Authorization', 'Bearer token')
+      .send({
+        ...valid,
+        activityPresets: [' 海 '],
+        customActivities: [' 友達に会う '],
+        selectedGenres: [
+          { name: ' 景色 ', stamps: [{ title: ' 海辺を散歩する ' }] },
+        ],
+      })
+      .expect(201);
+    expect(service.create).toHaveBeenCalledWith(
+      'participant',
+      expect.objectContaining({
+        activityPresets: ['海'],
+        customActivities: ['友達に会う'],
+        selectedGenres: [
+          { name: '景色', stamps: [{ title: '海辺を散歩する' }] },
+        ],
+      }),
+    );
+  });
+
   it.each([
     {},
     { ...valid, startDate: '2026-02-29' },
@@ -81,6 +106,45 @@ describe('TripsController', () => {
     { ...valid, inviteeNames: [''] },
     { ...valid, inviteeNames: ['あ'.repeat(21)] },
     { ...valid, extra: true },
+    { ...valid, activityPresets: null },
+    { ...valid, activityPresets: '海' },
+    { ...valid, activityPresets: [1] },
+    { ...valid, activityPresets: ['あ'.repeat(101)] },
+    { ...valid, customActivities: null },
+    { ...valid, customActivities: '自由入力' },
+    { ...valid, customActivities: [true] },
+    { ...valid, customActivities: ['あ'.repeat(101)] },
+    { ...valid, selectedGenres: null },
+    { ...valid, selectedGenres: {} },
+    { ...valid, selectedGenres: [null] },
+    { ...valid, selectedGenres: ['景色'] },
+    { ...valid, selectedGenres: [[]] },
+    { ...valid, selectedGenres: [{ name: '景色' }] },
+    { ...valid, selectedGenres: [{ name: '', stamps: [] }] },
+    { ...valid, selectedGenres: [{ name: 'あ'.repeat(101), stamps: [] }] },
+    { ...valid, selectedGenres: [{ name: '景色', stamps: null }] },
+    { ...valid, selectedGenres: [{ name: '景色', stamps: [null] }] },
+    { ...valid, selectedGenres: [{ name: '景色', stamps: ['散歩'] }] },
+    { ...valid, selectedGenres: [{ name: '景色', stamps: [[]] }] },
+    { ...valid, selectedGenres: [{ name: '景色', stamps: [{}] }] },
+    {
+      ...valid,
+      selectedGenres: [{ name: '景色', stamps: [{ title: ' ' }] }],
+    },
+    {
+      ...valid,
+      selectedGenres: [{ name: '景色', stamps: [{ title: 'あ'.repeat(101) }] }],
+    },
+    {
+      ...valid,
+      selectedGenres: [
+        { name: '景色', stamps: [{ title: '散歩', extra: true }] },
+      ],
+    },
+    {
+      ...valid,
+      selectedGenres: [{ name: '景色', stamps: [], extra: true }],
+    },
   ])('rejects invalid create payloads %o', async (body) => {
     await request(app.getHttpServer())
       .post('/trips')
@@ -95,6 +159,9 @@ describe('TripsController', () => {
     { startDate: null },
     { endDate: '2026-02-29' },
     { inviteeNames: ['友達'] },
+    { activityPresets: ['海'] },
+    { customActivities: ['友達に会う'] },
+    { selectedGenres: [] },
   ])('rejects invalid patch payloads %o', async (body) => {
     await request(app.getHttpServer())
       .patch('/trips/' + id)

@@ -11,7 +11,10 @@ import type { Genre, Stamp, Trip } from '../../trips/model/types';
 import {
   validateNamedInput,
   validateTripInput,
+  validateDomainName,
+  normalizeLocations,
 } from '../../trips/model/validation';
+import { withProgress } from '../../trips/model/progress';
 import type { DataService } from '../api/DataService';
 import type { DomainChange } from '../model/changes';
 import { applyDomainChange } from '../model/changes';
@@ -27,7 +30,10 @@ export function createMockService(
   data.trips = data.trips.map((trip) => ({
     ...trip,
     locations: trip.locations ?? [],
+    activityPresets: trip.activityPresets ?? [],
+    customActivities: trip.customActivities ?? [],
   }));
+  const tripRequests = new Map<string, string>();
   let sequence = 0;
   const id = () =>
     `mock-${Date.now().toString(36)}-${String(++sequence).padStart(6, '0')}`;
@@ -86,11 +92,32 @@ export function createMockService(
     async createTrip(userId, input) {
       await delay();
       find(data.users, userId);
+      const requestKey = input.clientRequestId
+        ? JSON.stringify([userId, input.clientRequestId])
+        : null;
+      const previousId = requestKey ? tripRequests.get(requestKey) : undefined;
+      if (previousId) return copy(find(data.trips, previousId));
       const values = validateTripInput(input);
+      const activityPresets = normalizeLocations(input.activityPresets).map(
+        validateDomainName,
+      );
+      const customActivities = normalizeLocations(input.customActivities).map(
+        validateDomainName,
+      );
+      const selected = new Map<string, Set<string>>();
+      for (const genre of input.selectedGenres ?? []) {
+        const name = validateDomainName(genre.name);
+        const stamps = selected.get(name) ?? new Set<string>();
+        for (const stamp of genre.stamps)
+          stamps.add(validateDomainName(stamp.title));
+        if (stamps.size) selected.set(name, stamps);
+      }
       const now = new Date().toISOString();
       const trip: Trip = {
         coverImageUrl: null,
         ...values,
+        activityPresets,
+        customActivities,
         id: id(),
         createdById: userId,
         createdAt: now,
@@ -99,8 +126,44 @@ export function createMockService(
         completedGenreCount: 0,
         isCompleted: false,
       };
-      commit({ type: 'tripSaved', trip, memberId: userId });
-      return copy(trip);
+      const genres: Genre[] = [];
+      const stamps: Stamp[] = [];
+      for (const [name, titles] of selected) {
+        const genre: Genre = {
+          id: id(),
+          tripId: trip.id,
+          name,
+          description: '',
+          createdAt: now,
+          updatedAt: now,
+          totalStampCount: titles.size,
+          completedStampCount: 0,
+          isCompleted: false,
+          hasUnreadPhotos: false,
+        };
+        genres.push(genre);
+        for (const title of titles)
+          stamps.push({
+            id: id(),
+            genreId: genre.id,
+            name: title,
+            description: '',
+            createdAt: now,
+            updatedAt: now,
+            isCompleted: false,
+            hasUnreadPhotos: false,
+            photoCount: 0,
+          });
+      }
+      data = withProgress({
+        ...data,
+        trips: [...data.trips, trip],
+        genres: [...data.genres, ...genres],
+        stamps: [...data.stamps, ...stamps],
+        memberships: [...data.memberships, { tripId: trip.id, userId }],
+      });
+      if (requestKey) tripRequests.set(requestKey, trip.id);
+      return copy(find(data.trips, trip.id));
     },
     async updateTrip(userId, tripId, input) {
       await delay();

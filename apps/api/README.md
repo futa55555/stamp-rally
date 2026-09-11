@@ -6,6 +6,7 @@ NestJS + Prisma + PostgreSQL。認証済みの参加者が、trip → genre → 
 
 - `src/auth/`：JWT認証、初期設定完了の判定。
 - `src/trips/`：trip機能、参加者のアクセス判定。`TripAccessModule` は参加者判定だけを公開し、各機能から利用します。
+- `src/trip-templates/`：場所・活動preset、候補のマージと選択内容の検証。[preset編集方法](src/trip-templates/README.md)。
 - `src/common/`：paginationと共通の入力検証。
 - `src/uploads/`：直接アップロード、処理状態、公開、再試行、清掃。
 - `src/storage/`・`src/media-processing/`：非公開R2、画像・動画変換、PostgreSQLの永続ジョブ。
@@ -121,35 +122,43 @@ domain APIには `Authorization: Bearer <accessToken>` と `ACTIVE` が必要で
 
 作成は201、取得・更新・招待の承認と辞退は200を返します。未知のbody/query項目はDTOを持つAPIで拒否します。
 
-| Method / Path              | 内容                                                                          |
-| -------------------------- | ----------------------------------------------------------------------------- |
-| GET /users/me              | 自分のプロフィール                                                            |
-| PATCH /users/me            | `{ name }` で名前設定・変更                                                   |
-| GET /users/lookup?name=... | trim後の完全一致検索。返却は `{ id, name }` のみ                              |
-| POST /trips                | `{ name, startDate, endDate, coverImageUrl?, locations? }`                    |
-| GET /trips                 | 参加中のtrip一覧と達成集計                                                    |
-| GET /trips/:id             | trip詳細と達成集計                                                            |
-| PATCH /trips/:id           | name・startDate・endDate・coverImageUrlの部分更新                             |
-| GET /trips/:id/members     | 参加者一覧。各項目に `user: { id, name }` を含む                              |
-| POST /genres               | `{ tripId, name, description? }`                                              |
-| GET /genres?tripId=...     | trip内のgenre一覧と達成集計                                                   |
-| GET /genres/:id            | genre詳細と達成集計                                                           |
-| PATCH /genres/:id          | name・descriptionの部分更新                                                   |
-| POST /stamps               | `{ genreId, name, description? }`                                             |
-| GET /stamps?genreId=...    | genre内のstamp一覧と達成状態                                                  |
-| GET /stamps/:id            | stamp詳細と達成状態                                                           |
-| PATCH /stamps/:id          | name・descriptionの部分更新                                                   |
-| POST /uploads/batches      | 写真・動画の追加を予約。詳細は[アップロード仕様](../../docs/media-uploads.md) |
-| GET /posts/:id/original    | 権限確認後、共有・保存用の原本URLを発行                                       |
-| GET /posts                 | `tripId / genreId / stampId` のいずれか1つで一覧                              |
-| GET /posts/:id             | 投稿詳細                                                                      |
-| PATCH /posts/:id/favorite  | `{ isFavorite: true }` または `false`                                         |
+| Method / Path                | 内容                                                                                                                              |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| GET /users/me                | 自分のプロフィール                                                                                                                |
+| PATCH /users/me              | `{ name }` で名前設定・変更                                                                                                       |
+| GET /users/lookup?name=...   | trim後の完全一致検索。返却は `{ id, name }` のみ                                                                                  |
+| GET /trip-templates/presets  | 場所presetの名前・別名と、活動presetの名前を取得                                                                                  |
+| POST /trip-templates/preview | `{ locations?, activityPresets? }` から候補と入力元を取得。成功は200                                                              |
+| POST /trips                  | `{ name, startDate, endDate, coverAssetId?, locations?, activityPresets?, customActivities?, selectedGenres?, clientRequestId? }` |
+| GET /trips                   | 参加中のtrip一覧と達成集計                                                                                                        |
+| GET /trips/:id               | trip詳細と達成集計                                                                                                                |
+| PATCH /trips/:id             | name・startDate・endDate・locations・coverAssetIdの部分更新                                                                       |
+| GET /trips/:id/members       | 参加者一覧。各項目に `user: { id, name }` を含む                                                                                  |
+| POST /genres                 | `{ tripId, name, description? }`                                                                                                  |
+| GET /genres?tripId=...       | trip内のgenre一覧と達成集計                                                                                                       |
+| GET /genres/:id              | genre詳細と達成集計                                                                                                               |
+| PATCH /genres/:id            | name・descriptionの部分更新                                                                                                       |
+| POST /stamps                 | `{ genreId, name, description? }`                                                                                                 |
+| GET /stamps?genreId=...      | genre内のstamp一覧と達成状態                                                                                                      |
+| GET /stamps/:id              | stamp詳細と達成状態                                                                                                               |
+| PATCH /stamps/:id            | name・descriptionの部分更新                                                                                                       |
+| POST /uploads/batches        | 写真・動画の追加を予約。詳細は[アップロード仕様](../../docs/media-uploads.md)                                                     |
+| GET /posts/:id/original      | 権限確認後、共有・保存用の原本URLを発行                                                                                           |
+| GET /posts                   | `tripId / genreId / stampId` のいずれか1つで一覧                                                                                  |
+| GET /posts/:id               | 投稿詳細                                                                                                                          |
+| PATCH /posts/:id/favorite    | `{ isFavorite: true }` または `false`                                                                                             |
 
 リソースIDはUUIDです。genre・stampの親は変更できません。postの内容編集、trip・genre・stampの削除、退出・除名は今回のAPIには含みません。
 
 ### trip・genre・stamp
 
 tripの期間は `YYYY-MM-DD` の暦日で、開始日≦終了日（同日可）。時刻・タイムゾーンは持ちません。過去・未来の期間も指定でき、期間外の投稿・編集も可能です。
+
+新規Tripでは、`activityPresets` に選択した活動presetの名前、`customActivities` に自由入力した活動を保存できます。両方とも文字列配列で、省略時は空配列です。`selectedGenres` は `{ name, stamps: [{ title }] }[]`。場所・活動presetから得られる候補だけを選択でき、選択分のgenre・stampをTripと同じtransactionで作成します。同一genre内の重複stampをまとめ、stampが0件のgenreは作成しません。選択を省略するか空配列にすると、活動情報を保存して空のTripを作成します。
+
+場所は前後空白除去後にpresetの `name` / `aliases` と完全一致で照合します。一致しない場所と自由入力の活動はTripに保存し、候補生成には使いません。活動・genre・stampの名前を使う選択方式のため、表記を統一してください。previewの各stampには `sources: [{ type: 'location' | 'activity', name }]` が付きます。
+
+`20260912000000_trip_templates` をAPI更新前に適用してください。既存Tripの活動情報は空配列になり、既存のgenre・stampは維持されます。Trip編集時に候補を再生成する処理はありません。JSONの仮presetはAPIに同梱されるため、内容を更新したらAPIを再ビルド・再起動します。
 
 trip・genre・stampの名前は前後空白を除去した1〜100文字。descriptionは最大2,000文字で、省略時は空文字です。tripの代表画像URLは任意で、`null` で解除できます。部分更新は少なくとも1項目が必要です。
 

@@ -34,6 +34,8 @@ export const lightTheme = {
     onPrimary: palette.white,
     active: palette.forest,
     activeBackground: palette.sage,
+    chipBackground: palette.line,
+    onChip: palette.ink,
     favorite: palette.coral,
     favoriteBackground: palette.sand,
     unread: palette.rose,

@@ -15,6 +15,7 @@ import { CreateTripDto } from './dto/create-trip.dto.js';
 import { UpdateTripDto } from './dto/update-trip.dto.js';
 import { InvalidTripError, Trip } from './entities/trip.entity.js';
 import { TripRepository } from './trip.repository.js';
+import { TripTemplatesService } from '../trip-templates/trip-templates.service.js';
 
 @Injectable()
 export class TripsService {
@@ -24,6 +25,7 @@ export class TripsService {
     private readonly prisma: PrismaService,
     private readonly covers: CoverAssetsService,
     private readonly presenter: CoverPresenter,
+    private readonly templates: TripTemplatesService,
   ) {}
 
   async create(userId: string, dto: CreateTripDto) {
@@ -44,7 +46,14 @@ export class TripsService {
           }
           if (dto.coverAssetId)
             await this.covers.assertAttachable(tx, userId, dto.coverAssetId);
-          const trip = await this.trips.create(userId, input, tx);
+          const genres = this.templates.select(
+            {
+              locations: input.locations,
+              activityPresets: input.activityPresets,
+            },
+            dto.selectedGenres,
+          );
+          const trip = await this.trips.create(userId, input, tx, genres);
           return trip;
         });
         return this.presenter.present(result.toJSON());

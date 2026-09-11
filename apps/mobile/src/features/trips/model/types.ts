@@ -2,6 +2,8 @@ export type Trip = {
   id: string;
   name: string;
   locations: string[];
+  activityPresets: string[];
+  customActivities: string[];
   startDate: string;
   endDate: string;
   coverImageUrl: string | null;

@@ -24,6 +24,62 @@ const tripInput = {
 const named = { name: '発見', description: '旅の記録' };
 
 describe('domain creation and shared progress', () => {
+  it('creates selected templates once and preserves activities when editing the trip', async () => {
+    const service = createMockService(createDemoData(), 0);
+    const input = {
+      ...tripInput,
+      clientRequestId: 'same-request',
+      activityPresets: ['海'],
+      customActivities: [' 星空を見る '],
+      selectedGenres: [
+        {
+          name: '自然',
+          stamps: [{ title: '海を見る' }, { title: '海を見る' }],
+        },
+        { name: '自然', stamps: [{ title: '山を見る' }] },
+        { name: '空のジャンル', stamps: [] },
+      ],
+    };
+    const trip = await service.createTrip(DEMO_USER_ID, input);
+    expect(trip.totalGenreCount).toBe(1);
+    expect(trip.activityPresets).toEqual(['海']);
+    expect(trip.customActivities).toEqual(['星空を見る']);
+    const repeated = await service.createTrip(DEMO_USER_ID, input);
+    expect(repeated.id).toBe(trip.id);
+    const data = await service.load();
+    const genres = data.genres.filter((genre) => genre.tripId === trip.id);
+    expect(genres).toHaveLength(1);
+    expect(
+      data.stamps
+        .filter((stamp) => stamp.genreId === genres[0].id)
+        .map((stamp) => stamp.name),
+    ).toEqual(['海を見る', '山を見る']);
+    const edited = await service.updateTrip(DEMO_USER_ID, trip.id, {
+      ...tripInput,
+      name: '変更した旅行',
+    });
+    expect(edited.activityPresets).toEqual(['海']);
+    expect(edited.customActivities).toEqual(['星空を見る']);
+  });
+  it('rejects invalid template or activity content without partially creating a trip', async () => {
+    const service = createMockService(createDemoData(), 0);
+    const before = await service.load();
+    await expect(
+      service.createTrip(DEMO_USER_ID, {
+        ...tripInput,
+        selectedGenres: [
+          { name: '自然', stamps: [{ title: '海を見る' }, { title: '' }] },
+        ],
+      }),
+    ).rejects.toThrow();
+    await expect(
+      service.createTrip(DEMO_USER_ID, {
+        ...tripInput,
+        customActivities: ['あ'.repeat(101)],
+      }),
+    ).rejects.toThrow('100');
+    expect(await service.load()).toEqual(before);
+  });
   it('creates a complete trip hierarchy and atomically applies a multi-photo post to both stores', async () => {
     const initial = createDemoData();
     const service = createMockService(initial, 0);

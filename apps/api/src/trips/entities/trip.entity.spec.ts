@@ -119,4 +119,52 @@ describe('Trip', () => {
       expect(makeTrip(total, completed).toJSON().isCompleted).toBe(expected);
     },
   );
+
+  it('normalizes activity metadata while retaining user order and repeated text', () => {
+    const result = Trip.validate({
+      name: '旅行',
+      startDate: '2026-09-07',
+      endDate: '2026-09-07',
+      activityPresets: [' 海 ', '', '海', '温泉'],
+      customActivities: [' 友達に会う ', ' '],
+    });
+    expect(result.activityPresets).toEqual(['海', '海', '温泉']);
+    expect(result.customActivities).toEqual(['友達に会う']);
+    const defaults = Trip.validate({
+      name: '旅行',
+      startDate: '2026-09-07',
+      endDate: '2026-09-07',
+    });
+    expect(defaults.activityPresets).toEqual([]);
+    expect(defaults.customActivities).toEqual([]);
+  });
+
+  it.each(['activityPresets', 'customActivities'] as const)(
+    'rejects malformed %s values even without HTTP validation',
+    (field) => {
+      for (const value of [null, '海', [null], [1], ['あ'.repeat(101)]]) {
+        expect(() =>
+          Trip.validate({
+            name: '旅行',
+            startDate: '2026-09-07',
+            endDate: '2026-09-07',
+            [field]: value,
+          }),
+        ).toThrow(InvalidTripError);
+      }
+    },
+  );
+
+  it('preserves saved activities when existing trip fields are edited', () => {
+    const trip = makeTrip();
+    trip.activityPresets.push('海');
+    trip.customActivities.push('友達に会う');
+    trip.update({ name: '新しい名前', locations: ['京都'] });
+    expect(trip.toJSON()).toMatchObject({
+      name: '新しい名前',
+      locations: ['京都'],
+      activityPresets: ['海'],
+      customActivities: ['友達に会う'],
+    });
+  });
 });

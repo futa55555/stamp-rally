@@ -8,6 +8,7 @@ import type { SessionClient } from './SessionClient';
 import type { Trip, Genre, Stamp } from '../../trips/model/types';
 import type {
   TripInput,
+  CreateTripInput,
   CreateGenreInput,
   CreateStampInput,
   NamedInput,
@@ -101,9 +102,18 @@ export function createActions(
       assertCurrent();
       return user;
     },
-    createTrip: (_userId: string, input: TripInput) =>
+    createTrip: (_userId: string, input: CreateTripInput) =>
       mutate<Trip>('POST', '/trips', {
         ...tripInput(input),
+        ...(input.activityPresets !== undefined
+          ? { activityPresets: input.activityPresets }
+          : {}),
+        ...(input.customActivities !== undefined
+          ? { customActivities: input.customActivities }
+          : {}),
+        ...(input.selectedGenres !== undefined
+          ? { selectedGenres: input.selectedGenres }
+          : {}),
         ...(input.clientRequestId
           ? { clientRequestId: input.clientRequestId }
           : {}),
