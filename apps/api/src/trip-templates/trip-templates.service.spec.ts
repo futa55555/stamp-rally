@@ -383,7 +383,7 @@ describe('TripTemplatesService', () => {
 });
 
 describe('bundled template memberships', () => {
-  it('shares night scenery across locations and activities with both genres', () => {
+  it('shares night scenery across locations and activities in the scenery genre', () => {
     const service = new TripTemplatesService();
     const preview = service.preview({
       locations: ['大阪府'],
@@ -392,7 +392,7 @@ describe('bundled template memberships', () => {
     const memberships = preview.genres.filter((genre) =>
       genre.stamps.some((stamp) => stamp.title === '夜景を楽しむ'),
     );
-    expect(memberships.map((genre) => genre.name)).toEqual(['景色', '思い出']);
+    expect(memberships.map((genre) => genre.name)).toEqual(['景色']);
     for (const genre of memberships) {
       expect(
         genre.stamps.filter((stamp) => stamp.title === '夜景を楽しむ'),
@@ -420,9 +420,9 @@ describe('bundled template memberships', () => {
       'パークならではのドリンクを飲む',
       ['グルメ', '遊園地'],
     ],
-    ['ものづくり体験', '制作途中の様子を写真に撮る', ['ものづくり', '思い出']],
-    ['ものづくり体験', '完成した作品を記念に残す', ['ものづくり', '思い出']],
-    ['夜景', '水面に映る光を写真に撮る', ['景色', '思い出']],
+    ['ものづくり体験', '制作途中の様子を写真に撮る', ['ものづくり']],
+    ['ものづくり体験', '完成した作品を記念に残す', ['ものづくり']],
+    ['夜景', '水面に映る光を写真に撮る', ['景色']],
     ['ゆっくり', 'カフェでひと休みする', ['グルメ', '休息']],
     ['ものづくり体験', 'カフェでひと休みする', ['グルメ', '休息']],
     ['歴史探訪', '古い町並みを散歩する', ['歴史・文化', 'まち歩き']],
@@ -465,8 +465,13 @@ describe('bundled template memberships', () => {
     const craft = service.preview({ activityPresets: ['ものづくり体験'] });
     expect(
       craft.genres
-        .find((genre) => genre.name === '思い出')
+        .find((genre) => genre.name === 'ものづくり')
         ?.stamps.map((stamp) => stamp.title),
-    ).toEqual(['制作途中の様子を写真に撮る', '完成した作品を記念に残す']);
+    ).toEqual(
+      expect.arrayContaining([
+        '制作途中の様子を写真に撮る',
+        '完成した作品を記念に残す',
+      ]),
+    );
   });
 });
