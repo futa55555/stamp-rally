@@ -3,14 +3,12 @@ import { useRouter } from 'expo-router';
 import { Platform } from 'react-native';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { headerButtonOptions } from './headerButtonOptions';
-import { usePostHeaderIcon } from './usePostHeaderIcon';
 
 export function useStackScreenOptions({
   postButton = false,
 } = {}): NativeStackNavigationOptions {
   const theme = useAppTheme();
   const router = useRouter();
-  const postIcon = usePostHeaderIcon();
   return {
     headerShown: true,
     headerTintColor: theme.colors.text,
@@ -33,8 +31,7 @@ export function useStackScreenOptions({
     ...(postButton
       ? headerButtonOptions({
           label: '投稿を追加',
-          symbol: 'camera',
-          imageSource: postIcon,
+          symbol: 'plus',
           icon: 'camera-plus-outline',
           onPress: () => router.push('/editor/post'),
         })

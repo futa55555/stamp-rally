@@ -6,7 +6,6 @@ import {
 } from 'expo-router';
 import { useEffect, useLayoutEffect } from 'react';
 import { headerButtonOptions } from '../../../shared/navigation/headerButtonOptions';
-import { usePostHeaderIcon } from '../../../shared/navigation/usePostHeaderIcon';
 import type { Genre, Stamp, Trip } from '../model/types';
 import type { TripRoute, TripStackParamList } from './types';
 
@@ -31,15 +30,13 @@ export function useTripHeader({
   const navigation =
     useNavigation<NativeStackNavigationProp<TripStackParamList>>();
   const focused = useIsFocused();
-  const postIcon = usePostHeaderIcon();
 
   useLayoutEffect(() => {
     navigation.setOptions({
       title,
       ...headerButtonOptions({
         label: '投稿を追加',
-        symbol: 'camera',
-        imageSource: postIcon,
+        symbol: 'plus',
         icon: 'camera-plus-outline',
         onPress: () =>
           router.push({
@@ -52,7 +49,7 @@ export function useTripHeader({
           }),
       }),
     });
-  }, [navigation, router, title, tripId, genreId, stampId, postIcon]);
+  }, [navigation, router, title, tripId, genreId, stampId]);
 
   useEffect(() => {
     if (!focused || !trip || (stampId && !stamp) || (genreId && !genre)) return;
