@@ -7,6 +7,7 @@ import type {
   CreateStampInput,
   NamedInput,
   TripInput,
+  CreateTripInput,
 } from '../../trips/model/inputs';
 import type { Genre, Stamp, Trip } from '../../trips/model/types';
 import type { AppData } from '../model/types';
@@ -21,7 +22,7 @@ export interface DataService {
   markPhotoRead(userId: string, postId: string): Promise<void>;
   markNotificationRead(id: string): Promise<AppNotification>;
   updateName(userId: string, name: string): Promise<User>;
-  createTrip(userId: string, input: TripInput): Promise<Trip>;
+  createTrip(userId: string, input: CreateTripInput): Promise<Trip>;
   updateTrip(userId: string, id: string, input: TripInput): Promise<Trip>;
   createGenre(userId: string, input: CreateGenreInput): Promise<Genre>;
   updateGenre(userId: string, id: string, input: NamedInput): Promise<Genre>;

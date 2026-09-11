@@ -115,4 +115,35 @@ describe('API mutations', () => {
     expect(cache.getQueryCache().getAll()).toEqual([]);
     cache.clear();
   });
+  it('sends activity and template selections on create while keeping trip updates unchanged', async () => {
+    const { actions, request, cache } = setup();
+    const input = {
+      name: '旅行',
+      startDate: '2026-09-09',
+      endDate: '2026-09-10',
+      locations: ['沖縄'],
+      activityPresets: ['海'],
+      customActivities: ['星空を見る'],
+      selectedGenres: [{ name: '自然', stamps: [{ title: '海を見る' }] }],
+      clientRequestId: 'request-id',
+    };
+    await actions.createTrip('viewer', input);
+    expect(request).toHaveBeenLastCalledWith({
+      method: 'POST',
+      url: '/trips',
+      data: input,
+    });
+    await actions.updateTrip('viewer', 'trip', input);
+    expect(request).toHaveBeenLastCalledWith({
+      method: 'PATCH',
+      url: '/trips/trip',
+      data: {
+        name: '旅行',
+        startDate: '2026-09-09',
+        endDate: '2026-09-10',
+        locations: ['沖縄'],
+      },
+    });
+    cache.clear();
+  });
 });

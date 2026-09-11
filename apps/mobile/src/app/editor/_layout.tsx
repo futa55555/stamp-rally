@@ -15,6 +15,8 @@ export default function EditorLayout() {
           <Stack
             screenOptions={{
               ...options,
+              // Editor screens protect unsaved input with usePreventRemove.
+              headerBackButtonMenuEnabled: false,
               gestureEnabled: false,
               headerBackVisible: false,
               ...headerButtonOptions({

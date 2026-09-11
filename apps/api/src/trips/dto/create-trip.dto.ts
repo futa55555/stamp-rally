@@ -1,12 +1,39 @@
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsUUID,
   IsDateString,
+  IsObject,
   IsString,
   Matches,
+  MaxLength,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 import { DomainName, OptionalField } from '../../common/validation.js';
+
+const trimItems = ({ value }: { value: unknown }): unknown =>
+  Array.isArray(value)
+    ? value.map((item: unknown) =>
+        typeof item === 'string' ? item.trim() : item,
+      )
+    : value;
+
+export class SelectedStampDto {
+  @DomainName()
+  title!: string;
+}
+
+export class SelectedGenreDto {
+  @DomainName()
+  name!: string;
+
+  @IsArray()
+  @IsObject({ each: true })
+  @ValidateNested({ each: true })
+  @Type(() => SelectedStampDto)
+  stamps!: SelectedStampDto[];
+}
 
 export class CreateTripDto {
   @OptionalField()
@@ -17,6 +44,27 @@ export class CreateTripDto {
   @IsArray()
   @IsString({ each: true })
   locations?: string[];
+
+  @OptionalField()
+  @Transform(trimItems)
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  activityPresets?: string[];
+
+  @OptionalField()
+  @Transform(trimItems)
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  customActivities?: string[];
+
+  @OptionalField()
+  @IsArray()
+  @IsObject({ each: true })
+  @ValidateNested({ each: true })
+  @Type(() => SelectedGenreDto)
+  selectedGenres?: SelectedGenreDto[];
 
   @DomainName()
   name!: string;

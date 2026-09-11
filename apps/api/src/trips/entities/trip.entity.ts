@@ -5,6 +5,8 @@ export class InvalidTripError extends Error {}
 export interface TripInput {
   clientRequestId?: string;
   locations?: string[];
+  activityPresets?: string[];
+  customActivities?: string[];
   name: string;
   startDate: string;
   endDate: string;
@@ -41,6 +43,8 @@ export class Trip {
     public readonly completedGenreCount = 0,
     public locations: string[] = [],
     public coverAssetId: string | null = null,
+    public readonly activityPresets: string[] = [],
+    public readonly customActivities: string[] = [],
   ) {}
 
   get isCompleted(): boolean {
@@ -95,7 +99,31 @@ export class Trip {
     const locations = (input.locations ?? [])
       .map((value) => value.trim())
       .filter(Boolean);
-    return { ...input, name, coverImageUrl, locations };
+    const activities = (field: 'activityPresets' | 'customActivities') => {
+      const values = input[field];
+      if (
+        values !== undefined &&
+        (!Array.isArray(values) ||
+          values.some(
+            (value) =>
+              typeof value !== 'string' ||
+              Array.from(value.trim()).length > 100,
+          ))
+      ) {
+        throw new InvalidTripError(
+          `${field} must be an array of strings of at most 100 characters`,
+        );
+      }
+      return (values ?? []).map((value) => value.trim()).filter(Boolean);
+    };
+    return {
+      ...input,
+      name,
+      coverImageUrl,
+      locations,
+      activityPresets: activities('activityPresets'),
+      customActivities: activities('customActivities'),
+    };
   }
 
   update(input: Partial<TripInput>): void {

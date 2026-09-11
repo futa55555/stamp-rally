@@ -31,6 +31,16 @@ export function TripMetadata({
       value: trip.locations?.join(', ') || '未設定',
     },
   ];
+  const activities = [
+    ...(trip.activityPresets ?? []),
+    ...(trip.customActivities ?? []),
+  ];
+  if (activities.length)
+    rows.push({
+      icon: 'star-outline',
+      label: 'やりたいこと',
+      value: activities.join(', '),
+    });
   return (
     <View className="gap-2">
       {rows.map((row) => (

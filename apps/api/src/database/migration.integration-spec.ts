@@ -47,6 +47,13 @@ const invitationLinksMigration = readFileSync(
   ),
   'utf8',
 );
+const tripTemplatesMigration = readFileSync(
+  new URL(
+    '../../prisma/migrations/20260912000000_trip_templates/migration.sql',
+    import.meta.url,
+  ),
+  'utf8',
+);
 
 describe('Trip domain migration integration', () => {
   let client: Client;
@@ -212,6 +219,46 @@ describe('Trip domain migration integration', () => {
     expect((await client.query('SELECT name FROM trips')).rows).toEqual([
       { name: '日帰り' },
     ]);
+  });
+  it('adds empty activity metadata without changing existing trips or their children', async () => {
+    const owner = randomUUID();
+    const trip = randomUUID();
+    const genre = randomUUID();
+    const stamp = randomUUID();
+    await client.query('INSERT INTO users (id, name) VALUES ($1, $2)', [
+      owner,
+      'Owner',
+    ]);
+    await client.query(migration);
+    await client.query(mobileMigration);
+    await client.query(
+      "INSERT INTO trips (id, name, locations, start_date, end_date, created_by_id, updated_at) VALUES ($1, '既存旅行', ARRAY['沖縄'], '2026-09-12', '2026-09-13', $2, CURRENT_TIMESTAMP)",
+      [trip, owner],
+    );
+    await client.query(
+      "INSERT INTO genres (id, trip_id, name, updated_at) VALUES ($1, $2, '手動ジャンル', CURRENT_TIMESTAMP)",
+      [genre, trip],
+    );
+    await client.query(
+      "INSERT INTO stamps (id, genre_id, name, updated_at) VALUES ($1, $2, '手動スタンプ', CURRENT_TIMESTAMP)",
+      [stamp, genre],
+    );
+    const originalTrip = (await client.query('SELECT * FROM trips')).rows[0];
+    const originalGenres = (await client.query('SELECT * FROM genres')).rows;
+    const originalStamps = (await client.query('SELECT * FROM stamps')).rows;
+    await client.query(tripTemplatesMigration);
+    expect((await client.query('SELECT * FROM trips')).rows).toEqual([
+      { ...originalTrip, activity_presets: [], custom_activities: [] },
+    ]);
+    expect((await client.query('SELECT * FROM genres')).rows).toEqual(
+      originalGenres,
+    );
+    expect((await client.query('SELECT * FROM stamps')).rows).toEqual(
+      originalStamps,
+    );
+    await expect(
+      client.query('UPDATE trips SET custom_activities = NULL'),
+    ).rejects.toMatchObject({ code: '23502' });
   });
   it('quarantines legacy originals, preserves favorites/reads/timestamps, and queues cascade cleanup', async () => {
     const owner = randomUUID();

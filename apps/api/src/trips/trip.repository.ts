@@ -8,6 +8,7 @@ import {
 } from '../common/pagination.js';
 import { Prisma, type Trip as PrismaTrip } from '../generated/prisma/client.js';
 import { calendarDate, Trip, type TripInput } from './entities/trip.entity.js';
+import type { GenreTemplateItem } from '../trip-templates/types.js';
 
 interface TripProgress {
   id: string;
@@ -23,11 +24,14 @@ export class TripRepository {
     userId: string,
     input: TripInput,
     tx: Prisma.TransactionClient,
+    genres: GenreTemplateItem[] = [],
   ): Promise<Trip> {
     const row = await tx.trip.create({
       data: {
         clientRequestId: input.clientRequestId,
         locations: input.locations ?? [],
+        activityPresets: input.activityPresets ?? [],
+        customActivities: input.customActivities ?? [],
         name: input.name,
         startDate: calendarDate(input.startDate),
         endDate: calendarDate(input.endDate),
@@ -37,9 +41,20 @@ export class TripRepository {
         coverAssetId: input.coverAssetId ?? null,
         createdById: userId,
         members: { create: { userId } },
+        genres: {
+          create: genres
+            .filter((genre) => genre.stamps.length > 0)
+            .map((genre) => ({
+              name: genre.name,
+              stamps: {
+                create: genre.stamps.map((stamp) => ({ name: stamp.title })),
+              },
+            })),
+        },
       },
     });
-    return this.toDomain(row);
+    const progress = await this.progress([row.id], tx);
+    return this.toDomain(row, progress.get(row.id));
   }
 
   async findByRequestId(
@@ -52,7 +67,9 @@ export class TripRepository {
         createdById_clientRequestId: { createdById: userId, clientRequestId },
       },
     });
-    return row ? this.toDomain(row) : null;
+    if (!row) return null;
+    const progress = await this.progress([row.id], tx);
+    return this.toDomain(row, progress.get(row.id));
   }
 
   async findById(
@@ -143,6 +160,8 @@ export class TripRepository {
       progress?.completedGenreCount ?? 0,
       row.locations,
       row.coverAssetId,
+      row.activityPresets,
+      row.customActivities,
     );
   }
 }

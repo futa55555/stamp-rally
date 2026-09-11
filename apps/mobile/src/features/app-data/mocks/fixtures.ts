@@ -31,6 +31,8 @@ export function createDemoData(now = new Date()): AppData {
     endDate: offsetDate(now, end),
     coverImageUrl: cover,
     locations: index === 1 ? ['京都'] : index === 2 ? ['海辺'] : [],
+    activityPresets: [],
+    customActivities: [],
     createdById: DEMO_USER_ID,
     createdAt: time(created),
     updatedAt: time(created),

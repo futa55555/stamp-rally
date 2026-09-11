@@ -79,6 +79,8 @@ model Trip {
   clientRequestId String? @map("client_request_id") @db.Uuid
   name          String   @db.VarChar(100)
   locations     String[] @default([])
+  activityPresets String[] @default([]) @map("activity_presets")
+  customActivities String[] @default([]) @map("custom_activities")
   startDate     DateTime @map("start_date") @db.Date
   endDate       DateTime @map("end_date") @db.Date
   coverImageUrl String?  @map("cover_image_url") @db.VarChar(2048)

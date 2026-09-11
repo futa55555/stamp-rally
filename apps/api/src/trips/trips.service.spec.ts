@@ -7,11 +7,13 @@ import { TripAccessService } from './trip-access.service.js';
 import { Trip } from './entities/trip.entity.js';
 import { TripRepository } from './trip.repository.js';
 import { TripsService } from './trips.service.js';
+import type { TripTemplatesService } from '../trip-templates/trip-templates.service.js';
 
 describe('TripsService', () => {
   const tx = { tripMember: { findMany: vi.fn() } };
   const repo = {
     create: vi.fn(),
+    findByRequestId: vi.fn(),
     findAll: vi.fn(),
     findById: vi.fn(),
     save: vi.fn(),
@@ -19,12 +21,14 @@ describe('TripsService', () => {
   };
   const access = { requireTrip: vi.fn() };
   const prisma = { $transaction: vi.fn() };
+  const templates = { select: vi.fn() };
   const service = new TripsService(
     repo as unknown as TripRepository,
     access as unknown as TripAccessService,
     prisma as unknown as PrismaService,
     {} as CoverAssetsService,
     { present: async (value: unknown) => value } as CoverPresenter,
+    templates as unknown as TripTemplatesService,
   );
   const input = {
     name: '  旅行  ',
@@ -50,6 +54,8 @@ describe('TripsService', () => {
       (work: (client: object) => Promise<unknown>) => work(tx),
     );
     repo.create.mockResolvedValue(trip);
+    repo.findByRequestId.mockResolvedValue(null);
+    templates.select.mockReturnValue([]);
     repo.findAll.mockResolvedValue({ items: [], nextCursor: null });
     repo.findById.mockResolvedValue(trip);
     repo.save.mockImplementation(async (value: Trip) => value);
@@ -61,10 +67,78 @@ describe('TripsService', () => {
       'owner',
       expect.objectContaining({ name: '旅行' }),
       tx,
+      [],
     );
     expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: 'Serializable',
     });
+  });
+
+  it('creates only the validated selection in the trip transaction and retains activity metadata', async () => {
+    const selectedGenres = [
+      { name: '景色', stamps: [{ title: '海辺を散歩する' }] },
+    ];
+    templates.select.mockReturnValue(selectedGenres);
+    await service.create('owner', {
+      ...input,
+      locations: [' 沖縄 '],
+      activityPresets: [' 海 '],
+      customActivities: [' 自分だけの体験 ', ' '],
+      selectedGenres,
+    });
+    expect(templates.select).toHaveBeenCalledWith(
+      { locations: ['沖縄'], activityPresets: ['海'] },
+      selectedGenres,
+    );
+    expect(repo.create).toHaveBeenCalledWith(
+      'owner',
+      expect.objectContaining({
+        locations: ['沖縄'],
+        activityPresets: ['海'],
+        customActivities: ['自分だけの体験'],
+      }),
+      tx,
+      selectedGenres,
+    );
+  });
+
+  it('returns an existing trip before checking a changed preset catalog or creating children', async () => {
+    repo.findByRequestId.mockResolvedValue(trip);
+    templates.select.mockImplementation(() => {
+      throw new BadRequestException('Preset was removed');
+    });
+    const result = await service.create('owner', {
+      ...input,
+      clientRequestId: 'request-id',
+      activityPresets: ['以前のpreset'],
+      selectedGenres: [
+        { name: '以前のジャンル', stamps: [{ title: '以前のスタンプ' }] },
+      ],
+    });
+    expect(result).toEqual(trip.toJSON());
+    expect(access.requireTrip).toHaveBeenCalledWith('owner', trip.id);
+    expect(repo.findByRequestId).toHaveBeenCalledWith(
+      'owner',
+      'request-id',
+      tx,
+    );
+    expect(templates.select).not.toHaveBeenCalled();
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects selections outside the candidates before creating the trip', async () => {
+    templates.select.mockImplementation(() => {
+      throw new BadRequestException('Unknown stamp');
+    });
+    await expect(
+      service.create('owner', {
+        ...input,
+        selectedGenres: [
+          { name: '景色', stamps: [{ title: '存在しない候補' }] },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(repo.create).not.toHaveBeenCalled();
   });
 
   it.each([
