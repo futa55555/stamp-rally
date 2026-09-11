@@ -77,12 +77,18 @@ export async function resolveApiTarget(
   });
   const routes: TripRoute[] = [
     { name: 'index', params: undefined },
-    { name: 'trip/[tripId]', params: { tripId: trip.id } },
+    { name: 'trip/[tripId]', params: { tripId: trip.id, title: trip.name } },
   ];
   if (genre)
-    routes.push({ name: 'genre/[genreId]', params: { genreId: genre.id } });
+    routes.push({
+      name: 'genre/[genreId]',
+      params: { genreId: genre.id, title: genre.name },
+    });
   if (stamp)
-    routes.push({ name: 'stamp/[stampId]', params: { stampId: stamp.id } });
+    routes.push({
+      name: 'stamp/[stampId]',
+      params: { stampId: stamp.id, title: stamp.name },
+    });
   if (post)
     routes.push({ name: 'photo/[postId]', params: { postId: post.id } });
   return routes;

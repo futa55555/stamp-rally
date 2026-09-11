@@ -18,7 +18,7 @@ export function EmptyState({
   children?: ReactNode;
 }) {
   return (
-    <View className="w-full max-w-[320px] self-center items-center gap-8 py-8">
+    <View className="w-full max-w-[320px] self-center items-center gap-8">
       <View
         accessible={false}
         accessibilityElementsHidden

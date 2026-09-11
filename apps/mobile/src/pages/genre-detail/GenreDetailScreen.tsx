@@ -3,6 +3,7 @@ import { usePullToRefresh } from '../../shared/hooks/usePullToRefresh';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FlatList, View } from 'react-native';
 import { useGenre } from '../../features/trips/hooks';
+import { useTripHeader } from '../../features/trips/navigation/useTripHeader';
 import { StampCard } from './components/StampCard';
 import { useRepresentativePhotos } from '../../features/photos/hooks/useRepresentativePhotos';
 import { StateView } from '../../shared/ui/StateView';
@@ -13,7 +14,8 @@ export function GenreDetailScreen() {
   const { genreId } = useLocalSearchParams<{ genreId: string }>();
   const query = useGenre(genreId);
   const refresh = usePullToRefresh(query.invalidate);
-  const { genre, stamps } = query;
+  const { genre, trip, stamps } = query;
+  useTripHeader({ title: genre?.name ?? 'ジャンル', trip, genre, genreId });
   const representatives = useRepresentativePhotos(stamps);
   if (query.isPending || query.error) return <QueryState query={query} />;
   if (!genre)
@@ -26,6 +28,7 @@ export function GenreDetailScreen() {
   return (
     <>
       <FlatList
+        contentInsetAdjustmentBehavior="automatic"
         {...refresh}
         data={stamps.length % 2 ? [...stamps, null] : stamps}
         numColumns={2}

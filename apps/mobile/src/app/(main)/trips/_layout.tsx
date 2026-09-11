@@ -1,28 +1,35 @@
-import { TripStackHeader } from '../../../features/trips/navigation/TripStackHeader';
 import { Stack } from 'expo-router';
 import { useStackScreenOptions } from '../../../shared/navigation/useStackScreenOptions';
 
 export const unstable_settings = { initialRouteName: 'index' };
 
+function routeTitle(params: object | undefined, fallback: string) {
+  return params && 'title' in params && typeof params.title === 'string'
+    ? params.title
+    : fallback;
+}
+
 export default function TripsLayout() {
-  const screenOptions = useStackScreenOptions();
+  const screenOptions = useStackScreenOptions({ postButton: true });
   return (
-    <Stack
-      screenOptions={({ route }) => ({
-        ...screenOptions,
-        ...(route.name !== 'photo/[postId]'
-          ? {
-              header: () => (
-                <TripStackHeader name={route.name} params={route.params} />
-              ),
-            }
-          : {}),
-      })}
-    >
-      <Stack.Screen name="index" options={{ title: 'Stamp Rally' }} />
-      <Stack.Screen name="trip/[tripId]" options={{ title: '旅行のホーム' }} />
-      <Stack.Screen name="genre/[genreId]" options={{ title: 'ジャンル' }} />
-      <Stack.Screen name="stamp/[stampId]" options={{ title: 'スタンプ' }} />
+    <Stack screenOptions={screenOptions}>
+      <Stack.Screen name="index" options={{ title: '旅行' }} />
+      <Stack.Screen
+        name="trip/[tripId]"
+        options={({ route }) => ({ title: routeTitle(route.params, '旅行') })}
+      />
+      <Stack.Screen
+        name="genre/[genreId]"
+        options={({ route }) => ({
+          title: routeTitle(route.params, 'ジャンル'),
+        })}
+      />
+      <Stack.Screen
+        name="stamp/[stampId]"
+        options={({ route }) => ({
+          title: routeTitle(route.params, 'スタンプ'),
+        })}
+      />
       <Stack.Screen name="photo/[postId]" options={{ headerShown: false }} />
     </Stack>
   );

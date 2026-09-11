@@ -28,7 +28,9 @@ export function FormPage({
       <FormHeader
         title={title}
         onClose={() => {
-          if (!pending) router.back();
+          if (pending) return;
+          if (router.canGoBack()) router.back();
+          else router.replace('/trips');
         }}
         disabled={pending}
       />
@@ -37,6 +39,7 @@ export function FormPage({
         className="flex-1"
       >
         <ScrollView
+          contentInsetAdjustmentBehavior="automatic"
           keyboardShouldPersistTaps="handled"
           contentContainerClassName="px-4 py-6 gap-6 w-full max-w-page self-center"
         >

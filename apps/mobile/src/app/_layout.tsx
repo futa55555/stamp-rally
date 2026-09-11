@@ -1,5 +1,6 @@
 import { pendingInvitation } from '../features/invitations/runtime';
-import { FormHeader } from '../shared/ui/Header';
+import { headerButtonOptions } from '../shared/navigation/headerButtonOptions';
+import { useStackScreenOptions } from '../shared/navigation/useStackScreenOptions';
 import { InvitationIntake } from '../features/invitations/InvitationIntake';
 import '../../global.css';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -27,6 +28,7 @@ export const unstable_settings = { initialRouteName: '(main)' };
 
 function RootNavigation() {
   const theme = useAppTheme();
+  const screenOptions = useStackScreenOptions();
   const router = useRouter();
   const store = useAppStore();
   const [fontsLoaded, fontError] = useFonts(MaterialCommunityIcons.font);
@@ -71,18 +73,25 @@ function RootNavigation() {
           <Stack.Screen
             name="invite/[token]"
             options={{
-              headerShown: true,
-              header: () => (
-                <FormHeader
-                  title="旅行への招待"
-                  onClose={() => {
-                    void pendingInvitation
-                      .clear()
-                      .catch(() => {})
-                      .then(() => router.replace('/trips'));
-                  }}
-                />
-              ),
+              ...screenOptions,
+              title: '旅行への招待',
+              headerBackVisible: false,
+              // This route can also contain the sign-in/onboarding screen.
+              headerTransparent: false,
+              headerBlurEffect: undefined,
+              headerStyle: { backgroundColor: theme.colors.background },
+              ...headerButtonOptions({
+                side: 'left',
+                label: '閉じる',
+                symbol: 'xmark',
+                icon: 'close',
+                onPress: () => {
+                  void pendingInvitation
+                    .clear()
+                    .catch(() => {})
+                    .then(() => router.replace('/trips'));
+                },
+              }),
             }}
           />
         </Stack>

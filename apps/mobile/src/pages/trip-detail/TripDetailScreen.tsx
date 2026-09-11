@@ -2,6 +2,7 @@ import { QueryState } from '../../shared/ui/QueryState';
 import { usePullToRefresh } from '../../shared/hooks/usePullToRefresh';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTrip } from '../../features/trips/hooks';
+import { useTripHeader } from '../../features/trips/navigation/useTripHeader';
 import { TripCoverImage } from '../../features/trip-covers/TripCoverImage';
 import { Screen } from '../../shared/ui/Screen';
 import { StateView } from '../../shared/ui/StateView';
@@ -15,6 +16,7 @@ export function TripDetailScreen() {
   const query = useTrip(tripId);
   const refresh = usePullToRefresh(query.invalidate);
   const { trip, genres, favorites, members } = query;
+  useTripHeader({ title: trip?.name ?? '旅行', trip, tripId });
   if (query.isPending || query.error) return <QueryState query={query} />;
   if (!trip)
     return (

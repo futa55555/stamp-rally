@@ -13,6 +13,7 @@ export function Screen({
 }>) {
   return (
     <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
       className="flex-1 bg-background"
       contentContainerClassName={[
         'w-full gap-6 pb-12',

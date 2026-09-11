@@ -310,7 +310,8 @@ describe('photo detail', () => {
       photos[1].id,
     ]);
     expect(list().props.scrollEnabled).toBe(false);
-    expect(host('PageHeader').props.title).toBe(store.data.trips[0].name);
+    expect(host('PageHeader').props.title).toBe('写真');
+    expect(host('PageHeader').props.backTitle).toBe(store.data.trips[0].name);
     await act(async () => button('お気に入りを解除').props.onPress());
     // Publish the mock store change, as the real Provider dispatch does.
     await act(async () => renderer!.update(createElement(PhotoDetailScreen)));
@@ -327,7 +328,7 @@ describe('photo detail', () => {
     async (source) => {
       native.canGoBack.mockReturnValue(false);
       await mount(source);
-      expect(host('PageHeader').props.title).toBe(
+      expect(host('PageHeader').props.backTitle).toBe(
         source === 'trip'
           ? store.data.trips[0].name
           : store.data.stamps[0].name,

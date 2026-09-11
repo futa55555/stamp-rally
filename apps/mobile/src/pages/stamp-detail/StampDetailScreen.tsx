@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FlatList } from 'react-native';
 import { PhotoTile } from '../../features/photos/ui/PhotoTile';
 import { useStamp } from '../../features/trips/hooks';
+import { useTripHeader } from '../../features/trips/navigation/useTripHeader';
 import { StateView } from '../../shared/ui/StateView';
 import { CreatePostTile } from './components/CreatePostTile';
 import { StampDetailHeader } from './sections/StampDetailHeader';
@@ -14,7 +15,14 @@ export function StampDetailScreen() {
   const { stampId } = useLocalSearchParams<{ stampId: string }>();
   const query = useStamp(stampId);
   const refresh = usePullToRefresh(query.invalidate);
-  const { stamp, trip, photos } = query;
+  const { stamp, genre, trip, photos } = query;
+  useTripHeader({
+    title: stamp?.name ?? 'スタンプ',
+    trip,
+    genre,
+    stamp,
+    stampId,
+  });
   const openPost = () =>
     router.push({ pathname: '/editor/post', params: { stampId } });
   if (query.isPending || query.error) return <QueryState query={query} />;
@@ -28,6 +36,7 @@ export function StampDetailScreen() {
   return (
     <>
       <FlatList
+        contentInsetAdjustmentBehavior="automatic"
         {...refresh}
         data={photos.length ? [...photos, null] : photos}
         numColumns={2}
