@@ -39,7 +39,7 @@ export function ListScreen<Item>(props: ListScreenProps<Item>) {
         onLayout={(event) => setHeight(event.nativeEvent.layout.height)}
         contentContainerStyle={empty ? { minHeight: visibleHeight } : undefined}
         contentContainerClassName={[
-          'w-full max-w-page self-center px-4 pb-6 gap-4',
+          'w-full max-w-page self-center px-4 pt-6 pb-12 gap-4',
           empty ? 'justify-center' : '',
         ].join(' ')}
         keyboardShouldPersistTaps="handled"

@@ -40,6 +40,7 @@ export function GenreDetailScreen() {
           <GenreDetailHeader
             genre={genre}
             genreId={genreId}
+            tripName={trip?.name}
             stampCount={stamps.length}
           />
         }

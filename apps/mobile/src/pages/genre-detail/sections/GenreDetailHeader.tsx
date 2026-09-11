@@ -8,15 +8,22 @@ import { SectionHeading } from '../../../shared/ui/SectionHeading';
 export function GenreDetailHeader({
   genre,
   genreId,
+  tripName,
   stampCount,
 }: {
   genre: Genre;
   genreId: string;
+  tripName?: string;
   stampCount: number;
 }) {
   const router = useRouter();
   return (
     <View className="gap-4">
+      {tripName ? (
+        <AppText variant="caption" tone="primary">
+          {tripName}
+        </AppText>
+      ) : null}
       <EditableTitle title={genre.name} kind="genre" id={genreId} />
       {genre.description ? (
         <AppText tone="textSecondary">{genre.description}</AppText>

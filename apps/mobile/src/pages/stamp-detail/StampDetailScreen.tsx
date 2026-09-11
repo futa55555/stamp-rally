@@ -46,7 +46,11 @@ export function StampDetailScreen() {
         columnWrapperClassName="gap-0"
         ListHeaderComponent={
           <>
-            <StampDetailHeader stamp={stamp} tripName={trip?.name} />
+            <StampDetailHeader
+              stamp={stamp}
+              tripName={trip?.name}
+              genreName={genre?.name}
+            />
             <UploadList stampId={stampId} />
           </>
         }
