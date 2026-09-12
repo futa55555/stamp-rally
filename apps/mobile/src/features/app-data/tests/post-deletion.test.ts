@@ -49,6 +49,20 @@ describe('post deletion', () => {
     expect(await service.load()).toEqual(data);
   });
 
+  it('restores favorites, read history and notifications after a mock trash operation', async () => {
+    const initial = createDemoData();
+    const post = initial.posts[0];
+    const service = createMockService(initial, 0);
+    await service.deletePost(DEMO_USER_ID, post.id);
+    const restored = await service.restorePost(DEMO_USER_ID, post.id);
+    expect(restored).toEqual(post);
+    const data = await service.load();
+    expect(data.posts.find((p) => p.id === post.id)).toEqual(post);
+    expect(data.readPhotoIds).toEqual(initial.readPhotoIds);
+    expect(data.notifications).toEqual(
+      expect.arrayContaining(initial.notifications),
+    );
+  });
   it('recalculates completion through the trip when its last post is deleted', async () => {
     const initial = createDemoData();
     const post = initial.posts[5];
@@ -81,7 +95,9 @@ describe('post deletion', () => {
       completedCategoryCount: 0,
       isCompleted: false,
     });
-    await expect(service.deletePost(DEMO_USER_ID, post.id)).rejects.toThrow();
+    await expect(
+      service.deletePost(DEMO_USER_ID, post.id),
+    ).resolves.toBeUndefined();
     expect(await service.load()).toEqual(data);
   });
 

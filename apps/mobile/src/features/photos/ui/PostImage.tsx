@@ -8,9 +8,11 @@ import { resourceKey } from '../../app-data/api/queries';
 export function PostImage({
   post,
   variant = 'small',
+  resourcePath = `/posts/${post.id}`,
   ...props
 }: {
   post: Post;
+  resourcePath?: string;
   variant?: 'small' | 'large';
 } & Omit<
   Parameters<typeof PhotoImage>[0],
@@ -33,7 +35,7 @@ export function PostImage({
       imageHeight={post.height}
       refresh={async () => {
         const guard = client.sessionGuard();
-        const queryKey = resourceKey(userId ?? '', `/posts/${post.id}`);
+        const queryKey = resourceKey(userId ?? '', resourcePath);
         await cache.invalidateQueries(
           { queryKey, exact: true },
           { cancelRefetch: false },
@@ -44,7 +46,7 @@ export function PostImage({
         const fresh = await cache.fetchQuery({
           queryKey,
           queryFn: ({ signal }) =>
-            client.request<Post>({ url: `/posts/${post.id}`, signal }),
+            client.request<Post>({ url: resourcePath, signal }),
         });
         guard();
         return displayUrl(fresh, variant);

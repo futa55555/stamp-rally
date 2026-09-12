@@ -49,6 +49,24 @@ describe('API mutations', () => {
     });
     cache.clear();
   });
+  it('restores a post and refreshes trash, progress and the live detail cache', async () => {
+    const { actions, request, cache } = setup();
+    const trash = ['user', 'viewer', '/posts/trash', {}];
+    cache.setQueryData(trash, [{ id: 'photo' }]);
+    request.mockResolvedValue({ id: 'photo', isFavorite: true });
+    await actions.restorePost('viewer', 'photo');
+    expect(request).toHaveBeenCalledWith({
+      method: 'POST',
+      url: '/posts/photo/restore',
+      data: undefined,
+    });
+    expect(cache.getQueryState(trash)?.isInvalidated).toBe(true);
+    expect(cache.getQueryData(['user', 'viewer', '/posts/photo', {}])).toEqual({
+      id: 'photo',
+      isFavorite: true,
+    });
+    cache.clear();
+  });
   it('sends deletions and independently targets photo and notification read endpoints', async () => {
     const { actions, request, cache } = setup();
     request.mockResolvedValue(undefined);

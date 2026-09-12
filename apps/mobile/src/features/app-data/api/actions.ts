@@ -135,6 +135,8 @@ export function createActions(
       mutate<Post>('PATCH', `/posts/${id}/read`),
     markNotificationRead: (id: string) =>
       mutate<AppNotification>('PATCH', `/notifications/${id}/read`),
+    restorePost: (_userId: string, id: string) =>
+      mutate<Post>('POST', `/posts/${id}/restore`),
     deletePost: (_userId: string, id: string) =>
       mutate<void>('DELETE', `/posts/${id}`),
   };

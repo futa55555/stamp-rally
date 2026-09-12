@@ -33,6 +33,15 @@ export function createMockService(
     activityPresets: trip.activityPresets ?? [],
     customActivities: trip.customActivities ?? [],
   }));
+  const trash = new Map<
+    string,
+    {
+      post: Post;
+      deletedAt: number;
+      reads: Record<string, string[]>;
+      notifications: typeof data.notifications;
+    }
+  >();
   const tripRequests = new Map<string, string>();
   let sequence = 0;
   const id = () =>
@@ -303,11 +312,42 @@ export function createMockService(
       commit({ type: 'postsCreated', posts });
       return copy(posts);
     },
+    async restorePost(userId, postId) {
+      await delay();
+      find(data.users, userId);
+      const entry = trash.get(postId);
+      const post = entry?.post ?? find(data.posts, postId);
+      requireStampAccess(data, userId, post.stampId);
+      if (!entry) return copy(post);
+      if (Date.now() - entry.deletedAt >= 30 * 86400000)
+        throw new Error('復元できる30日間を過ぎています。');
+      commit({ type: 'postsCreated', posts: [entry.post] });
+      for (const [reader, ids] of Object.entries(entry.reads))
+        if (ids.includes(postId))
+          data.readPhotoIds[reader] = [
+            ...new Set([...(data.readPhotoIds[reader] ?? []), postId]),
+          ];
+      data.notifications.push(...entry.notifications);
+      trash.delete(postId);
+      return copy(post);
+    },
     async deletePost(userId, postId) {
       await delay();
       find(data.users, userId);
-      const post = find(data.posts, postId);
+      const existing = trash.get(postId);
+      const post = existing?.post ?? find(data.posts, postId);
       requireTripAccess(data, userId, post.tripId);
+      if (existing) return;
+      trash.set(postId, {
+        post: copy(post),
+        deletedAt: Date.now(),
+        reads: copy(data.readPhotoIds),
+        notifications: data.notifications.filter(
+          (n) =>
+            (n.target.type === 'photo' || n.target.type === 'video') &&
+            n.target.postId === postId,
+        ),
+      });
       commit({ type: 'postDeleted', postId });
     },
   };

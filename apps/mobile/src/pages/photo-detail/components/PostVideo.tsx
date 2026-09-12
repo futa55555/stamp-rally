@@ -11,8 +11,10 @@ import { AppText } from '../../../shared/ui/AppText';
 export function PostVideo({
   post,
   onDisplayed,
+  resourcePath = `/posts/${post.id}`,
 }: {
   post: Post;
+  resourcePath?: string;
   onDisplayed: () => void;
 }) {
   const { client } = useData();
@@ -33,7 +35,7 @@ export function PostVideo({
   const refresh = async () => {
     try {
       const current = client.sessionGuard();
-      const fresh = await client.request<Post>({ url: `/posts/${post.id}` });
+      const fresh = await client.request<Post>({ url: resourcePath });
       current();
       if (!fresh.playbackUrl) throw new Error('再生用データが見つかりません。');
       setFirstFrame(false);
@@ -68,6 +70,7 @@ export function PostVideo({
         <View className="absolute inset-0">
           <PostImage
             post={post}
+            resourcePath={resourcePath}
             variant="large"
             fit="contain"
             className="flex-1"
