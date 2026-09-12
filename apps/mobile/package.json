@@ -57,6 +57,7 @@
     "start": "APP_VARIANT=local expo start --dev-client",
     "start:remote": "EXPO_NO_DOTENV=1 eas env:exec development 'node scripts/validate-remote-env.mjs && APP_VARIANT=development EXPO_NO_DOTENV=1 expo start --dev-client --clear'",
     "android": "APP_VARIANT=local expo run:android",
+    "android:connect": "adb reverse tcp:3000 tcp:3000 && adb reverse tcp:5173 tcp:5173 && adb reverse tcp:8081 tcp:8081",
     "ios": "APP_VARIANT=local expo run:ios",
     "web": "APP_VARIANT=local expo start --web",
     "prebuild:local": "APP_VARIANT=local expo prebuild",

@@ -15,7 +15,7 @@ pnpm web:dev
 | local | `http://localhost:5173`             | `pnpm web:dev`                        | —（ローカル開発）   |
 | dev   | `https://stamp-rally-dev.pages.dev` | `pnpm --filter web build:development` | `development`       |
 | stg   | `https://stamp-rally-stg.pages.dev` | `pnpm --filter web build:staging`     | `staging`           |
-| prod  | `https://stamp-rally.pages.dev`     | `pnpm --filter web build`             | `production`        |
+| prod  | `https://stamp-rally-9ok.pages.dev` | `pnpm --filter web build`             | `production`        |
 
 dev/stg/prodは同じリポジトリを使う3つのPagesプロジェクトです。それぞれのプロジェクトのProduction用環境変数に、その環境のAPI URL・ストアURLを設定します。
 

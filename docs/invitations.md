@@ -59,7 +59,7 @@ pnpm api:dev
 - 他の人の参加申請・申請結果通知 → その旅行の招待管理画面
 - 自分の申請結果通知 → 自分の申請の詳細画面
 
-ドメイン未設定のlocal / development / stagingでは、各環境のカスタムURLスキームを使います。productionは公開リンク有効化まで共有ボタンを表示しません。
+全環境で `EXPO_PUBLIC_INVITATION_ORIGIN` の設定時だけ招待リンクの作成・共有ボタンを表示します。未設定・空欄なら共有は無効です。共有URLは常に `<origin>/invite/<token>` で、カスタムURLスキームへのフォールバックはありません。
 
 | 環境        | Bundle ID / package         | scheme              |
 | ----------- | --------------------------- | ------------------- |
@@ -68,7 +68,7 @@ pnpm api:dev
 | staging     | `com.futa.stamprally.stg`   | `stamp-rally-stg`   |
 | production  | `com.futa.stamprally`       | `stamp-rally`       |
 
-URLは `<scheme>://invite/<token>`。開発ビルドで確認します。ログイン前の招待はSecureStoreに保持し、ログイン・名前設定後に元の画面へ戻ります。キャンセルと明示的なログアウトで保持情報を破棄します。アプリ終了をまたいでも保持しますが、自動申請は行いません。
+既存の `<scheme>://invite/<token>` の受信は引き続き扱えます。ログイン前の招待はSecureStoreに保持し、ログイン・名前設定後に元の画面へ戻ります。キャンセルと明示的なログアウトで保持情報を破棄します。アプリ終了をまたいでも保持しますが、自動申請は行いません。
 
 検証対象は、起動中・終了状態からのリンク受信、ログイン・名前設定を挟んだ復帰、複数アカウントでの申請と承認、通信失敗・二重タップ・先行承認・操作中のログアウトです。無効リンクの「トップに戻る」で保持中の招待を解除し、旅行一覧へ戻ります。保存済みの通知から既存申請を確認できます。
 
@@ -97,9 +97,11 @@ Webは `apps/web` のVite＋TypeScriptアプリを **Cloudflare Pages** で配�
 | local | `http://localhost:5173`             | `com.futa.stamprally.local` | —（ローカル開発）             |
 | dev   | `https://stamp-rally-dev.pages.dev` | `com.futa.stamprally.dev`   | `development` / `development` |
 | stg   | `https://stamp-rally-stg.pages.dev` | `com.futa.stamprally.stg`   | `staging` / `preview`         |
-| prod  | `https://stamp-rally.pages.dev`     | `com.futa.stamprally`       | `production` / `production`   |
+| prod  | `https://stamp-rally-9ok.pages.dev` | `com.futa.stamprally`       | `production` / `production`   |
 
-ローカルは `pnpm web:dev` でWebを起動します。アプリの `EXPO_PUBLIC_INVITATION_ORIGIN` は空欄にして、`stamp-rally-local://invite/<token>` で招待を検証します。HTTPSリンクからの実機起動はremote devのdevelopmentビルドとstgで検証します。
+ローカルは `pnpm web:dev` でWebを起動し、`apps/mobile/.env` に `EXPO_PUBLIC_INVITATION_ORIGIN=http://localhost:5173` を設定します。共有URLは `http://localhost:5173/invite/<token>` です。localビルドのみ `localhost` / `127.0.0.1` のHTTP originとポートを許可し、HTTPにはOSの関連付けを生成しません。Web表示はローカルで、HTTPSリンクからの実機起動はremote devのdevelopmentビルドとstgで検証します。実機の `localhost` は開発PCを指しません。
+
+Androidは `pnpm mobile:android:connect` でAPI・Web・Metroのポートを開発PCへ転送すると、同じ `localhost` 設定を使えます。起動手順は [Androidのローカル開発](android-development.md) を参照してください。
 
 ### 公開状態確認API
 
@@ -169,30 +171,32 @@ Web自身のドメイン指定は不要です。ページ内のリンクやア�
 
 APIの招待Web用設定は `INVITATION_PUBLIC_ORIGIN` のみです。アプリ識別子・配布署名はWeb側の静的JSON、ストアURLはWebの上記環境変数で管理します。
 
-mobile / EASの対象環境（上表のEAS environmentに設定）：
+mobileはlocalなら `apps/mobile/.env`、remote dev / staging / productionなら上表のEAS environmentに設定します。各環境のAPIにも同じoriginを `INVITATION_PUBLIC_ORIGIN` として設定します。
 
 ```dotenv
+# local: http://localhost:5173
 # development: https://stamp-rally-dev.pages.dev
 # staging: https://stamp-rally-stg.pages.dev
-# production: https://stamp-rally.pages.dev
+# production: https://stamp-rally-9ok.pages.dev
 EXPO_PUBLIC_INVITATION_ORIGIN=https://stamp-rally-stg.pages.dev
-EXPO_PUBLIC_INVITATION_LINKS_ENABLED=false
 ```
 
-originから `ios.associatedDomains` とAndroidの `autoVerify` 付き `intentFilters` を生成します。対象パスは **`/` と `/invite/*`**。ネイティブ設定変更のため再ビルド・再インストールが必要です。
+共有の有効・無効はoriginの有無だけで決まります。旧 `EXPO_PUBLIC_INVITATION_LINKS_ENABLED` は使用しないため、既存の `.env` / EAS環境から削除できます。
+
+HTTPS originから `ios.associatedDomains` とAndroidの `autoVerify` 付き `intentFilters` を生成します。対象パスは **`/` と `/invite/*`**。ネイティブ設定変更のため再ビルド・再インストールが必要です。
 
 **TestFlight版も通常のアプリと同じ関連付け・招待フローを使います。App Storeでの一般公開やストアURLの設定は、関連付け・招待リンク有効化の前提ではありません。** ストア未公開ならWebのストアURLは空欄のまま、TestFlightなどで配布したビルドで実機検証できます。
 
 ### Pagesへの配信手順
 
 1. Pagesに `stamp-rally-dev`、`stamp-rally-stg`、`stamp-rally` の3プロジェクトを作り、同じリポジトリを接続する。それぞれ配信するブランチをProduction branchに指定する。ビルドルートはリポジトリルート、devのビルドコマンドは `pnpm --filter web build:development`、stgは `pnpm --filter web build:staging`、prodは `pnpm --filter web build`、出力はすべて `apps/web/dist`。Node.js 24と `package.json` のpnpmバージョンを使う。
-2. 各プロジェクトのProduction用環境変数に、その環境の `WEB_API_URL` とストアURLを設定する。dev/stg用プロジェクトも、その固定URLへ配信する設定はProductionを使う。各環境のAPIの `INVITATION_PUBLIC_ORIGIN` とmobileの `EXPO_PUBLIC_INVITATION_ORIGIN` を上表のWeb originに合わせる。実際のURLはPagesプロジェクト作成時に確定する。
+2. 各プロジェクトのProduction用環境変数に、その環境の `WEB_API_URL` とストアURLを設定する。dev/stg用プロジェクトも、その固定URLへ配信する設定はProductionを使う。各環境のAPIの `INVITATION_PUBLIC_ORIGIN` とmobileの `EXPO_PUBLIC_INVITATION_ORIGIN` を上表のWeb originに合わせる。本番の配信先は `https://stamp-rally-9ok.pages.dev`。
 3. 次の2ファイルが認証・リダイレクトなしで200、`Content-Type: application/json` を返すことを確認する。ビルド生成される `_redirects` は `/invite/*` だけを書き換え、関連付けファイルを対象に含めない。`404.html` も生成し、存在しない関連付けパスのHTMLへのSPAフォールバックを防ぐ。
    - `/.well-known/apple-app-site-association`
    - `/.well-known/assetlinks.json`
 4. EAS側のoriginを設定してビルド・インストールする。Androidはアップロード鍵ではなく実際の配布署名（Google Play App Signing使用時はPlayの署名）を使う。iOSは署名済みアプリの `application-identifier` とJSONを一致させる。
 5. 両OSの実機でトップ・招待URLをメッセージ等からタップする。起動中／終了状態、未ログイン、名前設定、申請中、参加確定、撤回・取り消し、期限切れ、無効化を確認する。iOSはTestFlight版も確認する。
-6. 確認後に `EXPO_PUBLIC_INVITATION_LINKS_ENABLED=true` としたアプリを配布する。共有URLがHTTPSになる。ストアURL未設定でも有効化できる。
+6. 確認済みのoriginを設定したアプリを配布する。追加の有効化フラグは不要で、ストアURL未設定でも共有できる。
 
 インストール後は元の招待リンクをもう一度開きます。インストールをまたぐ自動引き継ぎは実装していません。ブラウザやユーザー設定がWebを優先する場合まで、アプリの自動起動は保証しません。
 

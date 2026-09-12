@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import { PendingInvitation } from './PendingInvitation';
-import { invitationOrigin, invitationSharingEnabled } from './links';
+import { invitationOrigin } from './links';
 
 const configuredScheme = Constants.expoConfig?.scheme;
 export const invitationScheme =
@@ -10,14 +10,9 @@ export const invitationScheme =
     : (configuredScheme?.[0] ?? 'stamp-rally');
 export const publicInvitationOrigin = invitationOrigin(
   process.env.EXPO_PUBLIC_INVITATION_ORIGIN,
+  Constants.expoConfig?.extra?.appVariant === 'local',
 );
-export const publicInvitationLinksEnabled =
-  process.env.EXPO_PUBLIC_INVITATION_LINKS_ENABLED === 'true' &&
-  !!publicInvitationOrigin;
-export const canShareInvitation = invitationSharingEnabled(
-  invitationScheme,
-  publicInvitationLinksEnabled,
-);
+export const canShareInvitation = !!publicInvitationOrigin;
 const key = 'stamp-rally.pending-invitation';
 export const pendingInvitation = new PendingInvitation({
   get: () => SecureStore.getItemAsync(key),

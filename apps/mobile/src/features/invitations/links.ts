@@ -1,14 +1,20 @@
 export const isInvitationToken = (token: unknown): token is string =>
   typeof token === 'string' && /^[A-Za-z0-9_-]{43}$/.test(token);
 
-export function invitationOrigin(value?: string): string | null {
+export function invitationOrigin(
+  value?: string,
+  allowLocalHttp = false,
+): string | null {
   if (!value?.trim()) return null;
   const url = new URL(value.trim());
+  const localHttp =
+    allowLocalHttp &&
+    url.protocol === 'http:' &&
+    ['localhost', '127.0.0.1'].includes(url.hostname);
   if (
-    url.protocol !== 'https:' ||
+    (!localHttp && (url.protocol !== 'https:' || url.port)) ||
     url.username ||
     url.password ||
-    url.port ||
     url.pathname !== '/' ||
     url.search ||
     url.hash
@@ -25,7 +31,7 @@ export function invitationTokenFromUrl(
     const url = new URL(value);
     let path: string;
     if (url.protocol === scheme + ':') path = '/' + url.hostname + url.pathname;
-    else if (origin && url.origin === origin && url.protocol === 'https:')
+    else if (origin && url.origin === origin && !url.username && !url.password)
       path = url.pathname;
     else return null;
     const match = path.match(/^\/invite\/([A-Za-z0-9_-]{43})\/?$/);
@@ -40,7 +46,6 @@ export function isPublicTopUrl(value: string, origin: string | null): boolean {
     return (
       !!origin &&
       url.origin === origin &&
-      url.protocol === 'https:' &&
       !url.username &&
       !url.password &&
       url.pathname === '/'
@@ -49,24 +54,9 @@ export function isPublicTopUrl(value: string, origin: string | null): boolean {
     return false;
   }
 }
-export function invitationUrl(
-  token: string,
-  scheme: string,
-  origin: string | null,
-) {
+export function invitationUrl(token: string, origin: string | null) {
   if (!isInvitationToken(token))
     throw new Error('招待リンクが正しくありません。');
-  return origin ? origin + '/invite/' + token : scheme + '://invite/' + token;
-}
-
-// The registered scheme also identifies older development builds that predate
-// appVariant metadata. Production never falls back to a custom shared link.
-export function invitationSharingEnabled(
-  scheme: string,
-  publicEnabled: boolean,
-) {
-  return (
-    publicEnabled ||
-    ['stamp-rally-local', 'stamp-rally-dev', 'stamp-rally-stg'].includes(scheme)
-  );
+  if (!origin) throw new Error('招待リンクの共有は準備中です。');
+  return origin + '/invite/' + token;
 }
