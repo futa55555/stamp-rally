@@ -101,6 +101,8 @@ Webは `apps/web` のVite＋TypeScriptアプリを **Cloudflare Pages** で配�
 
 ローカルは `pnpm web:dev` でWebを起動し、`apps/mobile/.env` に `EXPO_PUBLIC_INVITATION_ORIGIN=http://localhost:5173` を設定します。共有URLは `http://localhost:5173/invite/<token>` です。localビルドのみ `localhost` / `127.0.0.1` のHTTP originとポートを許可し、HTTPにはOSの関連付けを生成しません。Web表示はローカルで、HTTPSリンクからの実機起動はremote devのdevelopmentビルドとstgで検証します。実機の `localhost` は開発PCを指しません。
 
+Androidは `pnpm mobile:android:connect` でAPI・Web・Metroのポートを開発PCへ転送すると、同じ `localhost` 設定を使えます。起動手順は [Androidのローカル開発](android-development.md) を参照してください。
+
 ### 公開状態確認API
 
 認証不要の `POST /public/invitation-links/status` は `{ "token": "..." }` を受け取り、次だけを返します。
