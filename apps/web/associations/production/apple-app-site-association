@@ -1,6 +1,14 @@
 {
   "applinks": {
     "apps": [],
-    "details": []
+    "details": [
+      {
+        "appID": "DPLYKZ6895.com.futa.stamprally",
+        "paths": [
+          "/",
+          "/invite/*"
+        ]
+      }
+    ]
   }
 }
