@@ -55,29 +55,32 @@ export class UploadsService {
     }
     let batchId: string;
     try {
-      const batch = await this.prisma.uploadBatch.create({
-        data: {
-          authorId: userId,
-          clientRequestId: dto.clientRequestId,
-          posts: {
-            create: dto.files.map((file) => {
-              const id = randomUUID();
-              return {
-                id,
-                stampId: dto.stampId,
-                authorId: userId,
-                clientId: file.clientId,
-                mediaType: file.mediaType,
-                fileName: file.fileName,
-                mimeType: file.mimeType,
-                byteSize: file.byteSize,
-                status: 'PENDING' as const,
-                stagingKey: `staging/${id}/${randomUUID()}`,
-                uploadExpiresAt: new Date(Date.now() + UPLOAD_LIFETIME_MS),
-              };
-            }),
+      const batch = await serializable(this.prisma, async (tx) => {
+        await this.access.requireStamp(userId, dto.stampId, tx);
+        return tx.uploadBatch.create({
+          data: {
+            authorId: userId,
+            clientRequestId: dto.clientRequestId,
+            posts: {
+              create: dto.files.map((file) => {
+                const id = randomUUID();
+                return {
+                  id,
+                  stampId: dto.stampId,
+                  authorId: userId,
+                  clientId: file.clientId,
+                  mediaType: file.mediaType,
+                  fileName: file.fileName,
+                  mimeType: file.mimeType,
+                  byteSize: file.byteSize,
+                  status: 'PENDING' as const,
+                  stagingKey: `staging/${id}/${randomUUID()}`,
+                  uploadExpiresAt: new Date(Date.now() + UPLOAD_LIFETIME_MS),
+                };
+              }),
+            },
           },
-        },
+        });
       });
       batchId = batch.id;
     } catch (error) {
@@ -222,6 +225,7 @@ export class UploadsService {
     ) {
       await this.prisma.post.updateMany({
         where: {
+          ...activePost,
           id,
           status: 'PENDING',
           processingVersion: row.processingVersion,
@@ -234,6 +238,7 @@ export class UploadsService {
     }
     await this.prisma.post.updateMany({
       where: {
+        ...activePost,
         id,
         status: 'PENDING',
         processingVersion: row.processingVersion,
@@ -273,6 +278,7 @@ export class UploadsService {
     await serializable(this.prisma, async (tx) => {
       const changed = await tx.post.updateMany({
         where: {
+          ...activePost,
           id,
           status: row.status,
           processingVersion: row.processingVersion,
@@ -383,6 +389,7 @@ export class UploadsService {
     );
     const changed = await this.prisma.post.updateMany({
       where: {
+        ...activePost,
         id: row.id,
         status: 'PENDING',
         stagingKey: row.stagingKey,

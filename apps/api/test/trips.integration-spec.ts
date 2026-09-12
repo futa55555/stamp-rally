@@ -78,6 +78,103 @@ describe('Trip API integration', () => {
   const storage = new TestObjectStorage();
   const queue = new TestMediaQueue();
 
+  it('retains recoverable R2 files and retries permanent cleanup while preserving DB tombstones', async () => {
+    const { stamp } = await tree();
+    const expired = await publish(owner, {
+      ...mediaInput,
+      stampId: stamp.id,
+      mediaType: 'VIDEO',
+    });
+    const kept = await publish(owner, { ...mediaInput, stampId: stamp.id });
+    for (const post of [expired, kept])
+      await http('delete', `/posts/${post.id}`, owner, undefined, 204);
+    const original = await prisma.post.findUniqueOrThrow({
+      where: { id: expired.id },
+    });
+    const keptRow = await prisma.post.findUniqueOrThrow({
+      where: { id: kept.id },
+    });
+    await prisma.post.update({
+      where: { id: expired.id },
+      data: { deletedAt: new Date(Date.now() - 30 * 86400000) },
+    });
+    await lifecycle.cleanup();
+    expect(
+      await prisma.post.findUnique({ where: { id: expired.id } }),
+    ).toMatchObject({
+      purgedAt: expect.any(Date),
+      originalKey: original.originalKey,
+    });
+    expect(
+      await prisma.post.findUnique({ where: { id: kept.id } }),
+    ).toMatchObject({ purgedAt: null });
+    const cleanup = await prisma.mediaCleanup.findFirstOrThrow({
+      where: { keys: { has: original.originalKey! } },
+    });
+    expect(cleanup.createdAt.getTime()).toBeGreaterThan(Date.now());
+    expect(storage.deleted).not.toContain(original.originalKey);
+    await prisma.mediaCleanup.update({
+      where: { id: cleanup.id },
+      data: { createdAt: new Date(0) },
+    });
+    const failure = vi
+      .spyOn(storage, 'delete')
+      .mockRejectedValueOnce(new Error('R2 unavailable'));
+    await lifecycle.cleanup();
+    expect(
+      await prisma.mediaCleanup.findUnique({ where: { id: cleanup.id } }),
+    ).not.toBeNull();
+    await lifecycle.cleanup();
+    failure.mockRestore();
+    expect(
+      await prisma.mediaCleanup.findUnique({ where: { id: cleanup.id } }),
+    ).toBeNull();
+    expect(storage.deleted).toEqual(
+      expect.arrayContaining([
+        original.originalKey,
+        original.smallKey,
+        original.largeKey,
+        original.playbackKey,
+      ]),
+    );
+    expect(storage.deleted).not.toContain(keptRow.originalKey);
+    expect(
+      await prisma.post.findUnique({ where: { id: expired.id } }),
+    ).not.toBeNull();
+    await http('post', `/posts/${kept.id}/restore`, owner, undefined, 200);
+    await http('post', `/posts/${expired.id}/restore`, owner, undefined, 404);
+  });
+
+  it('rolls back expiration when the durable media cleanup cannot be recorded', async () => {
+    const { stamp } = await tree();
+    const post = await publish(owner, { ...mediaInput, stampId: stamp.id });
+    await prisma.post.update({
+      where: { id: post.id },
+      data: { deletedAt: new Date(Date.now() - 31 * 86400000) },
+    });
+    await prisma.$executeRawUnsafe(
+      "CREATE FUNCTION reject_purge_cleanup() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'cleanup unavailable'; END; $$ LANGUAGE plpgsql",
+    );
+    await prisma.$executeRawUnsafe(
+      'CREATE TRIGGER reject_purge_cleanup BEFORE INSERT ON media_cleanup FOR EACH ROW EXECUTE FUNCTION reject_purge_cleanup()',
+    );
+    try {
+      await expect(lifecycle.cleanup()).rejects.toThrow();
+      expect(
+        await prisma.post.findUnique({ where: { id: post.id } }),
+      ).toMatchObject({ purgedAt: null });
+    } finally {
+      await prisma.$executeRawUnsafe(
+        'DROP TRIGGER reject_purge_cleanup ON media_cleanup',
+      );
+      await prisma.$executeRawUnsafe('DROP FUNCTION reject_purge_cleanup()');
+    }
+    await lifecycle.cleanup();
+    expect(
+      await prisma.post.findUnique({ where: { id: post.id } }),
+    ).toMatchObject({ purgedAt: expect.any(Date) });
+  });
+
   it.each(['IMAGE', 'VIDEO'])(
     'restores %s with its original identity, favorite and read history',
     async (mediaType) => {
