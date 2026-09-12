@@ -96,6 +96,7 @@ export class TripsService {
     }
     try {
       const result = await serializable(this.prisma, async (tx) => {
+        await this.access.requireTrip(userId, id, tx);
         const trip = await this.trips.findById(id, tx);
         if (!trip) throw new NotFoundException('Trip not found');
         if (dto.coverAssetId)

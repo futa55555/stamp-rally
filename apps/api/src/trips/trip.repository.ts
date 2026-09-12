@@ -91,7 +91,7 @@ export class TripRepository {
     id: string,
     tx: Prisma.TransactionClient = this.prisma,
   ): Promise<Trip | null> {
-    const row = await tx.trip.findUnique({ where: { id } });
+    const row = await tx.trip.findUnique({ where: { id, deletedAt: null } });
     if (!row) return null;
     const progress = await this.progress([id], tx);
     return this.toDomain(row, progress.get(id));
