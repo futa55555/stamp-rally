@@ -121,6 +121,12 @@ export function createActions(
       }),
     updateTrip: (_userId: string, id: string, input: TripInput) =>
       mutate<Trip>('PATCH', `/trips/${id}`, tripInput(input)),
+    deleteTrip: (_userId: string, id: string) =>
+      mutate<void>('DELETE', `/trips/${id}`),
+    deleteCategory: (_userId: string, id: string) =>
+      mutate<void>('DELETE', `/categories/${id}`),
+    deleteStamp: (_userId: string, id: string) =>
+      mutate<void>('DELETE', `/stamps/${id}`),
     createCategory: (_userId: string, input: CreateCategoryInput) =>
       mutate<Category>('POST', '/categories', input),
     updateCategory: (_userId: string, id: string, input: NamedInput) =>

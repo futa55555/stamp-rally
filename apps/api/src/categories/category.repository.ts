@@ -1,7 +1,8 @@
 import { activeCategory } from '../database/active-records.js';
 import { notifyMembers } from '../notifications/notify.js';
 import { serializable } from '../database/transaction.js';
-import { Injectable } from '@nestjs/common';
+import { requireTripMember } from '../trips/trip-access.service.js';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 import {
   paginate,
@@ -31,6 +32,7 @@ export class CategoryRepository {
 
   async create(input: CreateCategoryDto, userId: string): Promise<Category> {
     return serializable(this.prisma, async (tx) => {
+      await requireTripMember(tx, userId, input.tripId);
       const row = await tx.category.create({
         data: {
           tripId: input.tripId,
@@ -85,9 +87,11 @@ export class CategoryRepository {
     userId: string,
   ): Promise<Category> {
     return serializable(this.prisma, async (tx) => {
-      const current = await tx.category.findUniqueOrThrow({
+      const current = await tx.category.findUnique({
         where: { id, ...activeCategory },
       });
+      if (!current) throw new NotFoundException('Category not found');
+      await requireTripMember(tx, userId, current.tripId);
       const changed =
         (input.name !== undefined && input.name !== current.name) ||
         (input.description !== undefined &&

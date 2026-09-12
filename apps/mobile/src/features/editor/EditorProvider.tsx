@@ -12,16 +12,20 @@ function useEditorFlow() {
   const finish = async ({
     target,
     viaCategoryId,
+    tripList,
   }: {
     target?: NotificationTarget;
     viaCategoryId?: string;
+    tripList?: boolean;
   }) => {
     const assertCurrent = client.sessionGuard();
     setFinishing(true);
     try {
-      const routes = target
-        ? await resolveApiTarget(client, target, viaCategoryId)
-        : null;
+      const routes = tripList
+        ? [{ name: 'index', params: undefined }]
+        : target
+          ? await resolveApiTarget(client, target, viaCategoryId)
+          : null;
       assertCurrent();
       if (client.snapshot().user?.id !== userId) return;
       // Let the removal guard observe finishing before dispatching the reset.

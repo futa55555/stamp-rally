@@ -1,3 +1,5 @@
+import { Alert } from 'react-native';
+import { Button } from '../../../shared/ui/Button';
 import { useCoverUpload } from '../../../features/trip-covers/useCoverUpload';
 import { useState } from 'react';
 import type { NotificationTarget } from '../../../features/notifications/model/types';
@@ -54,6 +56,7 @@ export function EntityForm({
   const [savedTarget, setSavedTarget] = useState<NotificationTarget | null>(
     null,
   );
+  const [deleted, setDeleted] = useState(false);
   const [values, setValues] = useState(initial);
   const [originalCategoryIds] = useState(
     initial.categoryIds ?? (categoryId ? [categoryId] : []),
@@ -78,6 +81,7 @@ export function EntityForm({
   const cover = useCoverUpload(initial.coverImageUrl);
   const pending = task.pending || flow.finishing || coverPicking;
   const dirty =
+    !deleted &&
     !savedTarget &&
     (cover.changed ||
       (kind === 'stamp' &&
@@ -99,7 +103,61 @@ export function EntityForm({
         ] as const
       ).some((key) => values[key] !== original[key]));
   useEditorGuard(dirty, pending);
+  const finishDeletion = () =>
+    flow.finish(
+      kind === 'trip'
+        ? { tripList: true }
+        : kind === 'category'
+          ? { target: { type: 'trip', tripId: tripId! } }
+          : {
+              target: {
+                type: 'category',
+                categoryId: originalCategoryIds.includes(viaCategoryId ?? '')
+                  ? viaCategoryId!
+                  : originalCategoryIds[0],
+              },
+            },
+    );
+  const remove = () => {
+    if (!id || pending || savedTarget) return;
+    const run = () =>
+      void task.run(async () => {
+        if (!deleted) {
+          const operation =
+            kind === 'trip'
+              ? actions.deleteTrip
+              : kind === 'category'
+                ? actions.deleteCategory
+                : actions.deleteStamp;
+          await operation(userId!, id);
+          setDeleted(true);
+        }
+        await finishDeletion();
+      });
+    if (deleted) {
+      run();
+      return;
+    }
+    Alert.alert(
+      `${labels[kind]}を永久に削除しますか？`,
+      {
+        trip: 'この旅行のカテゴリー・スタンプと、付属するすべての投稿（ゴミ箱内・アップロード中を含む）が永久に削除されます。復元できません。',
+        category:
+          'このカテゴリーだけに属するスタンプと、付属するすべての投稿（ゴミ箱内・アップロード中を含む）が永久に削除されます。復元できません。別のカテゴリーにも属するスタンプと投稿は残ります。',
+        stamp:
+          'すべてのカテゴリーからこのスタンプを削除し、付属するすべての投稿（ゴミ箱内・アップロード中を含む）も永久に削除します。復元できません。',
+      }[kind],
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: '永久に削除', style: 'destructive', onPress: run },
+      ],
+    );
+  };
   const save = () => {
+    if (deleted) {
+      void task.run(finishDeletion);
+      return;
+    }
     if (coverPicking) return;
     void task
       .run(async () => {
@@ -186,6 +244,7 @@ export function EntityForm({
       error={task.error}
       onSave={save}
       disabled={
+        !deleted &&
         !savedTarget &&
         ((newTrip && useTemplate && !templates.ready) ||
           (kind === 'stamp' &&
@@ -194,15 +253,17 @@ export function EntityForm({
               !!categories.error)))
       }
       saveLabel={
-        coverPicking
-          ? '画像を準備中…'
-          : pending && cover.message
-            ? cover.message
-            : savedTarget
-              ? '保存した画面を開く'
-              : id
-                ? '変更を保存'
-                : '作成する'
+        deleted
+          ? '一覧に戻る'
+          : coverPicking
+            ? '画像を準備中…'
+            : pending && cover.message
+              ? cover.message
+              : savedTarget
+                ? '保存した画面を開く'
+                : id
+                  ? '変更を保存'
+                  : '作成する'
       }
     >
       {parentLabel ? <AppText tone="primary">{parentLabel}</AppText> : null}
@@ -210,7 +271,7 @@ export function EntityForm({
         label={`${labels[kind]}の名前`}
         value={values.name}
         onChangeText={(name) => setValues((v) => ({ ...v, name }))}
-        disabled={pending || !!savedTarget}
+        disabled={pending || deleted || !!savedTarget}
         hint="1〜100文字"
         hideLabel={kind === 'trip'}
       />
@@ -235,19 +296,19 @@ export function EntityForm({
           <DateField
             value={{ startDate: values.startDate, endDate: values.endDate }}
             onChange={(range) => setValues((v) => ({ ...v, ...range }))}
-            disabled={pending || !!savedTarget}
+            disabled={pending || deleted || !!savedTarget}
           />
           <LocationsField
             values={values.locations}
             onChange={(locations) => setValues((v) => ({ ...v, locations }))}
-            disabled={pending || !!savedTarget}
+            disabled={pending || deleted || !!savedTarget}
           />
           {newTrip ? (
             <ActivitiesField
               templates={templates}
               selected={activityPresets}
               custom={customActivities}
-              disabled={pending || !!savedTarget}
+              disabled={pending || deleted || !!savedTarget}
               onChange={setActivityPresets}
               onCustomChange={setCustomActivities}
             />
@@ -258,14 +319,14 @@ export function EntityForm({
             onSelect={cover.select}
             onRemove={cover.remove}
             onPendingChange={setCoverPicking}
-            disabled={pending || !!savedTarget}
+            disabled={pending || deleted || !!savedTarget}
           />
           {newTrip ? (
             <TemplateCandidatesField
               templates={templates}
               useTemplate={useTemplate}
               onUseTemplateChange={setUseTemplate}
-              disabled={pending || !!savedTarget}
+              disabled={pending || deleted || !!savedTarget}
             />
           ) : null}
         </>
@@ -277,10 +338,18 @@ export function EntityForm({
             setValues((v) => ({ ...v, description }))
           }
           multiline
-          disabled={pending || !!savedTarget}
+          disabled={pending || deleted || !!savedTarget}
           hint="2,000文字以内"
         />
       )}
+      {id && !savedTarget ? (
+        <Button
+          label={deleted ? '一覧に戻る' : `${labels[kind]}を削除`}
+          variant="danger"
+          onPress={remove}
+          disabled={pending}
+        />
+      ) : null}
     </FormPage>
   );
 }

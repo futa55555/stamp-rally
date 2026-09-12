@@ -3,6 +3,10 @@ import { act, create } from 'react-test-renderer';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { EntityForm } from './EntityForm';
 const native = vi.hoisted(() => ({
+  alert: vi.fn(),
+  deleteTrip: vi.fn(),
+  deleteCategory: vi.fn(),
+  deleteStamp: vi.fn(),
   createTrip: vi.fn(),
   finish: vi.fn(),
   prepare: vi.fn(),
@@ -13,10 +17,15 @@ const native = vi.hoisted(() => ({
   updateStamp: vi.fn(),
   categories: vi.fn(),
 }));
+vi.mock('react-native', () => ({ Alert: { alert: native.alert } }));
+vi.mock('../../../shared/ui/Button', () => ({ Button: 'Button' }));
 vi.mock('../../../features/app-data/AppDataProvider', () => ({
   useData: () => ({
     userId: 'viewer',
     actions: {
+      deleteTrip: native.deleteTrip,
+      deleteCategory: native.deleteCategory,
+      deleteStamp: native.deleteStamp,
       createTrip: native.createTrip,
       updateTrip: native.updateTrip,
       createStamp: native.createStamp,
@@ -562,3 +571,81 @@ it('validates custom activities before upload and retries an all-off creation wi
     warning.mockRestore();
   }
 });
+
+it.each(['trip', 'category', 'stamp'] as const)(
+  'confirms irreversible %s deletion and retries navigation without repeating deletion',
+  async (kind) => {
+    const warning = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const operation =
+      kind === 'trip'
+        ? native.deleteTrip
+        : kind === 'category'
+          ? native.deleteCategory
+          : native.deleteStamp;
+    operation
+      .mockReset()
+      .mockRejectedValueOnce(new Error('削除失敗'))
+      .mockResolvedValue(undefined);
+    native.alert.mockReset();
+    native.finish
+      .mockReset()
+      .mockRejectedValueOnce(new Error('遷移失敗'))
+      .mockResolvedValue(undefined);
+    let view!: ReturnType<typeof create>;
+    try {
+      await act(async () => {
+        view = create(
+          createElement(EntityForm, {
+            kind,
+            id: 'entity',
+            tripId: 'trip',
+            viaCategoryId: 'category',
+            initial: {
+              name: '名前',
+              description: '',
+              startDate: '2026-09-09',
+              endDate: '2026-09-10',
+              coverImageUrl: null,
+              locations: [],
+              categoryIds: ['category'],
+            },
+            parentLabel: '',
+          }),
+        );
+      });
+      const remove = () =>
+        view.root.findByType('Button' as never).props.onPress();
+      await act(async () => remove());
+      expect(operation).not.toHaveBeenCalled();
+      expect(native.alert.mock.calls[0][1]).toContain('付属するすべての投稿');
+      expect(native.alert.mock.calls[0][1]).toContain('復元できません');
+      await act(async () => native.alert.mock.calls[0][2][1].onPress());
+      expect(view.root.findByType('FormPage' as never).props.error).toBe(
+        '削除失敗',
+      );
+      expect(native.finish).not.toHaveBeenCalled();
+      await act(async () => remove());
+      await act(async () => native.alert.mock.calls[1][2][1].onPress());
+      expect(view.root.findByType('FormPage' as never).props.error).toBe(
+        '遷移失敗',
+      );
+      await act(async () =>
+        view.root.findByType('FormPage' as never).props.onSave(),
+      );
+      expect(operation).toHaveBeenCalledTimes(2);
+      expect(native.finish).toHaveBeenLastCalledWith(
+        kind === 'trip'
+          ? { tripList: true }
+          : {
+              target:
+                kind === 'category'
+                  ? { type: 'trip', tripId: 'trip' }
+                  : { type: 'category', categoryId: 'category' },
+            },
+      );
+    } finally {
+      if (view) await act(async () => view.unmount());
+      warning.mockRestore();
+    }
+  },
+);

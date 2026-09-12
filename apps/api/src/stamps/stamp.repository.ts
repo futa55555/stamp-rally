@@ -1,7 +1,8 @@
 import { activeStamp, visiblePost } from '../database/active-records.js';
 import { notifyMembers } from '../notifications/notify.js';
 import { serializable } from '../database/transaction.js';
-import { Injectable } from '@nestjs/common';
+import { requireTripMember } from '../trips/trip-access.service.js';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 import {
   paginate,
@@ -40,6 +41,7 @@ export class StampRepository {
 
   async create(input: CreateStampDto, userId: string): Promise<Stamp> {
     return serializable(this.prisma, async (tx) => {
+      await requireTripMember(tx, userId, input.tripId);
       await requireStampCategories(tx, input.tripId, input.categoryIds);
       const row = await tx.stamp.create({
         data: {
@@ -102,10 +104,12 @@ export class StampRepository {
     userId: string,
   ): Promise<Stamp> {
     return serializable(this.prisma, async (tx) => {
-      const current = await tx.stamp.findUniqueOrThrow({
+      const current = await tx.stamp.findUnique({
         where: { id, ...activeStamp },
         include: completion,
       });
+      if (!current) throw new NotFoundException('Stamp not found');
+      await requireTripMember(tx, userId, current.tripId);
       if (input.categoryIds)
         await requireStampCategories(tx, current.tripId, input.categoryIds);
       const membershipChanged =

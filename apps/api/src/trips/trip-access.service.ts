@@ -17,11 +17,7 @@ export class TripAccessService {
     tripId: string,
     tx: Prisma.TransactionClient = this.prisma,
   ): Promise<void> {
-    const member = await tx.tripMember.findUnique({
-      where: { tripId_userId: { tripId, userId }, trip: { deletedAt: null } },
-      select: { id: true },
-    });
-    if (!member) throw new NotFoundException('Trip not found');
+    return requireTripMember(tx, userId, tripId);
   }
 
   async requireCategory(
@@ -78,4 +74,16 @@ export class TripAccessService {
       stampId: post.stampId,
     };
   }
+}
+
+export async function requireTripMember(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  tripId: string,
+): Promise<void> {
+  const member = await tx.tripMember.findUnique({
+    where: { tripId_userId: { tripId, userId }, trip: { deletedAt: null } },
+    select: { id: true },
+  });
+  if (!member) throw new NotFoundException('Trip not found');
 }

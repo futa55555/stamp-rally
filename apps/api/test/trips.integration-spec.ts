@@ -78,6 +78,189 @@ describe('Trip API integration', () => {
   const storage = new TestObjectStorage();
   const queue = new TestMediaQueue();
 
+  it('deletes categories without losing shared stamps and permanently purges orphaned media including trash', async () => {
+    const { trip, category, stamp } = await tree();
+    await join(trip.id);
+    const other = await http('post', '/categories', owner, {
+      tripId: trip.id,
+      name: '共有先',
+    });
+    const shared = await http('post', '/stamps', owner, {
+      tripId: trip.id,
+      categoryIds: [category.id, other.id],
+      name: '共有',
+    });
+    const lost = await publish(owner, { ...mediaInput, stampId: stamp.id });
+    const kept = await publish(owner, { ...mediaInput, stampId: shared.id });
+    await http('delete', `/posts/${lost.id}`, owner, undefined, 204);
+    await http(
+      'delete',
+      `/categories/${category.id}`,
+      outsider,
+      undefined,
+      404,
+    );
+    await http('delete', `/categories/${category.id}`, member, undefined, 204);
+    await http('delete', `/categories/${category.id}`, member, undefined, 204);
+    expect(
+      await prisma.category.findUnique({ where: { id: category.id } }),
+    ).toMatchObject({ deletedAt: expect.any(Date) });
+    expect(
+      await prisma.stamp.findUnique({ where: { id: stamp.id } }),
+    ).toMatchObject({ deletedAt: expect.any(Date) });
+    expect(
+      await prisma.post.findUnique({ where: { id: lost.id } }),
+    ).toMatchObject({ purgedAt: expect.any(Date) });
+    await http('post', `/posts/${lost.id}/restore`, member, undefined, 404);
+    expect(await get(`/stamps/${shared.id}`, member)).toMatchObject({
+      categoryIds: [other.id],
+      isCompleted: true,
+    });
+    expect(await get(`/posts/${kept.id}`, member)).toMatchObject({
+      id: kept.id,
+    });
+    expect((await get<Page>('/posts/trash', member)).items).toEqual([]);
+    expect(storage.deleted).toEqual([]);
+    await http('delete', `/stamps/${shared.id}`, member, undefined, 204);
+    expect(
+      await prisma.post.findUnique({ where: { id: kept.id } }),
+    ).toMatchObject({ purgedAt: expect.any(Date) });
+    expect(await get(`/categories/${other.id}`, member)).toMatchObject({
+      totalStampCount: 0,
+    });
+  });
+
+  it('deletes a trip atomically with its cover, invitations, ready media and pending multipart uploads', async () => {
+    const { trip, category, stamp } = await tree();
+    await join(trip.id);
+    const coverId = await cover();
+    await http('patch', `/trips/${trip.id}`, owner, { coverAssetId: coverId });
+    const coverRow = await prisma.coverAsset.findUniqueOrThrow({
+      where: { id: coverId },
+    });
+    const invitation = await apply(trip.id, outsider);
+    const ready = await publish(member, { ...mediaInput, stampId: stamp.id });
+    const batch = await http<{ uploads: { id: string }[] }>(
+      'post',
+      '/uploads/batches',
+      owner,
+      {
+        stampId: stamp.id,
+        clientRequestId: randomUUID(),
+        files: [
+          {
+            clientId: randomUUID(),
+            fileName: 'video.mp4',
+            mimeType: 'video/mp4',
+            byteSize: 100,
+            mediaType: 'VIDEO',
+          },
+        ],
+      },
+    );
+    const pending = await prisma.post.findUniqueOrThrow({
+      where: { id: batch.uploads[0].id },
+    });
+    await http('delete', `/trips/${trip.id}`, outsider, undefined, 404);
+    await http('delete', `/trips/${trip.id}`, member, undefined, 204);
+    for (const path of [
+      `/trips/${trip.id}`,
+      `/categories/${category.id}`,
+      `/stamps/${stamp.id}`,
+      `/posts/${ready.id}`,
+    ])
+      await http('get', path, member, undefined, 404);
+    expect(
+      await prisma.trip.findUnique({ where: { id: trip.id } }),
+    ).toMatchObject({ deletedAt: expect.any(Date), coverAssetId: null });
+    expect(
+      await prisma.post.findMany({ where: { stampId: stamp.id } }),
+    ).toHaveLength(2);
+    expect(
+      await prisma.post.count({ where: { stampId: stamp.id, purgedAt: null } }),
+    ).toBe(0);
+    expect(
+      await prisma.mediaCleanup.findFirst({
+        where: { multipartUploadId: pending.multipartUploadId },
+      }),
+    ).toMatchObject({ multipartKey: pending.stagingKey });
+    expect(
+      await prisma.mediaCleanup.findFirst({
+        where: { keys: { has: coverRow.imageKey! } },
+      }),
+    ).not.toBeNull();
+    expect(
+      await prisma.tripInvitation.findUnique({ where: { id: invitation.id } }),
+    ).toMatchObject({ status: 'CANCELLED' });
+    expect(
+      await prisma.invitationLink.count({
+        where: { tripId: trip.id, revokedAt: null },
+      }),
+    ).toBe(0);
+    await http(
+      'post',
+      `/invitations/${invitation.id}/confirm`,
+      owner,
+      { generation: invitation.generation },
+      404,
+    );
+    await http(
+      'post',
+      '/categories',
+      owner,
+      { tripId: trip.id, name: '復活しない' },
+      404,
+    );
+    await http('post', `/uploads/${pending.id}/complete`, owner, {}, 404);
+    await http('delete', `/trips/${trip.id}`, member, undefined, 204);
+  });
+
+  it('does not republish media if a stamp is deleted during encoding', async () => {
+    const { trip, stamp } = await tree();
+    await join(trip.id);
+    const post = await publish(owner, { ...mediaInput, stampId: stamp.id });
+    const row = await prisma.post.update({
+      where: { id: post.id },
+      data: {
+        status: 'PROCESSING',
+        processingAttempts: 0,
+        processingStartedAt: null,
+        stagingKey: 'test-inflight',
+        processingVersion: { increment: 1 },
+      },
+    });
+    storage.objects.set('test-inflight', {
+      byteSize: 100,
+      contentType: 'image/jpeg',
+    });
+    const processor = app.get(MediaProcessor);
+    const original = processor.process.bind(processor);
+    const spy = vi
+      .spyOn(processor, 'process')
+      .mockImplementationOnce(async (input) => {
+        const result = await original(input);
+        await http('delete', `/stamps/${stamp.id}`, member, undefined, 204);
+        return result;
+      });
+    try {
+      await lifecycle.process(post.id, row.processingVersion);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(
+      await prisma.post.findUnique({ where: { id: post.id } }),
+    ).toMatchObject({ purgedAt: expect.any(Date), status: 'PROCESSING' });
+    expect(
+      await prisma.mediaCleanup.findFirst({
+        where: {
+          keys: { has: `media/${post.id}/${row.processingVersion}/original` },
+        },
+      }),
+    ).not.toBeNull();
+    expect((await get<Page>('/notifications', member)).items).toEqual([]);
+    await http('get', `/posts/${post.id}`, owner, undefined, 404);
+  });
+
   it('retains recoverable R2 files and retries permanent cleanup while preserving DB tombstones', async () => {
     const { stamp } = await tree();
     const expired = await publish(owner, {

@@ -41,7 +41,7 @@ export function EntityEditorScreen({ kind }: { kind: EntityKind }) {
       kind={kind}
       id={id}
       tripId={
-        kind === 'stamp'
+        kind === 'stamp' || (kind === 'category' && !!id)
           ? (query.data as Category | Stamp | undefined)?.tripId
           : tripId
       }
