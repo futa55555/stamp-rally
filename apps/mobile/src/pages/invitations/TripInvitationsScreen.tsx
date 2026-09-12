@@ -9,8 +9,6 @@ import {
 } from '../../features/invitations/hooks';
 import {
   canShareInvitation,
-  invitationScheme,
-  publicInvitationLinksEnabled,
   publicInvitationOrigin,
 } from '../../features/invitations/runtime';
 import { invitationUrl } from '../../features/invitations/links';
@@ -40,11 +38,7 @@ export function TripInvitationsScreen() {
     Share.share({
       message:
         '旅行への招待です。参加を申請してください。\n' +
-        invitationUrl(
-          token,
-          invitationScheme,
-          publicInvitationLinksEnabled ? publicInvitationOrigin : null,
-        ),
+        invitationUrl(token, publicInvitationOrigin),
     });
   if (query.isPending || query.error) return <QueryState query={query} />;
   return (

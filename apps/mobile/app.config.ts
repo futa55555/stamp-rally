@@ -35,19 +35,23 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   let invitationHost: string | undefined;
   if (invitationOrigin) {
     const url = new URL(invitationOrigin);
+    const localHttp =
+      variant === 'local' &&
+      url.protocol === 'http:' &&
+      ['localhost', '127.0.0.1'].includes(url.hostname);
     if (
-      url.protocol !== 'https:' ||
+      (!localHttp && (url.protocol !== 'https:' || url.port)) ||
       url.username ||
       url.password ||
-      url.port ||
       url.pathname !== '/' ||
       url.search ||
       url.hash
     )
       throw new Error(
-        'EXPO_PUBLIC_INVITATION_ORIGIN must be an HTTPS origin without a path',
+        'EXPO_PUBLIC_INVITATION_ORIGIN must be an HTTPS origin without a path (local builds also allow HTTP localhost or 127.0.0.1)',
       );
-    invitationHost = url.hostname;
+    // HTTP localhost is for Web testing; only HTTPS hosts get app associations.
+    if (url.protocol === 'https:') invitationHost = url.hostname;
   }
 
   // EAS reads this config before fetching server-side environment variables.

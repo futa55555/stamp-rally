@@ -35,7 +35,12 @@ function setRemoteEnvironment(
 }
 
 beforeEach(() => {
-  for (const key of ['APP_VARIANT', 'APPLE_TEAM_ID', ...requiredKeys]) {
+  for (const key of [
+    'APP_VARIANT',
+    'APPLE_TEAM_ID',
+    'EXPO_PUBLIC_INVITATION_ORIGIN',
+    ...requiredKeys,
+  ]) {
     vi.stubEnv(key, undefined);
   }
 });
@@ -174,21 +179,42 @@ describe('Invitation link app associations', () => {
       expect(config.extra?.appVariant).toBe(variant);
     },
   );
-  it('keeps public sharing disabled until a domain is configured and verifies the flag', () => {
+  it('allows an unconfigured origin with no app associations', () => {
     setRemoteEnvironment('production');
     vi.stubEnv('EXPO_PUBLIC_INVITATION_ORIGIN', '');
-    vi.stubEnv('EXPO_PUBLIC_INVITATION_LINKS_ENABLED', 'true');
-    expect(() => validateRemoteEnvironment()).toThrow(
-      'EXPO_PUBLIC_INVITATION_ORIGIN',
-    );
-    vi.stubEnv('EXPO_PUBLIC_INVITATION_LINKS_ENABLED', 'false');
     expect(() => validateRemoteEnvironment()).not.toThrow();
     expect(configure(context).ios?.associatedDomains).toEqual([]);
+    expect(configure(context).android?.intentFilters).toEqual([]);
   });
+  it.each(['http://localhost:5173', 'http://127.0.0.1:5173'])(
+    'allows %s for local Web testing without native app associations',
+    (origin) => {
+      vi.stubEnv('APP_VARIANT', 'local');
+      vi.stubEnv('EXPO_PUBLIC_INVITATION_ORIGIN', origin);
+      const config = configure(context);
+      expect(config.ios?.associatedDomains).toEqual([]);
+      expect(config.android?.intentFilters).toEqual([]);
+    },
+  );
+  it.each(['development', 'staging', 'production'] as const)(
+    'requires HTTPS for a configured origin in %s',
+    (variant) => {
+      setRemoteEnvironment(variant);
+      for (const origin of ['http://localhost:5173', 'http://127.0.0.1:5173']) {
+        vi.stubEnv('EXPO_PUBLIC_INVITATION_ORIGIN', origin);
+        expect(() => configure(context)).toThrow('HTTPS origin');
+        expect(() => validateRemoteEnvironment()).toThrow('HTTPS origin');
+      }
+      vi.stubEnv('EXPO_PUBLIC_INVITATION_ORIGIN', 'https://invite.example.com');
+      expect(() => validateRemoteEnvironment()).not.toThrow();
+    },
+  );
   it.each([
     'http://example.com',
     'https://example.com/invite',
     'https://user@example.com',
+    'http://localhost:5173/invite',
+    'http://localhost.evil.test:5173',
   ])('rejects an invalid origin %s', (origin) => {
     vi.stubEnv('EXPO_PUBLIC_INVITATION_ORIGIN', origin);
     expect(() => configure(context)).toThrow('HTTPS origin');
