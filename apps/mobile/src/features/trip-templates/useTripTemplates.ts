@@ -15,6 +15,7 @@ export function useTripTemplates(
   enabled: boolean,
   locations: string[],
   activityPresets: string[],
+  previewEnabled = true,
 ) {
   const { client, userId } = useData();
   const [presets, setPresets] = useState<TemplatePresets | null>(null);
@@ -58,7 +59,7 @@ export function useTripTemplates(
   }, [client, enabled, userId, presetsAttempt]);
 
   useEffect(() => {
-    if (!enabled || !userId) return;
+    if (!enabled || !previewEnabled || !userId) return;
     const input = JSON.parse(inputKey) as {
       locations: string[];
       activityPresets: string[];
@@ -99,7 +100,7 @@ export function useTripTemplates(
       clearTimeout(timer);
       controller.abort();
     };
-  }, [client, enabled, inputKey, userId, attempt]);
+  }, [client, enabled, previewEnabled, inputKey, userId, attempt]);
 
   const error = failure?.key === inputKey ? failure.message : null;
   const hasInput =
@@ -135,8 +136,8 @@ export function useTripTemplates(
         selection: {
           ...previous.selection,
           ...Object.fromEntries(
-            category.stamps.map(({ title }) => [
-              stampSelectionKey(category.name, title),
+            category.stamps.map(({ key, title }) => [
+              stampSelectionKey(category.key ?? category.name, key ?? title),
               checked,
             ]),
           ),
