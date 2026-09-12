@@ -72,6 +72,15 @@ export function createActions(
     locations: input.locations,
     startDate: input.startDate,
     endDate: input.endDate,
+    ...(input.activityPresets !== undefined
+      ? { activityPresets: input.activityPresets }
+      : {}),
+    ...(input.customActivities !== undefined
+      ? { customActivities: input.customActivities }
+      : {}),
+    ...(input.templateEdit !== undefined
+      ? { templateEdit: input.templateEdit }
+      : {}),
     ...(input.coverAssetId !== undefined
       ? { coverAssetId: input.coverAssetId }
       : {}),

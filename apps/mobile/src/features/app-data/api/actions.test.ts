@@ -133,7 +133,7 @@ describe('API mutations', () => {
     expect(cache.getQueryCache().getAll()).toEqual([]);
     cache.clear();
   });
-  it('sends activity and template selections on create while keeping trip updates unchanged', async () => {
+  it('sends activity metadata and confirmed template edits when updating trips', async () => {
     const { actions, request, cache } = setup();
     const input = {
       name: '旅行',
@@ -151,7 +151,14 @@ describe('API mutations', () => {
       url: '/trips',
       data: input,
     });
-    await actions.updateTrip('viewer', 'trip', input);
+    const templateEdit = {
+      clientRequestId: 'edit-request',
+      changes: [
+        { categoryRef: 'category', stampRef: 'stamp', selected: false },
+      ],
+      confirmationToken: 'confirmed',
+    };
+    await actions.updateTrip('viewer', 'trip', { ...input, templateEdit });
     expect(request).toHaveBeenLastCalledWith({
       method: 'PATCH',
       url: '/trips/trip',
@@ -160,6 +167,9 @@ describe('API mutations', () => {
         startDate: '2026-09-09',
         endDate: '2026-09-10',
         locations: ['沖縄'],
+        activityPresets: ['海'],
+        customActivities: ['星空を見る'],
+        templateEdit,
       },
     });
     cache.clear();

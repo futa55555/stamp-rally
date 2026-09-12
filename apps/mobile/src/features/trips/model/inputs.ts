@@ -1,10 +1,17 @@
+import type { SaveTemplateEdit } from '../../trip-templates/edit-types';
 import type { Category, Trip } from './types';
 import type { SelectedCategory } from '../../trip-templates/types';
 
 export type TripInput = Pick<
   Trip,
   'name' | 'locations' | 'startDate' | 'endDate'
-> & { clientRequestId?: string; coverAssetId?: string | null };
+> & {
+  clientRequestId?: string;
+  coverAssetId?: string | null;
+  activityPresets?: string[];
+  customActivities?: string[];
+  templateEdit?: SaveTemplateEdit;
+};
 
 export type CreateTripInput = TripInput & {
   activityPresets?: string[];

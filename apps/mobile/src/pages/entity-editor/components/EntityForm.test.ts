@@ -11,6 +11,8 @@ const native = vi.hoisted(() => ({
   finish: vi.fn(),
   prepare: vi.fn(),
   templates: vi.fn(),
+  editTemplates: vi.fn(),
+  prepareEdit: vi.fn(),
   guard: vi.fn(),
   updateTrip: vi.fn(),
   createStamp: vi.fn(),
@@ -41,6 +43,13 @@ vi.mock('../../../features/editor/hooks/useEditorGuard', () => ({
 }));
 vi.mock('../../../features/trip-templates/useTripTemplates', () => ({
   useTripTemplates: (...args: unknown[]) => native.templates(...args),
+}));
+vi.mock('../../../features/trip-templates/useTripTemplateEdit', () => ({
+  useTripTemplateEdit: (...args: unknown[]) => native.editTemplates(...args),
+}));
+vi.mock('./EditTemplateFields', () => ({
+  EditTemplateFields: 'EditTemplateFields',
+  confirmTemplateEdit: vi.fn(),
 }));
 vi.mock('./TemplateFields', () => ({
   ActivitiesField: 'ActivitiesField',
@@ -73,6 +82,18 @@ vi.mock('../../../features/trip-covers/useCoverUpload', () => ({
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 beforeEach(() => {
+  native.prepareEdit.mockReset().mockResolvedValue({
+    clientRequestId: 'trip-create-request',
+    changes: [],
+    confirmationToken: 'confirmed',
+  });
+  native.editTemplates.mockReset().mockReturnValue({
+    ready: true,
+    categories: [],
+    dirty: false,
+    busy: false,
+    prepare: native.prepareEdit,
+  });
   native.categories.mockReset().mockReturnValue({
     data: [],
     isPending: false,
@@ -355,7 +376,7 @@ it('preserves activity input and selections across cover failures and can skip a
   }
 });
 
-it('sends only checked candidates and keeps template controls out of existing trip edits', async () => {
+it('sends only checked candidates when creating and loads editable templates for existing trips', async () => {
   const warning = vi.spyOn(console, 'error').mockImplementation(() => {});
   native.prepare.mockReset().mockResolvedValue({});
   native.createTrip.mockReset().mockResolvedValue({ id: 'created' });
@@ -409,7 +430,10 @@ it('sends only checked candidates and keeps template controls out of existing tr
         }),
       );
     });
-    expect(view.root.findAllByType('ActivitiesField' as never)).toHaveLength(0);
+    expect(view.root.findAllByType('ActivitiesField' as never)).toHaveLength(1);
+    expect(view.root.findAllByType('EditTemplateFields' as never)).toHaveLength(
+      1,
+    );
     expect(
       view.root.findAllByType('TemplateCandidatesField' as never),
     ).toHaveLength(0);
@@ -421,12 +445,11 @@ it('sends only checked candidates and keeps template controls out of existing tr
       'existing',
       expect.not.objectContaining({ selectedCategories: expect.anything() }),
     );
-    expect(native.updateTrip.mock.calls[0][2]).not.toHaveProperty(
-      'activityPresets',
-    );
-    expect(native.updateTrip.mock.calls[0][2]).not.toHaveProperty(
-      'customActivities',
-    );
+    expect(native.updateTrip.mock.calls[0][2]).toMatchObject({
+      activityPresets: [],
+      customActivities: [],
+      templateEdit: { changes: [], confirmationToken: 'confirmed' },
+    });
   } finally {
     if (view) await act(async () => view.unmount());
     warning.mockRestore();
@@ -649,3 +672,73 @@ it.each(['trip', 'category', 'stamp'] as const)(
     }
   },
 );
+
+it('edits saved activities and locations atomically, preserving the draft after conflict and cancelling without writes', async () => {
+  const warning = vi.spyOn(console, 'error').mockImplementation(() => {});
+  native.prepare.mockReset().mockResolvedValue({});
+  native.updateTrip
+    .mockReset()
+    .mockRejectedValueOnce(new Error('削除対象が変わりました'))
+    .mockResolvedValue({ id: 'trip' });
+  native.finish.mockReset().mockResolvedValue(undefined);
+  const initial = {
+    name: '旅行',
+    description: '',
+    startDate: '2026-09-09',
+    endDate: '2026-09-10',
+    locations: ['沖縄'],
+    activityPresets: ['海'],
+    customActivities: ['友達に会う'],
+    coverImageUrl: null,
+  };
+  let view!: ReturnType<typeof create>;
+  try {
+    await act(async () => {
+      view = create(
+        createElement(EntityForm, {
+          kind: 'trip',
+          id: 'trip',
+          initial,
+          parentLabel: '',
+        }),
+      );
+    });
+    const activities = () => view.root.findByType('ActivitiesField' as never);
+    const form = () => view.root.findByType('FormPage' as never);
+    expect(activities().props.selected).toEqual(['海']);
+    expect(activities().props.custom).toEqual(['友達に会う']);
+    await act(async () => {
+      activities().props.onChange(['夜景']);
+      activities().props.onCustomChange(['友達と夕食']);
+      view.root.findByType('LocationsField' as never).props.onChange(['大阪']);
+    });
+    expect(native.guard).toHaveBeenLastCalledWith(true, false);
+    native.prepareEdit.mockResolvedValueOnce(null);
+    await act(async () => form().props.onSave());
+    expect(native.updateTrip).not.toHaveBeenCalled();
+    expect(native.prepare).not.toHaveBeenCalled();
+    await act(async () => form().props.onSave());
+    expect(form().props.error).toContain('削除対象が変わりました');
+    expect(activities().props.selected).toEqual(['夜景']);
+    expect(native.finish).not.toHaveBeenCalled();
+    await act(async () => form().props.onSave());
+    expect(native.updateTrip).toHaveBeenLastCalledWith(
+      'viewer',
+      'trip',
+      expect.objectContaining({
+        locations: ['大阪'],
+        activityPresets: ['夜景'],
+        customActivities: ['友達と夕食'],
+        templateEdit: {
+          changes: [],
+          clientRequestId: 'trip-create-request',
+          confirmationToken: 'confirmed',
+        },
+      }),
+    );
+    expect(native.finish).toHaveBeenCalledTimes(1);
+  } finally {
+    if (view) await act(async () => view.unmount());
+    warning.mockRestore();
+  }
+});
