@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import appConfig from '../../../app.json';
@@ -14,6 +15,7 @@ import { SectionHeading } from '../../shared/ui/SectionHeading';
 import { NameEditModal } from './components/NameEditModal';
 
 export function SettingsScreen() {
+  const router = useRouter();
   const { user, userId, actions } = useData();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
@@ -65,6 +67,15 @@ export function SettingsScreen() {
               {notice}
             </AppText>
           ) : null}
+        </View>
+        <View className="gap-3">
+          <SectionHeading title="写真・動画" />
+          <ListRow
+            title="ゴミ箱"
+            subtitle="旅行ごとに確認・復元"
+            icon="trash-can-outline"
+            onPress={() => router.push('/settings/trash')}
+          />
         </View>
         <View className="gap-3">
           <SectionHeading title="アプリについて" />

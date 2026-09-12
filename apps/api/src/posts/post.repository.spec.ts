@@ -1,10 +1,11 @@
+import { memberPost } from '../database/active-records.js';
 import { NotFoundException } from '@nestjs/common';
 import type { PrismaService } from '../database/prisma.service.js';
 import type { ObjectStorageService } from '../storage/object-storage.service.js';
 import { PostRepository } from './post.repository.js';
 
 function setup() {
-  const post = { deleteMany: vi.fn(), findFirst: vi.fn() };
+  const post = { update: vi.fn(), findFirst: vi.fn() };
   const photoRead = { upsert: vi.fn() };
   const storage = { signGet: vi.fn() };
   const prisma = {
@@ -24,21 +25,35 @@ function setup() {
 }
 
 describe('Post repository publication boundaries', () => {
-  it('deletes only READY posts and leaves unpublished uploads to their owner-only endpoint', async () => {
+  it('trashes only accessible READY posts and does not extend an existing deadline', async () => {
     const context = setup();
-    context.post.deleteMany
-      .mockResolvedValueOnce({ count: 0 })
-      .mockResolvedValueOnce({ count: 1 });
-    await expect(context.repository.delete('pending')).rejects.toBeInstanceOf(
-      NotFoundException,
+    context.post.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ deletedAt: null })
+      .mockResolvedValueOnce({ deletedAt: new Date(0) });
+    await expect(
+      context.repository.delete('pending', 'member'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(context.post.update).not.toHaveBeenCalled();
+    await context.repository.delete('ready', 'member');
+    expect(context.post.update).toHaveBeenCalledExactlyOnceWith({
+      where: { id: 'ready' },
+      data: { deletedAt: expect.any(Date) },
+    });
+    await context.repository.delete('ready', 'member');
+    expect(context.post.update).toHaveBeenCalledTimes(1);
+    expect(context.post.findFirst).toHaveBeenCalledWith({
+      where: { ...memberPost('member'), id: 'ready', deletedAt: undefined },
+    });
+  });
+
+  it('rejects expired restoration even before the cleanup worker runs', async () => {
+    const context = setup();
+    context.post.findFirst.mockResolvedValue({ deletedAt: new Date(0) });
+    await expect(context.repository.restore('post', 'member')).rejects.toThrow(
+      '30日間',
     );
-    expect(context.post.deleteMany).toHaveBeenCalledWith({
-      where: { id: 'pending', status: 'READY' },
-    });
-    await expect(context.repository.delete('ready')).resolves.toBeUndefined();
-    expect(context.post.deleteMany).toHaveBeenCalledWith({
-      where: { id: 'ready', status: 'READY' },
-    });
+    expect(context.post.update).not.toHaveBeenCalled();
   });
 
   it('checks current membership and READY status before issuing original download URLs', async () => {
@@ -50,8 +65,7 @@ describe('Post repository publication boundaries', () => {
     expect(context.post.findFirst).toHaveBeenCalledWith({
       where: {
         id: 'post',
-        status: 'READY',
-        stamp: { trip: { members: { some: { userId: 'user' } } } },
+        ...memberPost('user'),
       },
     });
     expect(context.storage.signGet).not.toHaveBeenCalled();

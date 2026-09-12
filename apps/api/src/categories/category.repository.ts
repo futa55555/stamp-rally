@@ -1,3 +1,4 @@
+import { activeCategory } from '../database/active-records.js';
 import { notifyMembers } from '../notifications/notify.js';
 import { serializable } from '../database/transaction.js';
 import { Injectable } from '@nestjs/common';
@@ -50,7 +51,9 @@ export class CategoryRepository {
   }
 
   async findById(id: string, userId: string): Promise<Category | null> {
-    const row = await this.prisma.category.findUnique({ where: { id } });
+    const row = await this.prisma.category.findUnique({
+      where: { id, ...activeCategory },
+    });
     if (!row) return null;
     const progress = await this.progress([id], userId);
     return this.toDomain(row, progress.get(id));
@@ -58,7 +61,11 @@ export class CategoryRepository {
 
   async findAll(query: ListCategoriesDto, userId: string) {
     const rows = await this.prisma.category.findMany({
-      where: { tripId: query.tripId, ...paginationWhere(query, 'asc') },
+      where: {
+        ...activeCategory,
+        tripId: query.tripId,
+        ...paginationWhere(query, 'asc'),
+      },
       orderBy: paginationOrder('asc'),
       take: query.limit + 1,
     });
@@ -78,14 +85,16 @@ export class CategoryRepository {
     userId: string,
   ): Promise<Category> {
     return serializable(this.prisma, async (tx) => {
-      const current = await tx.category.findUniqueOrThrow({ where: { id } });
+      const current = await tx.category.findUniqueOrThrow({
+        where: { id, ...activeCategory },
+      });
       const changed =
         (input.name !== undefined && input.name !== current.name) ||
         (input.description !== undefined &&
           input.description !== current.description);
       const row = changed
         ? await tx.category.update({
-            where: { id },
+            where: { id, ...activeCategory },
             data: { name: input.name, description: input.description },
           })
         : current;
@@ -112,21 +121,21 @@ export class CategoryRepository {
     const rows = await tx.$queryRaw<CategoryProgress[]>(Prisma.sql`
       SELECT g.id, COUNT(s.id)::int AS "totalStampCount",
         COUNT(s.id) FILTER (
-          WHERE EXISTS (SELECT 1 FROM posts p WHERE p.stamp_id = s.id AND p.status = 'READY')
+          WHERE EXISTS (SELECT 1 FROM posts p WHERE p.stamp_id = s.id AND p.status = 'READY' AND p.deleted_at IS NULL AND p.purged_at IS NULL)
         )::int AS "completedStampCount",
         EXISTS (
-          SELECT 1 FROM stamp_categories us JOIN posts p ON p.stamp_id = us.stamp_id
-          WHERE us.category_id = g.id AND p.status = 'READY' AND p.author_id <> ${userId}::uuid
+          SELECT 1 FROM stamp_categories us JOIN stamps ust ON ust.id = us.stamp_id AND ust.deleted_at IS NULL JOIN posts p ON p.stamp_id = us.stamp_id
+          WHERE us.category_id = g.id AND p.status = 'READY' AND p.deleted_at IS NULL AND p.purged_at IS NULL AND p.author_id <> ${userId}::uuid
           AND NOT EXISTS (SELECT 1 FROM photo_reads r WHERE r.post_id = p.id AND r.user_id = ${userId}::uuid)
         ) AS "hasUnreadMedia",
         EXISTS (
-          SELECT 1 FROM stamp_categories us JOIN posts p ON p.stamp_id = us.stamp_id
-          WHERE us.category_id = g.id AND p.status = 'READY' AND p.media_type = 'IMAGE' AND p.author_id <> ${userId}::uuid
+          SELECT 1 FROM stamp_categories us JOIN stamps ust ON ust.id = us.stamp_id AND ust.deleted_at IS NULL JOIN posts p ON p.stamp_id = us.stamp_id
+          WHERE us.category_id = g.id AND p.status = 'READY' AND p.deleted_at IS NULL AND p.purged_at IS NULL AND p.media_type = 'IMAGE' AND p.author_id <> ${userId}::uuid
           AND NOT EXISTS (SELECT 1 FROM photo_reads r WHERE r.post_id = p.id AND r.user_id = ${userId}::uuid)
         ) AS "hasUnreadPhotos"
       FROM categories g LEFT JOIN stamp_categories sg ON sg.category_id = g.id
-      LEFT JOIN stamps s ON s.id = sg.stamp_id
-      WHERE g.id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
+      LEFT JOIN stamps s ON s.id = sg.stamp_id AND s.deleted_at IS NULL
+      WHERE g.deleted_at IS NULL AND g.id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
       GROUP BY g.id
     `);
     return new Map(rows.map((row) => [row.id, row]));

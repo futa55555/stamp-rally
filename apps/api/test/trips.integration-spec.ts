@@ -78,6 +78,286 @@ describe('Trip API integration', () => {
   const storage = new TestObjectStorage();
   const queue = new TestMediaQueue();
 
+  it('retains recoverable R2 files and retries permanent cleanup while preserving DB tombstones', async () => {
+    const { stamp } = await tree();
+    const expired = await publish(owner, {
+      ...mediaInput,
+      stampId: stamp.id,
+      mediaType: 'VIDEO',
+    });
+    const kept = await publish(owner, { ...mediaInput, stampId: stamp.id });
+    for (const post of [expired, kept])
+      await http('delete', `/posts/${post.id}`, owner, undefined, 204);
+    const original = await prisma.post.findUniqueOrThrow({
+      where: { id: expired.id },
+    });
+    const keptRow = await prisma.post.findUniqueOrThrow({
+      where: { id: kept.id },
+    });
+    await prisma.post.update({
+      where: { id: expired.id },
+      data: { deletedAt: new Date(Date.now() - 30 * 86400000) },
+    });
+    await lifecycle.cleanup();
+    expect(
+      await prisma.post.findUnique({ where: { id: expired.id } }),
+    ).toMatchObject({
+      purgedAt: expect.any(Date),
+      originalKey: original.originalKey,
+    });
+    expect(
+      await prisma.post.findUnique({ where: { id: kept.id } }),
+    ).toMatchObject({ purgedAt: null });
+    const cleanup = await prisma.mediaCleanup.findFirstOrThrow({
+      where: { keys: { has: original.originalKey! } },
+    });
+    expect(cleanup.createdAt.getTime()).toBeGreaterThan(Date.now());
+    expect(storage.deleted).not.toContain(original.originalKey);
+    await prisma.mediaCleanup.update({
+      where: { id: cleanup.id },
+      data: { createdAt: new Date(0) },
+    });
+    const failure = vi
+      .spyOn(storage, 'delete')
+      .mockRejectedValueOnce(new Error('R2 unavailable'));
+    await lifecycle.cleanup();
+    expect(
+      await prisma.mediaCleanup.findUnique({ where: { id: cleanup.id } }),
+    ).not.toBeNull();
+    await lifecycle.cleanup();
+    failure.mockRestore();
+    expect(
+      await prisma.mediaCleanup.findUnique({ where: { id: cleanup.id } }),
+    ).toBeNull();
+    expect(storage.deleted).toEqual(
+      expect.arrayContaining([
+        original.originalKey,
+        original.smallKey,
+        original.largeKey,
+        original.playbackKey,
+      ]),
+    );
+    expect(storage.deleted).not.toContain(keptRow.originalKey);
+    expect(
+      await prisma.post.findUnique({ where: { id: expired.id } }),
+    ).not.toBeNull();
+    await http('post', `/posts/${kept.id}/restore`, owner, undefined, 200);
+    await http('post', `/posts/${expired.id}/restore`, owner, undefined, 404);
+  });
+
+  it('rolls back expiration when the durable media cleanup cannot be recorded', async () => {
+    const { stamp } = await tree();
+    const post = await publish(owner, { ...mediaInput, stampId: stamp.id });
+    await prisma.post.update({
+      where: { id: post.id },
+      data: { deletedAt: new Date(Date.now() - 31 * 86400000) },
+    });
+    await prisma.$executeRawUnsafe(
+      "CREATE FUNCTION reject_purge_cleanup() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'cleanup unavailable'; END; $$ LANGUAGE plpgsql",
+    );
+    await prisma.$executeRawUnsafe(
+      'CREATE TRIGGER reject_purge_cleanup BEFORE INSERT ON media_cleanup FOR EACH ROW EXECUTE FUNCTION reject_purge_cleanup()',
+    );
+    try {
+      await expect(lifecycle.cleanup()).rejects.toThrow();
+      expect(
+        await prisma.post.findUnique({ where: { id: post.id } }),
+      ).toMatchObject({ purgedAt: null });
+    } finally {
+      await prisma.$executeRawUnsafe(
+        'DROP TRIGGER reject_purge_cleanup ON media_cleanup',
+      );
+      await prisma.$executeRawUnsafe('DROP FUNCTION reject_purge_cleanup()');
+    }
+    await lifecycle.cleanup();
+    expect(
+      await prisma.post.findUnique({ where: { id: post.id } }),
+    ).toMatchObject({ purgedAt: expect.any(Date) });
+  });
+
+  it.each(['IMAGE', 'VIDEO'])(
+    'restores %s with its original identity, favorite and read history',
+    async (mediaType) => {
+      const { trip, stamp } = await tree();
+      await join(trip.id);
+      const post = await publish(owner, {
+        stampId: stamp.id,
+        ...mediaInput,
+        mediaType,
+      });
+      await http('patch', `/posts/${post.id}/favorite`, member, {
+        isFavorite: true,
+      });
+      const read = await http('patch', `/posts/${post.id}/read`, member);
+      await http('delete', `/posts/${post.id}`, member, undefined, 204);
+      const deleted = await prisma.post.findUniqueOrThrow({
+        where: { id: post.id },
+      });
+      await http('delete', `/posts/${post.id}`, owner, undefined, 204);
+      expect(
+        (await prisma.post.findUniqueOrThrow({ where: { id: post.id } }))
+          .deletedAt,
+      ).toEqual(deleted.deletedAt);
+      const trash = await get<
+        Page<
+          Resource & {
+            expiresAt: string;
+            trip: { id: string };
+            stampName: string;
+          }
+        >
+      >('/posts/trash', member);
+      expect(trash.items[0]).toMatchObject({
+        id: post.id,
+        trip: { id: trip.id },
+        stampName: stamp.name,
+      });
+      expect(
+        new Date(trash.items[0].expiresAt).getTime() -
+          deleted.deletedAt!.getTime(),
+      ).toBe(30 * 86400000);
+      await http('get', `/posts/trash/${post.id}`, outsider, undefined, 404);
+      await http('post', `/posts/${post.id}/restore`, outsider, undefined, 404);
+      expect((await get<Page>('/posts/trash', outsider)).items).toEqual([]);
+      const results = await Promise.all([
+        http('post', `/posts/${post.id}/restore`, member, undefined, 200),
+        http('post', `/posts/${post.id}/restore`, owner, undefined, 200),
+      ]);
+      expect(results[0]).toMatchObject({
+        id: post.id,
+        isFavorite: true,
+        readAt: read.readAt,
+      });
+      expect((await get<Page>('/posts/trash', member)).items).toEqual([]);
+      expect(await get(`/stamps/${stamp.id}`, owner)).toMatchObject({
+        isCompleted: true,
+      });
+      expect(
+        await prisma.notification.count({ where: { postId: post.id } }),
+      ).toBe(1);
+    },
+  );
+
+  it('paginates trash contiguously by trip and rejects expired or inaccessible restoration', async () => {
+    const first = await tree(),
+      second = await tree();
+    const posts: Resource[] = [];
+    for (const stamp of [first.stamp, second.stamp, first.stamp]) {
+      const post = await publish(owner, { ...mediaInput, stampId: stamp.id });
+      await http('delete', `/posts/${post.id}`, owner, undefined, 204);
+      posts.push(post);
+    }
+    const seen: Resource[] = [];
+    let cursor: string | null = null;
+    do {
+      const page: Page = await get<Page>('/posts/trash', owner, {
+        limit: 1,
+        ...(cursor ? { cursor } : {}),
+      });
+      seen.push(...page.items);
+      cursor = page.nextCursor;
+    } while (cursor);
+    expect(seen.map((p) => p.id)).toEqual([
+      posts[1].id,
+      posts[2].id,
+      posts[0].id,
+    ]);
+    await prisma.post.update({
+      where: { id: posts[0].id },
+      data: { deletedAt: new Date(Date.now() - 30 * 86400000) },
+    });
+    await http('post', `/posts/${posts[0].id}/restore`, owner, undefined, 410);
+    await prisma.stamp.update({
+      where: { id: second.stamp.id },
+      data: { deletedAt: new Date() },
+    });
+    await http('post', `/posts/${posts[1].id}/restore`, owner, undefined, 404);
+    expect(
+      (await get<Page>('/posts/trash', owner)).items.map((p) => p.id),
+    ).toEqual([posts[2].id]);
+    await http('get', '/posts/trash?cursor=invalid', owner, undefined, 400);
+  });
+
+  it('hides soft-deleted posts and ancestors from reads, counts, favorites and notifications', async () => {
+    const { trip, category, stamp } = await tree();
+    await join(trip.id);
+    const post = await publish(member, { stampId: stamp.id, ...mediaInput });
+    await http('patch', `/posts/${post.id}/favorite`, owner, {
+      isFavorite: true,
+    });
+    await prisma.post.update({
+      where: { id: post.id },
+      data: { deletedAt: new Date() },
+    });
+    expect(
+      (await get<Page>('/posts', owner, { tripId: trip.id })).items,
+    ).toEqual([]);
+    expect(await get(`/stamps/${stamp.id}`, owner)).toMatchObject({
+      photoCount: 0,
+      isCompleted: false,
+      hasUnreadPhotos: false,
+    });
+    expect(await get(`/categories/${category.id}`, owner)).toMatchObject({
+      completedStampCount: 0,
+    });
+    expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
+      completedCategoryCount: 0,
+    });
+    for (const suffix of ['', '/original'])
+      await request(app.getHttpServer())
+        .get(`/posts/${post.id}${suffix}`)
+        .auth(owner.accessToken, { type: 'bearer' })
+        .expect(404);
+    const notifications = await get<Page<{ target: { postId?: string } }>>(
+      '/notifications',
+      owner,
+    );
+    expect(notifications.items.some((n) => n.target.postId === post.id)).toBe(
+      false,
+    );
+    await prisma.post.update({
+      where: { id: post.id },
+      data: { deletedAt: null },
+    });
+    await prisma.stamp.update({
+      where: { id: stamp.id },
+      data: { deletedAt: new Date() },
+    });
+    expect(
+      (await get<Page>('/posts', owner, { tripId: trip.id })).items,
+    ).toEqual([]);
+    expect(await get(`/categories/${category.id}`, owner)).toMatchObject({
+      totalStampCount: 0,
+    });
+    await prisma.category.update({
+      where: { id: category.id },
+      data: { deletedAt: new Date() },
+    });
+    expect(
+      (await get<Page>('/categories', owner, { tripId: trip.id })).items,
+    ).toEqual([]);
+    const link = await http<{ token: string }>(
+      'post',
+      `/trips/${trip.id}/invitation-links`,
+      owner,
+      {},
+    );
+    await prisma.trip.update({
+      where: { id: trip.id },
+      data: { deletedAt: new Date() },
+    });
+    expect((await get<Page>('/trips', owner)).items).toEqual([]);
+    await request(app.getHttpServer())
+      .get(`/trips/${trip.id}`)
+      .auth(owner.accessToken, { type: 'bearer' })
+      .expect(404);
+    await request(app.getHttpServer())
+      .post('/public/invitation-links/status')
+      .send({ token: link.token })
+      .expect(200)
+      .expect(({ body }) => expect(body.status).toBe('NOT_FOUND'));
+  });
+
   it('shares progress, unread state and posts across memberships without duplicating trip media', async () => {
     const { trip, category, stamp } = await tree();
     await join(trip.id);
@@ -1524,7 +1804,7 @@ describe('Trip API integration', () => {
     }
   });
 
-  it('keeps photo reads per user, idempotent and separate from notifications; cascades deletion and progress', async () => {
+  it('keeps reads for restoration while excluding trashed photos from progress and notifications', async () => {
     const { trip, category, stamp } = await tree();
     await join(trip.id);
     const photo = await publish(owner, {
@@ -1581,8 +1861,9 @@ describe('Trip API integration', () => {
         .unreadCount,
     ).toBe(1);
     await http('delete', `/posts/${photo.id}`, member, undefined, 204);
-    expect(await prisma.photoRead.count()).toBe(0);
-    expect(await prisma.notification.count()).toBe(0);
+    expect(await prisma.photoRead.count()).toBe(1);
+    expect(await prisma.notification.count()).toBe(1);
+    expect((await get<Page>('/notifications', member)).items).toEqual([]);
     expect(await get(`/stamps/${stamp.id}`, owner)).toMatchObject({
       isCompleted: false,
       photoCount: 0,
@@ -1876,9 +2157,13 @@ describe('Trip API integration', () => {
     ).toBe(1);
     await http('delete', `/posts/${post.id}`, member, undefined, 204);
     await lifecycle.process(row.id, row.processingVersion);
-    expect(await prisma.post.findUnique({ where: { id: post.id } })).toBeNull();
-    expect(await prisma.mediaCleanup.count()).toBeGreaterThan(0);
-    expect(await prisma.notification.count()).toBe(0);
+    expect(
+      await prisma.post.findUnique({ where: { id: post.id } }),
+    ).toMatchObject({ deletedAt: expect.any(Date), purgedAt: null });
+    expect((await get<Page>('/notifications', member)).items).toEqual([]);
+    expect(
+      (await get<Page>('/posts/trash', member)).items.map((p) => p.id),
+    ).toEqual([post.id]);
   });
 
   it('keeps legacy media hidden and preserves identity, timestamps, favorites and reads through backfill', async () => {

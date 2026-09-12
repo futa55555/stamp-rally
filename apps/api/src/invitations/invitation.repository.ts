@@ -80,7 +80,7 @@ export class InvitationRepository {
   ) {
     if (
       !(await tx.tripMember.findUnique({
-        where: { tripId_userId: { tripId, userId } },
+        where: { tripId_userId: { tripId, userId }, trip: { deletedAt: null } },
       }))
     )
       throw new NotFoundException('旅行が見つかりません。');
@@ -149,7 +149,7 @@ export class InvitationRepository {
 
   private async findLink(tx: Prisma.TransactionClient, token: string) {
     const link = await tx.invitationLink.findUnique({
-      where: { tokenHash: tokenHash(token) },
+      where: { tokenHash: tokenHash(token), trip: { deletedAt: null } },
       include: linkInclude,
     });
     if (!link) throw new NotFoundException('招待リンクが見つかりません。');
@@ -159,7 +159,7 @@ export class InvitationRepository {
   async publicStatus(token: string) {
     const link = /^[A-Za-z0-9_-]{43}$/.test(token)
       ? await this.prisma.invitationLink.findUnique({
-          where: { tokenHash: tokenHash(token) },
+          where: { tokenHash: tokenHash(token), trip: { deletedAt: null } },
           select: { expiresAt: true, revokedAt: true },
         })
       : null;
@@ -218,7 +218,11 @@ export class InvitationRepository {
     userId: string,
   ) {
     const link = await tx.invitationLink.findFirst({
-      where: { id, notifications: { some: { recipientId: userId } } },
+      where: {
+        id,
+        trip: { deletedAt: null },
+        notifications: { some: { recipientId: userId } },
+      },
       include: linkInclude,
     });
     if (!link) throw new NotFoundException('招待が見つかりません。');
@@ -354,6 +358,7 @@ export class InvitationRepository {
     const invitation = await this.prisma.tripInvitation.findFirst({
       where: {
         id,
+        trip: { deletedAt: null },
         OR: [
           { inviteeId: userId },
           { trip: { members: { some: { userId } } } },
@@ -373,7 +378,7 @@ export class InvitationRepository {
   ) {
     return this.write(async (tx) => {
       const invitation = await tx.tripInvitation.findUnique({
-        where: { id },
+        where: { id, trip: { deletedAt: null } },
         include: invitationInclude,
       });
       const isMember =
@@ -475,7 +480,13 @@ export class InvitationRepository {
     query: PaginationQueryDto,
   ) {
     const rows = await this.prisma.tripInvitation.findMany({
-      where: { AND: [where, paginationWhere(query, 'desc')] },
+      where: {
+        AND: [
+          where,
+          { trip: { deletedAt: null } },
+          paginationWhere(query, 'desc'),
+        ],
+      },
       include: invitationInclude,
       orderBy: paginationOrder('desc'),
       take: query.limit + 1,

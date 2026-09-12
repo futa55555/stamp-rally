@@ -34,5 +34,6 @@ export interface DataService {
   createStamp(userId: string, input: CreateStampInput): Promise<Stamp>;
   updateStamp(userId: string, id: string, input: StampInput): Promise<Stamp>;
   createPosts(userId: string, input: CreatePostsInput): Promise<Post[]>;
+  restorePost(userId: string, postId: string): Promise<Post>;
   deletePost(userId: string, postId: string): Promise<void>;
 }

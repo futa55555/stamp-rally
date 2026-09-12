@@ -1,3 +1,4 @@
+import { activePost } from '../database/active-records.js';
 import {
   BadRequestException,
   ConflictException,
@@ -54,29 +55,32 @@ export class UploadsService {
     }
     let batchId: string;
     try {
-      const batch = await this.prisma.uploadBatch.create({
-        data: {
-          authorId: userId,
-          clientRequestId: dto.clientRequestId,
-          posts: {
-            create: dto.files.map((file) => {
-              const id = randomUUID();
-              return {
-                id,
-                stampId: dto.stampId,
-                authorId: userId,
-                clientId: file.clientId,
-                mediaType: file.mediaType,
-                fileName: file.fileName,
-                mimeType: file.mimeType,
-                byteSize: file.byteSize,
-                status: 'PENDING' as const,
-                stagingKey: `staging/${id}/${randomUUID()}`,
-                uploadExpiresAt: new Date(Date.now() + UPLOAD_LIFETIME_MS),
-              };
-            }),
+      const batch = await serializable(this.prisma, async (tx) => {
+        await this.access.requireStamp(userId, dto.stampId, tx);
+        return tx.uploadBatch.create({
+          data: {
+            authorId: userId,
+            clientRequestId: dto.clientRequestId,
+            posts: {
+              create: dto.files.map((file) => {
+                const id = randomUUID();
+                return {
+                  id,
+                  stampId: dto.stampId,
+                  authorId: userId,
+                  clientId: file.clientId,
+                  mediaType: file.mediaType,
+                  fileName: file.fileName,
+                  mimeType: file.mimeType,
+                  byteSize: file.byteSize,
+                  status: 'PENDING' as const,
+                  stagingKey: `staging/${id}/${randomUUID()}`,
+                  uploadExpiresAt: new Date(Date.now() + UPLOAD_LIFETIME_MS),
+                };
+              }),
+            },
           },
-        },
+        });
       });
       batchId = batch.id;
     } catch (error) {
@@ -104,7 +108,12 @@ export class UploadsService {
   async getBatch(userId: string, id: string) {
     const batch = await this.prisma.uploadBatch.findFirst({
       where: { id, authorId: userId },
-      include: { posts: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
+      include: {
+        posts: {
+          where: activePost,
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        },
+      },
     });
     if (!batch) throw new NotFoundException('Upload batch not found');
     // Removing a member also removes their access to pending uploads and URLs.
@@ -216,6 +225,7 @@ export class UploadsService {
     ) {
       await this.prisma.post.updateMany({
         where: {
+          ...activePost,
           id,
           status: 'PENDING',
           processingVersion: row.processingVersion,
@@ -228,6 +238,7 @@ export class UploadsService {
     }
     await this.prisma.post.updateMany({
       where: {
+        ...activePost,
         id,
         status: 'PENDING',
         processingVersion: row.processingVersion,
@@ -267,6 +278,7 @@ export class UploadsService {
     await serializable(this.prisma, async (tx) => {
       const changed = await tx.post.updateMany({
         where: {
+          ...activePost,
           id,
           status: row.status,
           processingVersion: row.processingVersion,
@@ -338,7 +350,12 @@ export class UploadsService {
 
   private async requireOwned(userId: string, id: string): Promise<Post> {
     const row = await this.prisma.post.findFirst({
-      where: { id, authorId: userId, uploadBatchId: { not: null } },
+      where: {
+        id,
+        authorId: userId,
+        uploadBatchId: { not: null },
+        ...activePost,
+      },
     });
     if (!row) throw new NotFoundException('Upload not found');
     await this.access.requireStamp(userId, row.stampId);
@@ -372,6 +389,7 @@ export class UploadsService {
     );
     const changed = await this.prisma.post.updateMany({
       where: {
+        ...activePost,
         id: row.id,
         status: 'PENDING',
         stagingKey: row.stagingKey,

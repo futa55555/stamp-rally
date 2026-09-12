@@ -174,7 +174,7 @@ function PhotoDetail({ postId, source, ...origin }: PhotoDetailParams) {
               if (!photo || !userId) return;
               Alert.alert(
                 `この${mediaLabel}を削除しますか？`,
-                '旅行の仲間の一覧とお気に入りからも削除されます。',
+                '旅行の仲間の一覧とお気に入りから非表示になります。設定のゴミ箱から30日間復元できます。',
                 [
                   { text: 'キャンセル', style: 'cancel' },
                   {

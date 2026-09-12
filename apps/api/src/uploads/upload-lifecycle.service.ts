@@ -1,3 +1,6 @@
+import { activePost } from '../database/active-records.js';
+import { purgePosts, MEDIA_DELETE_GRACE_MS } from '../deletions/purge-posts.js';
+import { TRASH_RETENTION_MS } from '../posts/trash-policy.js';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 import { serializable } from '../database/transaction.js';
@@ -29,7 +32,7 @@ export class UploadLifecycleService {
     // Prisma's @updatedAt applies to claims/failures too, so take the legacy
     // timestamp before the first transition and preserve it through every attempt.
     const beforeClaim = await this.prisma.post.findUnique({
-      where: { id: postId },
+      where: { id: postId, ...activePost },
       select: { isLegacy: true, updatedAt: true },
     });
     const legacyTimestamp = beforeClaim?.isLegacy
@@ -37,6 +40,7 @@ export class UploadLifecycleService {
       : {};
     const claimed = await this.prisma.post.updateMany({
       where: {
+        ...activePost,
         id: postId,
         status: 'PROCESSING',
         processingVersion: version,
@@ -60,6 +64,7 @@ export class UploadLifecycleService {
       // A hard kill during the final allowed attempt must also terminate eventually.
       await this.prisma.post.updateMany({
         where: {
+          ...activePost,
           id: postId,
           status: 'PROCESSING',
           processingVersion: version,
@@ -82,7 +87,9 @@ export class UploadLifecycleService {
       });
       return;
     }
-    const row = await this.prisma.post.findUnique({ where: { id: postId } });
+    const row = await this.prisma.post.findUnique({
+      where: { id: postId, ...activePost },
+    });
     if (
       !row ||
       row.status !== 'PROCESSING' ||
@@ -108,6 +115,7 @@ export class UploadLifecycleService {
       const published = await serializable(this.prisma, async (tx) => {
         const changed = await tx.post.updateMany({
           where: {
+            ...activePost,
             id: postId,
             status: 'PROCESSING',
             processingVersion: version,
@@ -144,7 +152,7 @@ export class UploadLifecycleService {
           });
         if (!row.isLegacy) {
           const current = await tx.post.findUniqueOrThrow({
-            where: { id: postId },
+            where: { id: postId, ...activePost },
             select: {
               author: { select: { name: true } },
               stamp: { select: { tripId: true } },
@@ -169,7 +177,12 @@ export class UploadLifecycleService {
       const retryable =
         code === 'PROCESSING_FAILED' && row.processingAttempts < 3;
       const changed = await this.prisma.post.updateMany({
-        where: { id: postId, status: 'PROCESSING', processingVersion: version },
+        where: {
+          ...activePost,
+          id: postId,
+          status: 'PROCESSING',
+          processingVersion: version,
+        },
         data: {
           status: retryable ? 'PROCESSING' : 'FAILED',
           processingStartedAt: null,
@@ -183,10 +196,13 @@ export class UploadLifecycleService {
   }
 
   async migrateLegacy(postId: string): Promise<void> {
-    const legacy = await this.prisma.post.findUnique({ where: { id: postId } });
+    const legacy = await this.prisma.post.findUnique({
+      where: { id: postId, ...activePost },
+    });
     if (!legacy?.isLegacy) return;
     await this.prisma.post.updateMany({
       where: {
+        ...activePost,
         id: postId,
         isLegacy: true,
         status: { in: ['LEGACY', 'FAILED'] },
@@ -200,17 +216,38 @@ export class UploadLifecycleService {
         updatedAt: legacy.updatedAt,
       },
     });
-    const row = await this.prisma.post.findUnique({ where: { id: postId } });
+    const row = await this.prisma.post.findUnique({
+      where: { id: postId, ...activePost },
+    });
     if (row?.isLegacy && row.status === 'PROCESSING')
       await this.process(row.id, row.processingVersion);
   }
 
   /** Durable reconciliation runs in the dedicated worker, independent of API requests. */
   async cleanup(): Promise<void> {
+    await serializable(this.prisma, async (tx) => {
+      const now = new Date();
+      const expired = await tx.post.findMany({
+        where: {
+          purgedAt: null,
+          deletedAt: { lte: new Date(now.getTime() - TRASH_RETENTION_MS) },
+        },
+        orderBy: [{ deletedAt: 'asc' }, { id: 'asc' }],
+        take: 100,
+        select: { id: true },
+      });
+      if (expired.length)
+        await purgePosts(
+          tx,
+          { id: { in: expired.map((post) => post.id) } },
+          now,
+        );
+    });
     // Queue-send and DB commits cannot be atomic across pg-boss and Prisma. PROCESSING
     // rows are the outbox, so a crash at any point in complete/retry is recoverable.
     const waiting = await this.prisma.post.findMany({
       where: {
+        ...activePost,
         status: 'PROCESSING',
         OR: [
           { processingStartedAt: null },
@@ -235,6 +272,7 @@ export class UploadLifecycleService {
     }
     const expired = await this.prisma.post.findMany({
       where: {
+        ...activePost,
         status: { in: ['PENDING', 'FAILED'] },
         isLegacy: false,
         uploadExpiresAt: { lt: new Date() },
@@ -246,6 +284,7 @@ export class UploadLifecycleService {
       await serializable(this.prisma, async (tx) => {
         const changed = await tx.post.updateMany({
           where: {
+            ...activePost,
             id: post.id,
             status: post.status,
             processingVersion: post.processingVersion,
@@ -281,6 +320,7 @@ export class UploadLifecycleService {
           );
         const referenced = await this.prisma.post.findMany({
           where: {
+            purgedAt: null,
             OR: [
               { originalKey: { in: entry.keys } },
               { largeKey: { in: entry.keys } },
@@ -342,6 +382,18 @@ export class UploadLifecycleService {
       const keys = old.map((item) => item.key);
       const referenced = await this.prisma.post.findMany({
         where: {
+          AND: [
+            {
+              OR: [
+                { purgedAt: null },
+                {
+                  purgedAt: {
+                    gt: new Date(Date.now() - MEDIA_DELETE_GRACE_MS),
+                  },
+                },
+              ],
+            },
+          ],
           OR: [
             { originalKey: { in: keys } },
             { largeKey: { in: keys } },

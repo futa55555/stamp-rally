@@ -1,3 +1,4 @@
+import { memberPost } from '../database/active-records.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 import {
@@ -51,11 +52,12 @@ export class NotificationsService {
 function notificationAccess(userId: string) {
   return {
     recipientId: userId,
+    trip: { deletedAt: null },
     OR: [
       {
         invitationId: null,
         invitationLinkId: null,
-        OR: [{ postId: null }, { post: { status: 'READY' as const } }],
+        OR: [{ postId: null }, { post: memberPost(userId) }],
         trip: { members: { some: { userId } } },
       },
       { invitationLinkId: { not: null } },

@@ -75,6 +75,7 @@ model Session {
 }
 
 model Trip {
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   id            String   @id @default(uuid()) @db.Uuid
   clientRequestId String? @map("client_request_id") @db.Uuid
   name          String   @db.VarChar(100)
@@ -170,6 +171,7 @@ model InvitationLink {
 }
 
 model Category {
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   id          String   @id @default(uuid()) @db.Uuid
   tripId      String   @map("trip_id") @db.Uuid
   name        String   @db.VarChar(100)
@@ -185,6 +187,7 @@ model Category {
 }
 
 model Stamp {
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   id          String   @id @default(uuid()) @db.Uuid
   tripId      String   @map("trip_id") @db.Uuid
   name        String   @db.VarChar(100)
@@ -276,6 +279,8 @@ model MediaCleanup {
 }
 
 model Post {
+  purgedAt DateTime? @map("purged_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   id         String    @id @default(uuid()) @db.Uuid
   stampId    String    @map("stamp_id") @db.Uuid
   authorId   String    @map("author_id") @db.Uuid
@@ -317,6 +322,7 @@ model Post {
 
   @@index([status, uploadExpiresAt])
   @@index([uploadBatchId])
+  @@index([deletedAt, id])
   @@index([stampId, status, createdAt, id])
   @@index([stampId, createdAt, id])
   @@index([stampId, isFavorite, createdAt, id])

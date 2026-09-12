@@ -1,3 +1,4 @@
+import { PaginationQueryDto } from '../common/pagination.js';
 import {
   Get,
   Delete,
@@ -44,6 +45,29 @@ export class PostsController {
   @Get()
   findAll(@Req() request: AuthenticatedRequest, @Query() query: ListPostsDto) {
     return this.postsService.findAll(request.auth.userId, query);
+  }
+
+  @Get('trash')
+  trash(
+    @Req() request: AuthenticatedRequest,
+    @Query() query: PaginationQueryDto,
+  ) {
+    return this.postsService.trash(request.auth.userId, query);
+  }
+  @Get('trash/:id')
+  trashDetail(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.postsService.trashDetail(request.auth.userId, id);
+  }
+  @Post(':id/restore')
+  @HttpCode(200)
+  restore(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.postsService.restore(request.auth.userId, id);
   }
 
   @Get(':id/original')

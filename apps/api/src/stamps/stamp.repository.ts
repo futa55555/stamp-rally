@@ -1,3 +1,4 @@
+import { activeStamp, visiblePost } from '../database/active-records.js';
 import { notifyMembers } from '../notifications/notify.js';
 import { serializable } from '../database/transaction.js';
 import { Injectable } from '@nestjs/common';
@@ -22,7 +23,7 @@ import {
 
 const completion = {
   categories: categoryMemberships,
-  posts: { where: { status: 'READY' as const }, take: 1, select: { id: true } },
+  posts: { where: visiblePost, take: 1, select: { id: true } },
 } as const;
 
 interface StampMediaStats {
@@ -65,7 +66,7 @@ export class StampRepository {
 
   async findById(id: string, userId: string): Promise<Stamp | null> {
     const row = await this.prisma.stamp.findUnique({
-      where: { id },
+      where: { id, ...activeStamp },
       include: completion,
     });
     const unread = await this.mediaStats([id], userId);
@@ -75,7 +76,10 @@ export class StampRepository {
   async findAll(query: ListStampsDto, userId: string) {
     const rows = await this.prisma.stamp.findMany({
       where: {
-        categories: { some: { categoryId: query.categoryId } },
+        ...activeStamp,
+        categories: {
+          some: { categoryId: query.categoryId, category: { deletedAt: null } },
+        },
         ...paginationWhere(query, 'asc'),
       },
       include: completion,
@@ -99,7 +103,7 @@ export class StampRepository {
   ): Promise<Stamp> {
     return serializable(this.prisma, async (tx) => {
       const current = await tx.stamp.findUniqueOrThrow({
-        where: { id },
+        where: { id, ...activeStamp },
         include: completion,
       });
       if (input.categoryIds)
@@ -117,7 +121,7 @@ export class StampRepository {
           input.description !== current.description);
       const row = changed
         ? await tx.stamp.update({
-            where: { id },
+            where: { id, ...activeStamp },
             data: {
               name: input.name,
               description: input.description,
@@ -164,7 +168,7 @@ export class StampRepository {
         BOOL_OR(p.author_id <> ${userId}::uuid AND r.post_id IS NULL) AS "hasUnreadMedia"
       FROM posts p
       LEFT JOIN photo_reads r ON r.post_id = p.id AND r.user_id = ${userId}::uuid
-      WHERE p.status = 'READY' AND p.stamp_id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
+      WHERE p.status = 'READY' AND p.deleted_at IS NULL AND p.purged_at IS NULL AND p.stamp_id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
       GROUP BY p.stamp_id
     `);
     return new Map(rows.map((row) => [row.id, row]));
