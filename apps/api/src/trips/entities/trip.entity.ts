@@ -39,8 +39,8 @@ export class Trip {
     public readonly createdById: string,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
-    public readonly totalGenreCount = 0,
-    public readonly completedGenreCount = 0,
+    public readonly totalCategoryCount = 0,
+    public readonly completedCategoryCount = 0,
     public locations: string[] = [],
     public coverAssetId: string | null = null,
     public readonly activityPresets: string[] = [],
@@ -49,8 +49,8 @@ export class Trip {
 
   get isCompleted(): boolean {
     return (
-      this.totalGenreCount > 0 &&
-      this.completedGenreCount === this.totalGenreCount
+      this.totalCategoryCount > 0 &&
+      this.completedCategoryCount === this.totalCategoryCount
     );
   }
 

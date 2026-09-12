@@ -37,7 +37,7 @@ describe('TripTemplatesController', () => {
       locations: [{ name: '沖縄県', aliases: ['沖縄'] }],
       activities: [{ name: '海' }],
     });
-    service.preview.mockReturnValue({ genres: [] });
+    service.preview.mockReturnValue({ categories: [] });
   });
 
   afterAll(async () => {
@@ -57,7 +57,7 @@ describe('TripTemplatesController', () => {
       .post('/trip-templates/preview')
       .set('Authorization', 'Bearer token')
       .send({ locations: [' 沖縄 ', ''], activityPresets: [' 海 ', ' '] })
-      .expect(200, { genres: [] });
+      .expect(200, { categories: [] });
     expect(service.preview).toHaveBeenCalledWith({
       locations: ['沖縄'],
       activityPresets: ['海'],
@@ -70,7 +70,7 @@ describe('TripTemplatesController', () => {
         .post('/trip-templates/preview')
         .set('Authorization', 'Bearer token')
         .send(body)
-        .expect(200, { genres: [] });
+        .expect(200, { categories: [] });
     }
   });
 

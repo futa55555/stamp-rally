@@ -77,7 +77,7 @@ describe('TripsController', () => {
         ...valid,
         activityPresets: [' 海 '],
         customActivities: [' 友達に会う '],
-        selectedGenres: [
+        selectedCategories: [
           { name: ' 景色 ', stamps: [{ title: ' 海辺を散歩する ' }] },
         ],
       })
@@ -87,7 +87,7 @@ describe('TripsController', () => {
       expect.objectContaining({
         activityPresets: ['海'],
         customActivities: ['友達に会う'],
-        selectedGenres: [
+        selectedCategories: [
           { name: '景色', stamps: [{ title: '海辺を散歩する' }] },
         ],
       }),
@@ -114,36 +114,38 @@ describe('TripsController', () => {
     { ...valid, customActivities: '自由入力' },
     { ...valid, customActivities: [true] },
     { ...valid, customActivities: ['あ'.repeat(101)] },
-    { ...valid, selectedGenres: null },
-    { ...valid, selectedGenres: {} },
-    { ...valid, selectedGenres: [null] },
-    { ...valid, selectedGenres: ['景色'] },
-    { ...valid, selectedGenres: [[]] },
-    { ...valid, selectedGenres: [{ name: '景色' }] },
-    { ...valid, selectedGenres: [{ name: '', stamps: [] }] },
-    { ...valid, selectedGenres: [{ name: 'あ'.repeat(101), stamps: [] }] },
-    { ...valid, selectedGenres: [{ name: '景色', stamps: null }] },
-    { ...valid, selectedGenres: [{ name: '景色', stamps: [null] }] },
-    { ...valid, selectedGenres: [{ name: '景色', stamps: ['散歩'] }] },
-    { ...valid, selectedGenres: [{ name: '景色', stamps: [[]] }] },
-    { ...valid, selectedGenres: [{ name: '景色', stamps: [{}] }] },
+    { ...valid, selectedCategories: null },
+    { ...valid, selectedCategories: {} },
+    { ...valid, selectedCategories: [null] },
+    { ...valid, selectedCategories: ['景色'] },
+    { ...valid, selectedCategories: [[]] },
+    { ...valid, selectedCategories: [{ name: '景色' }] },
+    { ...valid, selectedCategories: [{ name: '', stamps: [] }] },
+    { ...valid, selectedCategories: [{ name: 'あ'.repeat(101), stamps: [] }] },
+    { ...valid, selectedCategories: [{ name: '景色', stamps: null }] },
+    { ...valid, selectedCategories: [{ name: '景色', stamps: [null] }] },
+    { ...valid, selectedCategories: [{ name: '景色', stamps: ['散歩'] }] },
+    { ...valid, selectedCategories: [{ name: '景色', stamps: [[]] }] },
+    { ...valid, selectedCategories: [{ name: '景色', stamps: [{}] }] },
     {
       ...valid,
-      selectedGenres: [{ name: '景色', stamps: [{ title: ' ' }] }],
+      selectedCategories: [{ name: '景色', stamps: [{ title: ' ' }] }],
     },
     {
       ...valid,
-      selectedGenres: [{ name: '景色', stamps: [{ title: 'あ'.repeat(101) }] }],
+      selectedCategories: [
+        { name: '景色', stamps: [{ title: 'あ'.repeat(101) }] },
+      ],
     },
     {
       ...valid,
-      selectedGenres: [
+      selectedCategories: [
         { name: '景色', stamps: [{ title: '散歩', extra: true }] },
       ],
     },
     {
       ...valid,
-      selectedGenres: [{ name: '景色', stamps: [], extra: true }],
+      selectedCategories: [{ name: '景色', stamps: [], extra: true }],
     },
   ])('rejects invalid create payloads %o', async (body) => {
     await request(app.getHttpServer())
@@ -161,7 +163,7 @@ describe('TripsController', () => {
     { inviteeNames: ['友達'] },
     { activityPresets: ['海'] },
     { customActivities: ['友達に会う'] },
-    { selectedGenres: [] },
+    { selectedCategories: [] },
   ])('rejects invalid patch payloads %o', async (body) => {
     await request(app.getHttpServer())
       .patch('/trips/' + id)

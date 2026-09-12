@@ -4,7 +4,7 @@ export class Stamp {
   constructor(
     public readonly id: string,
     public readonly tripId: string,
-    public readonly genreIds: string[],
+    public readonly categoryIds: string[],
     public name: string,
     public description: string,
     public readonly createdAt: Date,

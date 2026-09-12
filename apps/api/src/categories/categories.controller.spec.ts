@@ -5,10 +5,10 @@ import { AuthTokenService } from '../auth/auth-token/auth-token.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth/jwt-auth.guard.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { ActiveUserGuard } from '../auth/active-user.guard.js';
-import { GenresController } from './genres.controller.js';
-import { GenresService } from './genres.service.js';
+import { CategoriesController } from './categories.controller.js';
+import { CategoriesService } from './categories.service.js';
 
-describe('GenresController', () => {
+describe('CategoriesController', () => {
   let app: INestApplication;
   const id = '31fc6c40-7810-4b31-9d59-8b7042479410';
   const valid = { tripId: id, name: '  名前  ' };
@@ -24,9 +24,9 @@ describe('GenresController', () => {
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      controllers: [GenresController],
+      controllers: [CategoriesController],
       providers: [
-        { provide: GenresService, useValue: service },
+        { provide: CategoriesService, useValue: service },
         { provide: AuthTokenService, useValue: tokens },
         { provide: PrismaService, useValue: prisma },
         JwtAuthGuard,
@@ -55,7 +55,7 @@ describe('GenresController', () => {
 
   it('authenticates the author and normalizes names', async () => {
     await request(app.getHttpServer())
-      .post('/genres')
+      .post('/categories')
       .set('Authorization', 'Bearer token')
       .send(valid)
       .expect(201);
@@ -75,7 +75,7 @@ describe('GenresController', () => {
     { tripId: id, name: '有効', extra: true },
   ])('rejects invalid create payloads %o', async (body) => {
     await request(app.getHttpServer())
-      .post('/genres')
+      .post('/categories')
       .set('Authorization', 'Bearer token')
       .send(body)
       .expect(400);
@@ -89,7 +89,7 @@ describe('GenresController', () => {
     { name: 'あ'.repeat(101) },
   ])('rejects invalid patch payloads %o', async (body) => {
     await request(app.getHttpServer())
-      .patch('/genres/' + id)
+      .patch('/categories/' + id)
       .set('Authorization', 'Bearer token')
       .send(body)
       .expect(400);
@@ -97,14 +97,17 @@ describe('GenresController', () => {
   });
 
   it('requires a valid JWT', async () => {
-    await request(app.getHttpServer()).post('/genres').send(valid).expect(401);
+    await request(app.getHttpServer())
+      .post('/categories')
+      .send(valid)
+      .expect(401);
     expect(service.create).not.toHaveBeenCalled();
   });
 
   it('requires completed onboarding', async () => {
     prisma.user.findUnique.mockResolvedValue({ status: 'ONBOARDING' });
     await request(app.getHttpServer())
-      .post('/genres')
+      .post('/categories')
       .set('Authorization', 'Bearer token')
       .send(valid)
       .expect(403);
@@ -113,7 +116,7 @@ describe('GenresController', () => {
 
   it('rejects invalid path UUIDs', async () => {
     await request(app.getHttpServer())
-      .get('/genres/invalid')
+      .get('/categories/invalid')
       .set('Authorization', 'Bearer token')
       .expect(400);
     expect(service.findOne).not.toHaveBeenCalled();
@@ -121,7 +124,7 @@ describe('GenresController', () => {
 
   it('provides pagination defaults and accepts an explicit limit', async () => {
     await request(app.getHttpServer())
-      .get('/genres')
+      .get('/categories')
       .query({ tripId: id })
       .set('Authorization', 'Bearer token')
       .expect(200);
@@ -130,7 +133,7 @@ describe('GenresController', () => {
       expect.objectContaining({ limit: 20 }),
     );
     await request(app.getHttpServer())
-      .get('/genres')
+      .get('/categories')
       .query({ tripId: id, limit: 2 })
       .set('Authorization', 'Bearer token')
       .expect(200);
@@ -144,7 +147,7 @@ describe('GenresController', () => {
     'rejects invalid page limits %s',
     async (limit) => {
       await request(app.getHttpServer())
-        .get('/genres')
+        .get('/categories')
         .query({ tripId: id, limit })
         .set('Authorization', 'Bearer token')
         .expect(400);
@@ -154,7 +157,7 @@ describe('GenresController', () => {
 
   it('requires the parent scope for listing', async () => {
     await request(app.getHttpServer())
-      .get('/genres')
+      .get('/categories')
       .set('Authorization', 'Bearer token')
       .expect(400);
     expect(service.findAll).not.toHaveBeenCalled();
@@ -162,7 +165,7 @@ describe('GenresController', () => {
 
   it('does not expose a delete route', async () => {
     await request(app.getHttpServer())
-      .delete('/genres/' + id)
+      .delete('/categories/' + id)
       .set('Authorization', 'Bearer token')
       .expect(404);
   });

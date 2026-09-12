@@ -94,7 +94,7 @@ model Trip {
   members       TripMember[]
   invitations   TripInvitation[]
   invitationLinks InvitationLink[]
-  genres        Genre[]
+  categories        Category[]
   stamps        Stamp[]
   notifications Notification[]
 
@@ -169,7 +169,7 @@ model InvitationLink {
   @@map("invitation_links")
 }
 
-model Genre {
+model Category {
   id          String   @id @default(uuid()) @db.Uuid
   tripId      String   @map("trip_id") @db.Uuid
   name        String   @db.VarChar(100)
@@ -178,10 +178,10 @@ model Genre {
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   trip   Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  stamps StampGenre[]
+  stamps StampCategory[]
 
   @@index([tripId, createdAt, id])
-  @@map("genres")
+  @@map("categories")
 }
 
 model Stamp {
@@ -193,22 +193,22 @@ model Stamp {
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  genres StampGenre[]
+  categories StampCategory[]
   posts Post[]
 
   @@index([tripId, createdAt, id])
   @@map("stamps")
 }
 
-model StampGenre {
+model StampCategory {
   stampId String @map("stamp_id") @db.Uuid
-  genreId String @map("genre_id") @db.Uuid
+  categoryId String @map("category_id") @db.Uuid
   stamp Stamp @relation(fields: [stampId], references: [id], onDelete: Cascade)
-  genre Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
-  @@id([stampId, genreId])
-  @@index([genreId, stampId])
-  @@map("stamp_genres")
+  @@id([stampId, categoryId])
+  @@index([categoryId, stampId])
+  @@map("stamp_categories")
 }
 
 enum MediaType {

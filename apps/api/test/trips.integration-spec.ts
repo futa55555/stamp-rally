@@ -36,13 +36,13 @@ interface Resource {
   description: string;
   isCompleted: boolean;
   tripId: string;
-  genreIds: string[];
+  categoryIds: string[];
   stampId: string;
   startDate: string;
   endDate: string;
   coverImageUrl: string | null;
-  totalGenreCount: number;
-  completedGenreCount: number;
+  totalCategoryCount: number;
+  completedCategoryCount: number;
   totalStampCount: number;
   completedStampCount: number;
   isFavorite: boolean;
@@ -79,33 +79,33 @@ describe('Trip API integration', () => {
   const queue = new TestMediaQueue();
 
   it('shares progress, unread state and posts across memberships without duplicating trip media', async () => {
-    const { trip, genre, stamp } = await tree();
+    const { trip, category, stamp } = await tree();
     await join(trip.id);
-    const second = await http('post', '/genres', owner, {
+    const second = await http('post', '/categories', owner, {
       tripId: trip.id,
       name: '思い出',
     });
     const shared = await http('patch', `/stamps/${stamp.id}`, member, {
-      genreIds: [second.id, genre.id],
+      categoryIds: [second.id, category.id],
     });
     const sorted = (
-      await get<Page>('/genres', owner, { tripId: trip.id })
+      await get<Page>('/categories', owner, { tripId: trip.id })
     ).items.map((g) => g.id);
-    expect(shared.genreIds).toEqual(sorted);
+    expect(shared.categoryIds).toEqual(sorted);
     expect(shared).toMatchObject({ id: stamp.id, tripId: trip.id });
     const post = await publish(member, { stampId: stamp.id, ...mediaInput });
-    for (const parent of [genre, second]) {
+    for (const parent of [category, second]) {
       expect(
-        (await get<Page>('/stamps', owner, { genreId: parent.id })).items.map(
-          (s) => s.id,
-        ),
+        (
+          await get<Page>('/stamps', owner, { categoryId: parent.id })
+        ).items.map((s) => s.id),
       ).toEqual([stamp.id]);
       expect(
-        (await get<Page>('/posts', owner, { genreId: parent.id })).items.map(
+        (await get<Page>('/posts', owner, { categoryId: parent.id })).items.map(
           (p) => p.id,
         ),
       ).toEqual([post.id]);
-      expect(await get(`/genres/${parent.id}`, owner)).toMatchObject({
+      expect(await get(`/categories/${parent.id}`, owner)).toMatchObject({
         totalStampCount: 1,
         completedStampCount: 1,
         isCompleted: true,
@@ -113,7 +113,7 @@ describe('Trip API integration', () => {
       });
     }
     expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
-      completedGenreCount: 2,
+      completedCategoryCount: 2,
       isCompleted: true,
     });
     await http('patch', `/posts/${post.id}/favorite`, owner, {
@@ -129,36 +129,36 @@ describe('Trip API integration', () => {
       ).items.map((p) => p.id),
     ).toEqual([post.id]);
     await http('patch', `/posts/${post.id}/read`, owner, {});
-    for (const parent of [genre, second])
-      expect(await get(`/genres/${parent.id}`, owner)).toMatchObject({
+    for (const parent of [category, second])
+      expect(await get(`/categories/${parent.id}`, owner)).toMatchObject({
         hasUnreadPhotos: false,
       });
 
     const before = await prisma.notification.count();
     await http('patch', `/stamps/${stamp.id}`, owner, {
-      genreIds: [...sorted].reverse(),
+      categoryIds: [...sorted].reverse(),
     });
     expect(await prisma.notification.count()).toBe(before);
     await http('patch', `/stamps/${stamp.id}`, owner, {
-      genreIds: [second.id],
+      categoryIds: [second.id],
     });
     expect(
-      (await get<Page>('/posts', owner, { genreId: genre.id })).items,
+      (await get<Page>('/posts', owner, { categoryId: category.id })).items,
     ).toEqual([]);
-    expect(await get(`/genres/${genre.id}`, owner)).toMatchObject({
+    expect(await get(`/categories/${category.id}`, owner)).toMatchObject({
       totalStampCount: 0,
       isCompleted: false,
     });
     expect(await get(`/posts/${post.id}`, owner)).toMatchObject({
       stampId: stamp.id,
-      genreIds: [second.id],
+      categoryIds: [second.id],
       isFavorite: true,
       readAt: expect.any(String),
     });
-    await http('patch', `/stamps/${stamp.id}`, owner, { genreIds: sorted });
+    await http('patch', `/stamps/${stamp.id}`, owner, { categoryIds: sorted });
     await http('delete', `/posts/${post.id}`, owner, undefined, 204);
-    for (const parent of [genre, second])
-      expect(await get(`/genres/${parent.id}`, owner)).toMatchObject({
+    for (const parent of [category, second])
+      expect(await get(`/categories/${parent.id}`, owner)).toMatchObject({
         completedStampCount: 0,
         isCompleted: false,
       });
@@ -168,31 +168,31 @@ describe('Trip API integration', () => {
   });
 
   it('validates membership atomically and keeps manually created names independent', async () => {
-    const { trip, genre, stamp } = await tree();
+    const { trip, category, stamp } = await tree();
     const other = await tree();
-    for (const genreIds of [
+    for (const categoryIds of [
       [],
-      [genre.id, genre.id],
-      [other.genre.id],
-      [genre.id, randomUUID()],
+      [category.id, category.id],
+      [other.category.id],
+      [category.id, randomUUID()],
     ]) {
       await http(
         'post',
         '/stamps',
         owner,
-        { tripId: trip.id, genreIds, name: '失敗' },
+        { tripId: trip.id, categoryIds, name: '失敗' },
         400,
       );
       await http(
         'patch',
         `/stamps/${stamp.id}`,
         owner,
-        { genreIds, name: '失敗' },
+        { categoryIds, name: '失敗' },
         400,
       );
       expect(await get(`/stamps/${stamp.id}`, owner)).toMatchObject({
         name: stamp.name,
-        genreIds: [genre.id],
+        categoryIds: [category.id],
       });
     }
     await http(
@@ -204,7 +204,7 @@ describe('Trip API integration', () => {
     );
     const duplicateName = await http('post', '/stamps', owner, {
       tripId: trip.id,
-      genreIds: [genre.id],
+      categoryIds: [category.id],
       name: stamp.name,
     });
     expect(duplicateName.id).not.toBe(stamp.id);
@@ -212,7 +212,7 @@ describe('Trip API integration', () => {
       'patch',
       `/stamps/${stamp.id}`,
       outsider,
-      { genreIds: [genre.id] },
+      { categoryIds: [category.id] },
       404,
     );
   });
@@ -221,7 +221,7 @@ describe('Trip API integration', () => {
     'creates one shared template stamp for %i selected memberships, including idempotent replay',
     async (count) => {
       const preview = await http<{
-        genres: { name: string; stamps: { title: string }[] }[];
+        categories: { name: string; stamps: { title: string }[] }[];
       }>(
         'post',
         '/trip-templates/preview',
@@ -232,7 +232,7 @@ describe('Trip API integration', () => {
       const input = {
         ...tripInput,
         activityPresets: ['夜景'],
-        selectedGenres: preview.genres
+        selectedCategories: preview.categories
           .slice(0, count)
           .map(({ name, stamps }) => ({
             name,
@@ -245,11 +245,11 @@ describe('Trip API integration', () => {
       expect(replay.id).toBe(trip.id);
       const stamps = await prisma.stamp.findMany({
         where: { tripId: trip.id },
-        include: { genres: true },
+        include: { categories: true },
       });
       expect(stamps).toHaveLength(count ? 1 : 0);
-      if (count) expect(stamps[0].genres).toHaveLength(count);
-      expect(trip.totalGenreCount).toBe(count);
+      if (count) expect(stamps[0].categories).toHaveLength(count);
+      expect(trip.totalCategoryCount).toBe(count);
     },
   );
 
@@ -370,16 +370,16 @@ describe('Trip API integration', () => {
 
   async function tree(who = owner) {
     const trip = await http('post', '/trips', who, tripInput);
-    const genre = await http('post', '/genres', who, {
+    const category = await http('post', '/categories', who, {
       tripId: trip.id,
       name: '  食事  ',
     });
     const stamp = await http('post', '/stamps', who, {
-      tripId: genre.tripId,
-      genreIds: [genre.id],
+      tripId: category.tripId,
+      categoryIds: [category.id],
       name: '  朝ごはん  ',
     });
-    return { trip, genre, stamp };
+    return { trip, category, stamp };
   }
 
   async function apply(tripId: string, invitee = member, inviter = owner) {
@@ -449,7 +449,7 @@ describe('Trip API integration', () => {
   describe('trip templates', () => {
     type Selection = { name: string; stamps: { title: string }[] }[];
     type Preview = {
-      genres: {
+      categories: {
         name: string;
         stamps: {
           title: string;
@@ -464,9 +464,9 @@ describe('Trip API integration', () => {
     const preview = (input: Input = templateInput) =>
       http<Preview>('post', '/trip-templates/preview', owner, input, 200);
     const selectAll = (result: Preview): Selection =>
-      result.genres.map((genre) => ({
-        name: genre.name,
-        stamps: genre.stamps.map(({ title }) => ({ title })),
+      result.categories.map((category) => ({
+        name: category.name,
+        stamps: category.stamps.map(({ title }) => ({ title })),
       }));
 
     it('lists presets and merges exact aliases with shared activity candidates without writing data', async () => {
@@ -484,7 +484,7 @@ describe('Trip API integration', () => {
       expect(
         await preview({ ...templateInput, locations: ['  沖縄県  '] }),
       ).toEqual(result);
-      const beach = result.genres
+      const beach = result.categories
         .find(({ name }) => name === '景色')!
         .stamps.filter(({ title }) => title === '海辺を散歩する');
       expect(beach).toHaveLength(1);
@@ -493,14 +493,14 @@ describe('Trip API integration', () => {
         { type: 'activity', name: '海' },
       ]);
       expect(await preview({ locations: ['那覇市', '沖縄旅行'] })).toEqual({
-        genres: [],
+        categories: [],
       });
       expect(await prisma.trip.count()).toBe(0);
     });
 
-    it('creates only selected stamps and deduplicates selections while omitting empty genres', async () => {
+    it('creates only selected stamps and deduplicates selections while omitting empty categories', async () => {
       const result = await preview();
-      const first = result.genres[0];
+      const first = result.categories[0];
       const selection = {
         name: first.name,
         stamps: [{ title: first.stamps[0].title }],
@@ -508,22 +508,24 @@ describe('Trip API integration', () => {
       const trip = await http('post', '/trips', owner, {
         ...tripInput,
         ...templateInput,
-        selectedGenres: [
+        selectedCategories: [
           { ...selection, stamps: [...selection.stamps, ...selection.stamps] },
           selection,
-          { name: result.genres[1].name, stamps: [] },
+          { name: result.categories[1].name, stamps: [] },
         ],
       });
-      expect(trip.totalGenreCount).toBe(1);
-      expect(trip.completedGenreCount).toBe(0);
-      const genres = await get<Page>('/genres', owner, { tripId: trip.id });
-      expect(genres.items).toHaveLength(1);
-      expect(genres.items[0]).toMatchObject({
+      expect(trip.totalCategoryCount).toBe(1);
+      expect(trip.completedCategoryCount).toBe(0);
+      const categories = await get<Page>('/categories', owner, {
+        tripId: trip.id,
+      });
+      expect(categories.items).toHaveLength(1);
+      expect(categories.items[0]).toMatchObject({
         name: first.name,
         totalStampCount: 1,
       });
       const stamps = await get<Page>('/stamps', owner, {
-        genreId: genres.items[0].id,
+        categoryId: categories.items[0].id,
       });
       expect(stamps.items).toHaveLength(1);
       expect(stamps.items[0]).toMatchObject({
@@ -535,21 +537,21 @@ describe('Trip API integration', () => {
 
     it.each([undefined, []])(
       'saves activity metadata and unmatched places with empty selection %j',
-      async (selectedGenres) => {
+      async (selectedCategories) => {
         const trip = await http('post', '/trips', owner, {
           ...tripInput,
           locations: ['  架空の街  ', '沖縄'],
           activityPresets: ['温泉'],
           customActivities: ['  海  ', '星を見る', ''],
-          ...(selectedGenres === undefined ? {} : { selectedGenres }),
+          ...(selectedCategories === undefined ? {} : { selectedCategories }),
         });
         expect(trip).toMatchObject({
           locations: ['架空の街', '沖縄'],
           activityPresets: ['温泉'],
           customActivities: ['海', '星を見る'],
-          totalGenreCount: 0,
+          totalCategoryCount: 0,
         });
-        expect(await prisma.genre.count()).toBe(0);
+        expect(await prisma.category.count()).toBe(0);
         expect(await prisma.stamp.count()).toBe(0);
         expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
           activityPresets: trip.activityPresets,
@@ -559,12 +561,12 @@ describe('Trip API integration', () => {
     );
 
     it('retains activities and existing children when editing trip metadata', async () => {
-      const selectedGenres = selectAll(await preview());
+      const selectedCategories = selectAll(await preview());
       const trip = await http('post', '/trips', owner, {
         ...tripInput,
         ...templateInput,
         customActivities: ['星を見る'],
-        selectedGenres,
+        selectedCategories,
       });
       const before = await prisma.stamp.findMany({ orderBy: { id: 'asc' } });
       const updated = await http('patch', `/trips/${trip.id}`, owner, {
@@ -576,7 +578,7 @@ describe('Trip API integration', () => {
         locations: ['北海道'],
         activityPresets: ['海'],
         customActivities: ['星を見る'],
-        totalGenreCount: selectedGenres.length,
+        totalCategoryCount: selectedCategories.length,
       });
       expect(await prisma.stamp.findMany({ orderBy: { id: 'asc' } })).toEqual(
         before,
@@ -584,12 +586,12 @@ describe('Trip API integration', () => {
     });
 
     it('creates one complete hierarchy and cover on concurrent requests and returns accurate replay counts', async () => {
-      const selectedGenres = selectAll(await preview());
+      const selectedCategories = selectAll(await preview());
       const coverAssetId = await cover();
       const input = {
         ...tripInput,
         ...templateInput,
-        selectedGenres,
+        selectedCategories,
         coverAssetId,
         clientRequestId: randomUUID(),
       };
@@ -601,23 +603,26 @@ describe('Trip API integration', () => {
       const replay = await http('post', '/trips', owner, {
         ...input,
         activityPresets: ['削除されたpreset'],
-        selectedGenres: [
-          { name: '削除されたgenre', stamps: [{ title: '古い候補' }] },
+        selectedCategories: [
+          { name: '削除されたcategory', stamps: [{ title: '古い候補' }] },
         ],
       });
       for (const trip of [created, concurrent, replay]) {
         expect(trip).toMatchObject({
           id: created.id,
           activityPresets: ['海'],
-          totalGenreCount: selectedGenres.length,
+          totalCategoryCount: selectedCategories.length,
           coverImageUrl: expect.stringContaining('https://media.example.test/'),
         });
       }
       expect(await prisma.trip.count()).toBe(1);
       expect(await prisma.tripMember.count()).toBe(1);
-      expect(await prisma.genre.count()).toBe(selectedGenres.length);
+      expect(await prisma.category.count()).toBe(selectedCategories.length);
       expect(await prisma.stamp.count()).toBe(
-        selectedGenres.reduce((count, genre) => count + genre.stamps.length, 0),
+        selectedCategories.reduce(
+          (count, category) => count + category.stamps.length,
+          0,
+        ),
       );
       expect(await prisma.coverAsset.count()).toBe(1);
     });
@@ -626,12 +631,15 @@ describe('Trip API integration', () => {
       for (const body of [
         { activityPresets: ['知らないpreset'] },
         {
-          selectedGenres: [
-            { name: '候補にないgenre', stamps: [{ title: '海辺を散歩する' }] },
+          selectedCategories: [
+            {
+              name: '候補にないcategory',
+              stamps: [{ title: '海辺を散歩する' }],
+            },
           ],
         },
         {
-          selectedGenres: [
+          selectedCategories: [
             { name: '景色', stamps: [{ title: '候補にないstamp' }] },
           ],
         },
@@ -645,17 +653,17 @@ describe('Trip API integration', () => {
         );
       }
       expect(await prisma.trip.count()).toBe(0);
-      expect(await prisma.genre.count()).toBe(0);
+      expect(await prisma.category.count()).toBe(0);
       expect(await prisma.stamp.count()).toBe(0);
     });
 
     it('rolls back the whole hierarchy if creating a stamp fails and allows retry with the same cover', async () => {
-      const selectedGenres = selectAll(await preview());
+      const selectedCategories = selectAll(await preview());
       const coverAssetId = await cover();
       const input = {
         ...tripInput,
         ...templateInput,
-        selectedGenres,
+        selectedCategories,
         coverAssetId,
         clientRequestId: randomUUID(),
       };
@@ -669,7 +677,7 @@ describe('Trip API integration', () => {
         await http('post', '/trips', owner, input, 500);
         expect(await prisma.trip.count()).toBe(0);
         expect(await prisma.tripMember.count()).toBe(0);
-        expect(await prisma.genre.count()).toBe(0);
+        expect(await prisma.category.count()).toBe(0);
         expect(await prisma.stamp.count()).toBe(0);
         expect(
           await prisma.coverAsset.findUnique({ where: { id: coverAssetId } }),
@@ -681,25 +689,25 @@ describe('Trip API integration', () => {
         await prisma.$executeRawUnsafe('DROP FUNCTION reject_template_stamp()');
       }
       const trip = await http('post', '/trips', owner, input);
-      expect(trip.totalGenreCount).toBe(selectedGenres.length);
+      expect(trip.totalCategoryCount).toBe(selectedCategories.length);
     });
   });
 
   it('creates a private hierarchy with date-only periods and empty defaults', async () => {
-    const { trip, genre, stamp } = await tree();
+    const { trip, category, stamp } = await tree();
 
     expect(trip).toMatchObject({
       name: '秋の旅',
       startDate: '2026-09-07',
       endDate: '2026-09-09',
       coverImageUrl: null,
-      totalGenreCount: 0,
-      completedGenreCount: 0,
+      totalCategoryCount: 0,
+      completedCategoryCount: 0,
       isCompleted: false,
       activityPresets: [],
       customActivities: [],
     });
-    expect(genre).toMatchObject({
+    expect(category).toMatchObject({
       name: '食事',
       description: '',
       tripId: trip.id,
@@ -710,8 +718,8 @@ describe('Trip API integration', () => {
     expect(stamp).toMatchObject({
       name: '朝ごはん',
       description: '',
-      tripId: genre.tripId,
-      genreIds: [genre.id],
+      tripId: category.tripId,
+      categoryIds: [category.id],
       isCompleted: false,
     });
     const members = await get<
@@ -741,13 +749,13 @@ describe('Trip API integration', () => {
     expect(await prisma.trip.count()).toBe(0);
     const trip = await http('post', '/trips', owner, tripInput);
     await apply(trip.id);
-    const genre = await http('post', '/genres', owner, {
+    const category = await http('post', '/categories', owner, {
       tripId: trip.id,
-      name: 'Genre',
+      name: 'Category',
     });
     const stamp = await http('post', '/stamps', owner, {
-      tripId: genre.tripId,
-      genreIds: [genre.id],
+      tripId: category.tripId,
+      categoryIds: [category.id],
       name: 'Stamp',
     });
     const pending = await get<
@@ -768,7 +776,7 @@ describe('Trip API integration', () => {
     expect((await get<Page>('/trips', member)).items).toEqual([]);
     for (const path of [
       `/trips/${trip.id}`,
-      `/genres/${genre.id}`,
+      `/categories/${category.id}`,
       `/stamps/${stamp.id}`,
       `/posts?stampId=${stamp.id}`,
     ]) {
@@ -795,14 +803,14 @@ describe('Trip API integration', () => {
   });
 
   it('lets accepted members edit the hierarchy, add content, and invite others', async () => {
-    const { trip, genre, stamp } = await tree();
+    const { trip, category, stamp } = await tree();
     await join(trip.id);
 
     await http('patch', `/trips/${trip.id}`, member, {
       name: '共同の旅',
       coverAssetId: await cover(member),
     });
-    await http('patch', `/genres/${genre.id}`, member, {
+    await http('patch', `/categories/${category.id}`, member, {
       name: 'ごはん',
       description: '説明',
     });
@@ -810,13 +818,13 @@ describe('Trip API integration', () => {
       name: '朝食',
       description: '朝に集合',
     });
-    const extraGenre = await http('post', '/genres', member, {
+    const extraCategory = await http('post', '/categories', member, {
       tripId: trip.id,
       name: '景色',
     });
     await http('post', '/stamps', member, {
-      tripId: extraGenre.tripId,
-      genreIds: [extraGenre.id],
+      tripId: extraCategory.tripId,
+      categoryIds: [extraCategory.id],
       name: '海',
     });
     await join(trip.id, outsider, member);
@@ -829,7 +837,7 @@ describe('Trip API integration', () => {
       name: '共同の旅',
       coverImageUrl: expect.stringContaining('https://media.example.test/'),
     });
-    expect(await get(`/genres/${genre.id}`, owner)).toMatchObject({
+    expect(await get(`/categories/${category.id}`, owner)).toMatchObject({
       name: 'ごはん',
       description: '説明',
     });
@@ -839,7 +847,7 @@ describe('Trip API integration', () => {
     });
     expect(post).toMatchObject({
       tripId: trip.id,
-      genreIds: [genre.id],
+      categoryIds: [category.id],
       stampId: stamp.id,
       isFavorite: false,
       author: { id: member.id, name: member.name },
@@ -856,20 +864,20 @@ describe('Trip API integration', () => {
 
   it('requires ACTIVE users on every domain route while retaining name-only onboarding', async () => {
     const onboarding = await actor('Newcomer', 'ONBOARDING');
-    const { trip, genre, stamp } = await tree();
+    const { trip, category, stamp } = await tree();
     const requests: [Method, string, Input?][] = [
       ['get', '/trip-templates/presets'],
       ['post', '/trip-templates/preview', { locations: ['沖縄'] }],
       ['get', '/trips'],
       ['post', '/trips', tripInput],
       ['get', `/trips/${trip.id}/members`],
-      ['get', `/genres?tripId=${trip.id}`],
-      ['post', '/genres', { tripId: trip.id, name: 'Genre' }],
-      ['get', `/stamps?genreId=${genre.id}`],
+      ['get', `/categories?tripId=${trip.id}`],
+      ['post', '/categories', { tripId: trip.id, name: 'Category' }],
+      ['get', `/stamps?categoryId=${category.id}`],
       [
         'post',
         '/stamps',
-        { tripId: genre.tripId, genreIds: [genre.id], name: 'Stamp' },
+        { tripId: category.tripId, categoryIds: [category.id], name: 'Stamp' },
       ],
       ['get', `/posts?stampId=${stamp.id}`],
       ['post', '/posts', { stampId: stamp.id, ...mediaInput }],
@@ -918,7 +926,7 @@ describe('Trip API integration', () => {
   });
 
   it('denies cross-trip reads and writes for every resource, list scope, member and invitation route', async () => {
-    const { trip, genre, stamp } = await tree();
+    const { trip, category, stamp } = await tree();
     const foreign = await tree(outsider);
     const post = await publish(owner, {
       stampId: stamp.id,
@@ -931,24 +939,28 @@ describe('Trip API integration', () => {
       ['get', `/trips/${trip.id}/members`],
       ['get', `/trips/${trip.id}/invitations`],
       ['post', `/trips/${trip.id}/invitation-links`],
-      ['get', `/genres?tripId=${trip.id}`],
-      ['get', `/genres/${genre.id}`],
-      ['post', '/genres', { tripId: trip.id, name: 'Intrusion' }],
-      ['patch', `/genres/${genre.id}`, { name: 'Intrusion' }],
-      ['get', `/stamps?genreId=${genre.id}`],
+      ['get', `/categories?tripId=${trip.id}`],
+      ['get', `/categories/${category.id}`],
+      ['post', '/categories', { tripId: trip.id, name: 'Intrusion' }],
+      ['patch', `/categories/${category.id}`, { name: 'Intrusion' }],
+      ['get', `/stamps?categoryId=${category.id}`],
       ['get', `/stamps/${stamp.id}`],
       [
         'post',
         '/stamps',
-        { tripId: genre.tripId, genreIds: [genre.id], name: 'Intrusion' },
+        {
+          tripId: category.tripId,
+          categoryIds: [category.id],
+          name: 'Intrusion',
+        },
       ],
       ['patch', `/stamps/${stamp.id}`, { name: 'Intrusion' }],
       ['get', `/posts/${post.id}`],
       ['get', `/posts?stampId=${stamp.id}`],
-      ['get', `/posts?genreId=${genre.id}`],
+      ['get', `/posts?categoryId=${category.id}`],
       ['get', `/posts?tripId=${trip.id}`],
       ['get', `/posts?tripId=${trip.id}&favoritesOnly=true`],
-      ['get', `/posts?genreId=${genre.id}&favoritesOnly=true`],
+      ['get', `/posts?categoryId=${category.id}&favoritesOnly=true`],
       ['get', `/posts?stampId=${stamp.id}&favoritesOnly=true`],
       ['post', '/posts', { stampId: stamp.id, ...mediaInput }],
       ['patch', `/posts/${post.id}/favorite`, { isFavorite: true }],
@@ -972,12 +984,12 @@ describe('Trip API integration', () => {
     ).toEqual([post.id]);
     expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
       name: '秋の旅',
-      totalGenreCount: 1,
+      totalCategoryCount: 1,
     });
   });
 
   it('rejects parent reassignment and caller-supplied author or identity fields', async () => {
-    const { trip, genre, stamp } = await tree();
+    const { trip, category, stamp } = await tree();
     const other = await tree();
     const post = await publish(owner, {
       stampId: stamp.id,
@@ -985,11 +997,19 @@ describe('Trip API integration', () => {
     });
     const requests: [Method, string, Input][] = [
       ['patch', `/trips/${trip.id}`, { name: 'New', createdById: outsider.id }],
-      ['patch', `/genres/${genre.id}`, { name: 'New', tripId: other.trip.id }],
+      [
+        'patch',
+        `/categories/${category.id}`,
+        { name: 'New', tripId: other.trip.id },
+      ],
       [
         'patch',
         `/stamps/${stamp.id}`,
-        { name: 'New', tripId: other.genre.tripId, genreIds: [other.genre.id] },
+        {
+          name: 'New',
+          tripId: other.category.tripId,
+          categoryIds: [other.category.id],
+        },
       ],
       [
         'post',
@@ -1004,13 +1024,13 @@ describe('Trip API integration', () => {
     ];
     for (const [method, path, body] of requests)
       await http(method, path, owner, body, 400);
-    expect(await get(`/genres/${genre.id}`, owner)).toMatchObject({
+    expect(await get(`/categories/${category.id}`, owner)).toMatchObject({
       tripId: trip.id,
       name: '食事',
     });
     expect(await get(`/stamps/${stamp.id}`, owner)).toMatchObject({
-      tripId: genre.tripId,
-      genreIds: [genre.id],
+      tripId: category.tripId,
+      categoryIds: [category.id],
       name: '朝ごはん',
     });
     expect(await get(`/posts/${post.id}`, owner)).toMatchObject({
@@ -1020,18 +1040,18 @@ describe('Trip API integration', () => {
   });
 
   it('derives progress from posts, updates ancestors after additions, and counts beyond pagination', async () => {
-    const { trip, genre, stamp } = await tree();
+    const { trip, category, stamp } = await tree();
     expect(await get(`/stamps/${stamp.id}`, owner)).toMatchObject({
       isCompleted: false,
     });
-    expect(await get(`/genres/${genre.id}`, owner)).toMatchObject({
+    expect(await get(`/categories/${category.id}`, owner)).toMatchObject({
       totalStampCount: 1,
       completedStampCount: 0,
       isCompleted: false,
     });
     expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
-      totalGenreCount: 1,
-      completedGenreCount: 0,
+      totalCategoryCount: 1,
+      completedCategoryCount: 0,
       isCompleted: false,
     });
 
@@ -1039,30 +1059,30 @@ describe('Trip API integration', () => {
     expect(await get(`/stamps/${stamp.id}`, owner)).toMatchObject({
       isCompleted: true,
     });
-    expect(await get(`/genres/${genre.id}`, owner)).toMatchObject({
+    expect(await get(`/categories/${category.id}`, owner)).toMatchObject({
       totalStampCount: 1,
       completedStampCount: 1,
       isCompleted: true,
     });
     expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
-      totalGenreCount: 1,
-      completedGenreCount: 1,
+      totalCategoryCount: 1,
+      completedCategoryCount: 1,
       isCompleted: true,
     });
 
     const nextStamp = await http('post', '/stamps', owner, {
-      tripId: genre.tripId,
-      genreIds: [genre.id],
+      tripId: category.tripId,
+      categoryIds: [category.id],
       name: '追加',
     });
-    expect(await get(`/genres/${genre.id}`, owner)).toMatchObject({
+    expect(await get(`/categories/${category.id}`, owner)).toMatchObject({
       totalStampCount: 2,
       completedStampCount: 1,
       isCompleted: false,
     });
     expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
-      totalGenreCount: 1,
-      completedGenreCount: 0,
+      totalCategoryCount: 1,
+      completedCategoryCount: 0,
       isCompleted: false,
     });
     await publish(owner, {
@@ -1070,23 +1090,23 @@ describe('Trip API integration', () => {
       mediaType: 'VIDEO',
       mediaUrl: 'https://example.com/video.mp4',
     });
-    const emptyGenre = await http('post', '/genres', owner, {
+    const emptyCategory = await http('post', '/categories', owner, {
       tripId: trip.id,
-      name: '空のジャンル',
+      name: '空のカテゴリー',
     });
-    expect(await get(`/genres/${emptyGenre.id}`, owner)).toMatchObject({
+    expect(await get(`/categories/${emptyCategory.id}`, owner)).toMatchObject({
       totalStampCount: 0,
       completedStampCount: 0,
       isCompleted: false,
     });
     expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
-      totalGenreCount: 2,
-      completedGenreCount: 1,
+      totalCategoryCount: 2,
+      completedCategoryCount: 1,
       isCompleted: false,
     });
     const finalStamp = await http('post', '/stamps', owner, {
-      tripId: emptyGenre.tripId,
-      genreIds: [emptyGenre.id],
+      tripId: emptyCategory.tripId,
+      categoryIds: [emptyCategory.id],
       name: '最後',
     });
     await publish(owner, {
@@ -1095,33 +1115,33 @@ describe('Trip API integration', () => {
     });
 
     expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
-      totalGenreCount: 2,
-      completedGenreCount: 2,
+      totalCategoryCount: 2,
+      completedCategoryCount: 2,
       isCompleted: true,
     });
-    const genres = await get<Page>('/genres', owner, {
+    const categories = await get<Page>('/categories', owner, {
       tripId: trip.id,
       limit: 1,
     });
-    expect(genres.items).toHaveLength(1);
-    expect(genres.items[0]).toMatchObject({
-      id: genre.id,
+    expect(categories.items).toHaveLength(1);
+    expect(categories.items[0]).toMatchObject({
+      id: category.id,
       totalStampCount: 2,
       completedStampCount: 2,
       isCompleted: true,
     });
-    expect(genres.nextCursor).toEqual(expect.any(String));
+    expect(categories.nextCursor).toEqual(expect.any(String));
     expect(
-      (await get<Page>('/stamps', owner, { genreId: genre.id, limit: 1 }))
+      (await get<Page>('/stamps', owner, { categoryId: category.id, limit: 1 }))
         .items,
     ).toHaveLength(1);
     expect(
       (await get<Page>('/trips', owner, { limit: 1 })).items[0],
-    ).toMatchObject({ totalGenreCount: 2, completedGenreCount: 2 });
+    ).toMatchObject({ totalCategoryCount: 2, completedCategoryCount: 2 });
   });
 
-  it('shares explicit favorite state and scopes favorites to stamp, genre and trip', async () => {
-    const { trip, genre, stamp } = await tree();
+  it('shares explicit favorite state and scopes favorites to stamp, category and trip', async () => {
+    const { trip, category, stamp } = await tree();
     await join(trip.id);
     const first = await publish(owner, {
       stampId: stamp.id,
@@ -1149,7 +1169,7 @@ describe('Trip API integration', () => {
 
     const scopes: Query[] = [
       { stampId: stamp.id },
-      { genreId: genre.id },
+      { categoryId: category.id },
       { tripId: trip.id },
     ];
     for (const scope of scopes) {
@@ -1167,7 +1187,7 @@ describe('Trip API integration', () => {
       expect(favorite.items.map((item) => item.id)).toEqual([first.id]);
       expect(favorite.items[0]).toMatchObject({
         tripId: trip.id,
-        genreIds: [genre.id],
+        categoryIds: [category.id],
         stampId: stamp.id,
         isFavorite: true,
       });
@@ -1286,7 +1306,7 @@ describe('Trip API integration', () => {
   );
 
   it('strictly validates partial updates, text, media and favorite state', async () => {
-    const { trip, genre, stamp } = await tree();
+    const { trip, category, stamp } = await tree();
     const post = await publish(owner, {
       stampId: stamp.id,
       ...mediaInput,
@@ -1299,18 +1319,18 @@ describe('Trip API integration', () => {
       ['patch', `/trips/${trip.id}`, { endDate: '2026-02-29' }],
       [
         'post',
-        '/genres',
-        { tripId: trip.id, name: 'Genre', description: null },
+        '/categories',
+        { tripId: trip.id, name: 'Category', description: null },
       ],
-      ['patch', `/genres/${genre.id}`, {}],
-      ['patch', `/genres/${genre.id}`, { name: null }],
-      ['patch', `/genres/${genre.id}`, { description: null }],
+      ['patch', `/categories/${category.id}`, {}],
+      ['patch', `/categories/${category.id}`, { name: null }],
+      ['patch', `/categories/${category.id}`, { description: null }],
       [
         'post',
         '/stamps',
         {
-          tripId: genre.tripId,
-          genreIds: [genre.id],
+          tripId: category.tripId,
+          categoryIds: [category.id],
           name: 'Stamp',
           description: 'x'.repeat(2001),
         },
@@ -1362,20 +1382,20 @@ describe('Trip API integration', () => {
   });
 
   it('rejects invalid, ambiguous or missing list scopes and malformed UUIDs and cursors', async () => {
-    const { trip, genre, stamp } = await tree();
+    const { trip, category, stamp } = await tree();
     for (const path of [
       '/posts',
-      `/posts?tripId=${trip.id}&genreId=${genre.id}`,
+      `/posts?tripId=${trip.id}&categoryId=${category.id}`,
       `/posts?stampId=${stamp.id}&tripId=${trip.id}`,
       '/posts?tripId=invalid',
       `/posts?stampId=${stamp.id}&favoritesOnly=1`,
       `/posts?stampId=${stamp.id}&favoritesOnly=null`,
-      '/genres',
-      '/genres?tripId=invalid',
+      '/categories',
+      '/categories?tripId=invalid',
       '/stamps',
-      '/stamps?genreId=invalid',
+      '/stamps?categoryId=invalid',
       '/trips/invalid',
-      '/genres/invalid',
+      '/categories/invalid',
       '/stamps/invalid',
       '/posts/invalid',
       '/trips?limit=0',
@@ -1387,16 +1407,16 @@ describe('Trip API integration', () => {
       await http('get', path, owner, undefined, 400);
     await http(
       'post',
-      '/genres',
+      '/categories',
       owner,
-      { tripId: 'invalid', name: 'Genre' },
+      { tripId: 'invalid', name: 'Category' },
       400,
     );
     await http(
       'post',
       '/stamps',
       owner,
-      { tripId: 'invalid', genreIds: ['invalid'], name: 'Stamp' },
+      { tripId: 'invalid', categoryIds: ['invalid'], name: 'Stamp' },
       400,
     );
     await http(
@@ -1408,7 +1428,7 @@ describe('Trip API integration', () => {
     );
     for (const path of [
       `/trips/${randomUUID()}`,
-      `/genres/${randomUUID()}`,
+      `/categories/${randomUUID()}`,
       `/stamps/${randomUUID()}`,
       `/posts/${randomUUID()}`,
     ]) {
@@ -1417,14 +1437,14 @@ describe('Trip API integration', () => {
   });
 
   it('uses stable cursor pages for both chronological directions when timestamps tie', async () => {
-    const { trip, genre, stamp } = await tree();
-    const secondGenre = await http('post', '/genres', owner, {
+    const { trip, category, stamp } = await tree();
+    const secondCategory = await http('post', '/categories', owner, {
       tripId: trip.id,
       name: 'Second',
     });
     const secondStamp = await http('post', '/stamps', owner, {
-      tripId: genre.tripId,
-      genreIds: [genre.id],
+      tripId: category.tripId,
+      categoryIds: [category.id],
       name: 'Second',
     });
     const postIds: string[] = [];
@@ -1439,12 +1459,12 @@ describe('Trip API integration', () => {
       );
     }
     const tied = new Date('2026-09-07T00:00:00Z');
-    await prisma.genre.updateMany({
+    await prisma.category.updateMany({
       where: { tripId: trip.id },
       data: { createdAt: tied },
     });
     await prisma.stamp.updateMany({
-      where: { genres: { some: { genreId: genre.id } } },
+      where: { categories: { some: { categoryId: category.id } } },
       data: { createdAt: tied },
     });
     await prisma.post.updateMany({
@@ -1454,13 +1474,13 @@ describe('Trip API integration', () => {
 
     const scopes: { path: string; query: Query; expected: string[] }[] = [
       {
-        path: '/genres',
+        path: '/categories',
         query: { tripId: trip.id },
-        expected: [genre.id, secondGenre.id].sort(),
+        expected: [category.id, secondCategory.id].sort(),
       },
       {
         path: '/stamps',
-        query: { genreId: genre.id },
+        query: { categoryId: category.id },
         expected: [stamp.id, secondStamp.id].sort(),
       },
       {
@@ -1505,7 +1525,7 @@ describe('Trip API integration', () => {
   });
 
   it('keeps photo reads per user, idempotent and separate from notifications; cascades deletion and progress', async () => {
-    const { trip, genre, stamp } = await tree();
+    const { trip, category, stamp } = await tree();
     await join(trip.id);
     const photo = await publish(owner, {
       ...mediaInput,
@@ -1520,7 +1540,7 @@ describe('Trip API integration', () => {
       hasUnreadPhotos: true,
       photoCount: 1,
     });
-    expect(await get(`/genres/${genre.id}`, member)).toMatchObject({
+    expect(await get(`/categories/${category.id}`, member)).toMatchObject({
       hasUnreadPhotos: true,
     });
     const notifications = await get<Page & { unreadCount: number }>(
@@ -1553,7 +1573,7 @@ describe('Trip API integration', () => {
     expect(await get(`/stamps/${stamp.id}`, member)).toMatchObject({
       hasUnreadPhotos: false,
     });
-    expect(await get(`/genres/${genre.id}`, member)).toMatchObject({
+    expect(await get(`/categories/${category.id}`, member)).toMatchObject({
       hasUnreadPhotos: false,
     });
     expect(
@@ -1567,32 +1587,34 @@ describe('Trip API integration', () => {
       isCompleted: false,
       photoCount: 0,
     });
-    expect(await get(`/genres/${genre.id}`, owner)).toMatchObject({
+    expect(await get(`/categories/${category.id}`, owner)).toMatchObject({
       isCompleted: false,
       completedStampCount: 0,
     });
     expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
       isCompleted: false,
-      completedGenreCount: 0,
+      completedCategoryCount: 0,
     });
   });
 
   it('notifies only other participants on effective changes, reports global unread count and filters images', async () => {
-    const { trip, genre, stamp } = await tree();
+    const { trip, category, stamp } = await tree();
     await join(trip.id);
     expect(await prisma.notification.count()).toBe(0);
     await http('patch', `/trips/${trip.id}`, owner, {
       locations: [' 京都 ', ' '],
     });
     await http('patch', `/trips/${trip.id}`, owner, { locations: ['京都'] });
-    await http('patch', `/genres/${genre.id}`, owner, { name: '更新' });
-    await http('patch', `/genres/${genre.id}`, owner, { name: ' 更新 ' });
+    await http('patch', `/categories/${category.id}`, owner, { name: '更新' });
+    await http('patch', `/categories/${category.id}`, owner, {
+      name: ' 更新 ',
+    });
     await http('patch', `/stamps/${stamp.id}`, owner, { description: '更新' });
     await http('patch', `/stamps/${stamp.id}`, owner, { description: '更新' });
-    await http('post', '/genres', owner, { tripId: trip.id, name: '追加' });
+    await http('post', '/categories', owner, { tripId: trip.id, name: '追加' });
     await http('post', '/stamps', owner, {
-      tripId: genre.tripId,
-      genreIds: [genre.id],
+      tripId: category.tripId,
+      categoryIds: [category.id],
       name: '追加',
     });
     const image = await publish(owner, {
@@ -1636,7 +1658,7 @@ describe('Trip API integration', () => {
     expect(
       (
         await get<Page>('/posts', member, {
-          genreId: genre.id,
+          categoryId: category.id,
           mediaType: 'IMAGE',
         })
       ).items.map((item) => item.id),
@@ -1672,7 +1694,7 @@ describe('Trip API integration', () => {
   });
 
   it('limits batches, scopes pending uploads to their author, and keeps pending media out of every aggregate', async () => {
-    const { trip, genre, stamp } = await tree();
+    const { trip, category, stamp } = await tree();
     await join(trip.id);
     const files = Array.from({ length: 30 }, (_, index) => ({
       clientId: `file-${index}`,
@@ -1787,12 +1809,12 @@ describe('Trip API integration', () => {
       photoCount: 0,
       hasUnreadPhotos: false,
     });
-    expect(await get(`/genres/${genre.id}`, member)).toMatchObject({
+    expect(await get(`/categories/${category.id}`, member)).toMatchObject({
       completedStampCount: 0,
       hasUnreadPhotos: false,
     });
     expect(await get(`/trips/${trip.id}`, member)).toMatchObject({
-      completedGenreCount: 0,
+      completedCategoryCount: 0,
     });
     expect(await prisma.notification.count()).toBe(0);
     await http(
@@ -1912,7 +1934,7 @@ describe('Trip API integration', () => {
   });
 
   it('rolls back target changes when notification insertion fails', async () => {
-    const { trip, genre, stamp } = await tree();
+    const { trip, category, stamp } = await tree();
     await join(trip.id);
     // Force a real database failure after the target write, inside its transaction.
     await prisma.$executeRawUnsafe(`CREATE FUNCTION reject_test_notification() RETURNS trigger AS $$
@@ -1930,7 +1952,7 @@ describe('Trip API integration', () => {
       );
       await http(
         'patch',
-        `/genres/${genre.id}`,
+        `/categories/${category.id}`,
         owner,
         { name: 'Must rollback' },
         500,
@@ -1946,7 +1968,9 @@ describe('Trip API integration', () => {
         publish(owner, { stampId: stamp.id, ...mediaInput }),
       ).rejects.toThrow();
       expect((await get(`/trips/${trip.id}`, owner)).name).toBe(trip.name);
-      expect((await get(`/genres/${genre.id}`, owner)).name).toBe(genre.name);
+      expect((await get(`/categories/${category.id}`, owner)).name).toBe(
+        category.name,
+      );
       expect((await get(`/stamps/${stamp.id}`, owner)).name).toBe(stamp.name);
       expect(await prisma.post.count({ where: { status: 'READY' } })).toBe(0);
       expect(await prisma.notification.count()).toBe(0);

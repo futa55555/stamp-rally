@@ -5,7 +5,7 @@ import {
   OptionalField,
 } from '../../common/validation.js';
 
-export class CreateGenreDto {
+export class CreateCategoryDto {
   @IsUUID()
   tripId!: string;
 

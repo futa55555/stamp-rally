@@ -20,13 +20,17 @@ export class StampsService {
   async create(userId: string, dto: CreateStampDto): Promise<Stamp> {
     await this.access.requireTrip(userId, dto.tripId);
     return this.stamps.create(
-      { tripId: dto.tripId, genreIds: dto.genreIds, ...this.validate(dto) },
+      {
+        tripId: dto.tripId,
+        categoryIds: dto.categoryIds,
+        ...this.validate(dto),
+      },
       userId,
     );
   }
 
   async findAll(userId: string, query: ListStampsDto) {
-    await this.access.requireGenre(userId, query.genreId);
+    await this.access.requireCategory(userId, query.categoryId);
     return this.stamps.findAll(query, userId);
   }
 
@@ -54,7 +58,7 @@ export class StampsService {
     return this.stamps.update(
       id,
       {
-        genreIds: dto.genreIds,
+        categoryIds: dto.categoryIds,
         name: dto.name === undefined ? undefined : values.name,
         description:
           dto.description === undefined ? undefined : values.description,

@@ -4,7 +4,7 @@
       "name": "大阪府",
       "aliases": ["大阪", "おおさか", "おおさかふ"],
       "template": {
-        "genres": [
+        "categories": [
           {
             "name": "グルメ",
             "stamps": [
@@ -71,7 +71,7 @@
     {
       "name": "贅沢ディナー",
       "template": {
-        "genres": [
+        "categories": [
           {
             "name": "グルメ",
             "stamps": [
@@ -106,7 +106,7 @@
     {
       "name": "ゆっくり",
       "template": {
-        "genres": [
+        "categories": [
           {
             "name": "グルメ",
             "stamps": [
@@ -163,7 +163,7 @@
     {
       "name": "遊園地・テーマパーク",
       "template": {
-        "genres": [
+        "categories": [
           {
             "name": "グルメ",
             "stamps": [
@@ -220,7 +220,7 @@
     {
       "name": "ものづくり体験",
       "template": {
-        "genres": [
+        "categories": [
           {
             "name": "ものづくり",
             "stamps": [
@@ -263,7 +263,7 @@
     {
       "name": "夜景",
       "template": {
-        "genres": [
+        "categories": [
           {
             "name": "景色",
             "stamps": [
@@ -295,7 +295,7 @@
     {
       "name": "歴史探訪",
       "template": {
-        "genres": [
+        "categories": [
           {
             "name": "歴史・文化",
             "stamps": [

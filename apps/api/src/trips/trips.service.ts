@@ -46,14 +46,14 @@ export class TripsService {
           }
           if (dto.coverAssetId)
             await this.covers.assertAttachable(tx, userId, dto.coverAssetId);
-          const genres = this.templates.select(
+          const categories = this.templates.select(
             {
               locations: input.locations,
               activityPresets: input.activityPresets,
             },
-            dto.selectedGenres,
+            dto.selectedCategories,
           );
-          const trip = await this.trips.create(userId, input, tx, genres);
+          const trip = await this.trips.create(userId, input, tx, categories);
           return trip;
         });
         return this.presenter.present(result.toJSON());

@@ -4,44 +4,44 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { TripAccessService } from '../trips/trip-access.service.js';
-import { CreateGenreDto } from './dto/create-genre.dto.js';
-import { ListGenresDto } from './dto/list-genres.dto.js';
-import { UpdateGenreDto } from './dto/update-genre.dto.js';
-import { Genre, InvalidGenreError } from './entities/genre.entity.js';
-import { GenreRepository } from './genre.repository.js';
+import { CreateCategoryDto } from './dto/create-category.dto.js';
+import { ListCategoriesDto } from './dto/list-categories.dto.js';
+import { UpdateCategoryDto } from './dto/update-category.dto.js';
+import { Category, InvalidCategoryError } from './entities/category.entity.js';
+import { CategoryRepository } from './category.repository.js';
 
 @Injectable()
-export class GenresService {
+export class CategoriesService {
   constructor(
-    private readonly genres: GenreRepository,
+    private readonly categories: CategoryRepository,
     private readonly access: TripAccessService,
   ) {}
 
-  async create(userId: string, dto: CreateGenreDto): Promise<Genre> {
+  async create(userId: string, dto: CreateCategoryDto): Promise<Category> {
     await this.access.requireTrip(userId, dto.tripId);
-    return this.genres.create(
+    return this.categories.create(
       { tripId: dto.tripId, ...this.validate(dto) },
       userId,
     );
   }
 
-  async findAll(userId: string, query: ListGenresDto) {
+  async findAll(userId: string, query: ListCategoriesDto) {
     await this.access.requireTrip(userId, query.tripId);
-    return this.genres.findAll(query, userId);
+    return this.categories.findAll(query, userId);
   }
 
-  async findOne(userId: string, id: string): Promise<Genre> {
-    await this.access.requireGenre(userId, id);
-    const genre = await this.genres.findById(id, userId);
-    if (!genre) throw new NotFoundException('Genre not found');
-    return genre;
+  async findOne(userId: string, id: string): Promise<Category> {
+    await this.access.requireCategory(userId, id);
+    const category = await this.categories.findById(id, userId);
+    if (!category) throw new NotFoundException('Category not found');
+    return category;
   }
 
   async update(
     userId: string,
     id: string,
-    dto: UpdateGenreDto,
-  ): Promise<Genre> {
+    dto: UpdateCategoryDto,
+  ): Promise<Category> {
     const current = await this.findOne(userId, id);
     if (Object.values(dto).every((value) => value === undefined)) {
       throw new BadRequestException('At least one field is required');
@@ -51,7 +51,7 @@ export class GenresService {
       description:
         dto.description === undefined ? current.description : dto.description,
     });
-    return this.genres.update(
+    return this.categories.update(
       id,
       {
         name: dto.name === undefined ? undefined : values.name,
@@ -64,9 +64,9 @@ export class GenresService {
 
   private validate(input: { name: string; description?: string }) {
     try {
-      return Genre.validate(input);
+      return Category.validate(input);
     } catch (error) {
-      if (error instanceof InvalidGenreError)
+      if (error instanceof InvalidCategoryError)
         throw new BadRequestException(error.message);
       throw error;
     }

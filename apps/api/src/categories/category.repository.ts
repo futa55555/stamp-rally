@@ -9,14 +9,14 @@ import {
 } from '../common/pagination.js';
 import {
   Prisma,
-  type Genre as PrismaGenre,
+  type Category as PrismaCategory,
 } from '../generated/prisma/client.js';
-import { CreateGenreDto } from './dto/create-genre.dto.js';
-import { ListGenresDto } from './dto/list-genres.dto.js';
-import { UpdateGenreDto } from './dto/update-genre.dto.js';
-import { Genre } from './entities/genre.entity.js';
+import { CreateCategoryDto } from './dto/create-category.dto.js';
+import { ListCategoriesDto } from './dto/list-categories.dto.js';
+import { UpdateCategoryDto } from './dto/update-category.dto.js';
+import { Category } from './entities/category.entity.js';
 
-interface GenreProgress {
+interface CategoryProgress {
   id: string;
   totalStampCount: number;
   completedStampCount: number;
@@ -25,12 +25,12 @@ interface GenreProgress {
 }
 
 @Injectable()
-export class GenreRepository {
+export class CategoryRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(input: CreateGenreDto, userId: string): Promise<Genre> {
+  async create(input: CreateCategoryDto, userId: string): Promise<Category> {
     return serializable(this.prisma, async (tx) => {
-      const row = await tx.genre.create({
+      const row = await tx.category.create({
         data: {
           tripId: input.tripId,
           name: input.name,
@@ -41,23 +41,23 @@ export class GenreRepository {
         tx,
         userId,
         row.tripId,
-        'ジャンルが作成されました',
+        'カテゴリーが作成されました',
         row.name,
-        { type: 'genre', genreId: row.id },
+        { type: 'category', categoryId: row.id },
       );
       return this.toDomain(row);
     });
   }
 
-  async findById(id: string, userId: string): Promise<Genre | null> {
-    const row = await this.prisma.genre.findUnique({ where: { id } });
+  async findById(id: string, userId: string): Promise<Category | null> {
+    const row = await this.prisma.category.findUnique({ where: { id } });
     if (!row) return null;
     const progress = await this.progress([id], userId);
     return this.toDomain(row, progress.get(id));
   }
 
-  async findAll(query: ListGenresDto, userId: string) {
-    const rows = await this.prisma.genre.findMany({
+  async findAll(query: ListCategoriesDto, userId: string) {
+    const rows = await this.prisma.category.findMany({
       where: { tripId: query.tripId, ...paginationWhere(query, 'asc') },
       orderBy: paginationOrder('asc'),
       take: query.limit + 1,
@@ -74,17 +74,17 @@ export class GenreRepository {
 
   async update(
     id: string,
-    input: UpdateGenreDto,
+    input: UpdateCategoryDto,
     userId: string,
-  ): Promise<Genre> {
+  ): Promise<Category> {
     return serializable(this.prisma, async (tx) => {
-      const current = await tx.genre.findUniqueOrThrow({ where: { id } });
+      const current = await tx.category.findUniqueOrThrow({ where: { id } });
       const changed =
         (input.name !== undefined && input.name !== current.name) ||
         (input.description !== undefined &&
           input.description !== current.description);
       const row = changed
-        ? await tx.genre.update({
+        ? await tx.category.update({
             where: { id },
             data: { name: input.name, description: input.description },
           })
@@ -94,9 +94,9 @@ export class GenreRepository {
           tx,
           userId,
           row.tripId,
-          'ジャンルが更新されました',
+          'カテゴリーが更新されました',
           row.name,
-          { type: 'genre', genreId: id },
+          { type: 'category', categoryId: id },
         );
       const progress = await this.progress([id], userId, tx);
       return this.toDomain(row, progress.get(id));
@@ -108,23 +108,23 @@ export class GenreRepository {
     userId: string,
     tx: Prisma.TransactionClient = this.prisma,
   ) {
-    if (ids.length === 0) return new Map<string, GenreProgress>();
-    const rows = await tx.$queryRaw<GenreProgress[]>(Prisma.sql`
+    if (ids.length === 0) return new Map<string, CategoryProgress>();
+    const rows = await tx.$queryRaw<CategoryProgress[]>(Prisma.sql`
       SELECT g.id, COUNT(s.id)::int AS "totalStampCount",
         COUNT(s.id) FILTER (
           WHERE EXISTS (SELECT 1 FROM posts p WHERE p.stamp_id = s.id AND p.status = 'READY')
         )::int AS "completedStampCount",
         EXISTS (
-          SELECT 1 FROM stamp_genres us JOIN posts p ON p.stamp_id = us.stamp_id
-          WHERE us.genre_id = g.id AND p.status = 'READY' AND p.author_id <> ${userId}::uuid
+          SELECT 1 FROM stamp_categories us JOIN posts p ON p.stamp_id = us.stamp_id
+          WHERE us.category_id = g.id AND p.status = 'READY' AND p.author_id <> ${userId}::uuid
           AND NOT EXISTS (SELECT 1 FROM photo_reads r WHERE r.post_id = p.id AND r.user_id = ${userId}::uuid)
         ) AS "hasUnreadMedia",
         EXISTS (
-          SELECT 1 FROM stamp_genres us JOIN posts p ON p.stamp_id = us.stamp_id
-          WHERE us.genre_id = g.id AND p.status = 'READY' AND p.media_type = 'IMAGE' AND p.author_id <> ${userId}::uuid
+          SELECT 1 FROM stamp_categories us JOIN posts p ON p.stamp_id = us.stamp_id
+          WHERE us.category_id = g.id AND p.status = 'READY' AND p.media_type = 'IMAGE' AND p.author_id <> ${userId}::uuid
           AND NOT EXISTS (SELECT 1 FROM photo_reads r WHERE r.post_id = p.id AND r.user_id = ${userId}::uuid)
         ) AS "hasUnreadPhotos"
-      FROM genres g LEFT JOIN stamp_genres sg ON sg.genre_id = g.id
+      FROM categories g LEFT JOIN stamp_categories sg ON sg.category_id = g.id
       LEFT JOIN stamps s ON s.id = sg.stamp_id
       WHERE g.id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
       GROUP BY g.id
@@ -132,8 +132,8 @@ export class GenreRepository {
     return new Map(rows.map((row) => [row.id, row]));
   }
 
-  private toDomain(row: PrismaGenre, progress?: GenreProgress): Genre {
-    return new Genre(
+  private toDomain(row: PrismaCategory, progress?: CategoryProgress): Category {
+    return new Category(
       row.id,
       row.tripId,
       row.name,

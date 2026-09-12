@@ -2,7 +2,7 @@ import type { Prisma } from '../generated/prisma/client.js';
 
 export type NotificationTarget =
   | { type: 'trip'; tripId: string }
-  | { type: 'genre'; genreId: string }
+  | { type: 'category'; categoryId: string }
   | { type: 'stamp'; stampId: string }
   | { type: 'photo' | 'video'; postId: string };
 

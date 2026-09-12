@@ -1,11 +1,11 @@
 export type StampTemplateItem = { title: string };
 
-export type GenreTemplateItem = {
+export type CategoryTemplateItem = {
   name: string;
   stamps: StampTemplateItem[];
 };
 
-export type TripTemplate = { genres: GenreTemplateItem[] };
+export type TripTemplate = { categories: CategoryTemplateItem[] };
 export type LocationPreset = {
   name: string;
   aliases: string[];
@@ -21,7 +21,7 @@ export type TripTemplateSource = {
   name: string;
 };
 export type TripTemplatePreview = {
-  genres: {
+  categories: {
     name: string;
     stamps: { title: string; sources: TripTemplateSource[] }[];
   }[];

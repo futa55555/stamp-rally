@@ -12,7 +12,7 @@ const fixture = (): TripTemplatePresets => ({
       name: '島県',
       aliases: ['島', 'しま', '島県'],
       template: {
-        genres: [
+        categories: [
           {
             name: '景色',
             stamps: [{ title: '海を見る' }, { title: '山を見る' }],
@@ -26,7 +26,7 @@ const fixture = (): TripTemplatePresets => ({
       name: '山県',
       aliases: ['山'],
       template: {
-        genres: [{ name: '景色', stamps: [{ title: '山を見る' }] }],
+        categories: [{ name: '景色', stamps: [{ title: '山を見る' }] }],
       },
     },
   ],
@@ -34,7 +34,7 @@ const fixture = (): TripTemplatePresets => ({
     {
       name: '海',
       template: {
-        genres: [
+        categories: [
           {
             name: '景色',
             stamps: [{ title: '海を見る' }, { title: '夕日を見る' }],
@@ -46,7 +46,7 @@ const fixture = (): TripTemplatePresets => ({
     {
       name: '島県',
       template: {
-        genres: [{ name: '景色', stamps: [{ title: '海を見る' }] }],
+        categories: [{ name: '景色', stamps: [{ title: '海を見る' }] }],
       },
     },
   ],
@@ -64,17 +64,17 @@ describe('trip template merging', () => {
     );
     expect(
       previewTripTemplates(catalog, { locations: ['島市', '島県への旅'] }),
-    ).toEqual({ genres: [] });
+    ).toEqual({ categories: [] });
   });
 
-  it('merges genre and stamp duplicates in encounter order, places first', () => {
+  it('merges category and stamp duplicates in encounter order, places first', () => {
     expect(
       previewTripTemplates(fixture(), {
         locations: ['島県'],
         activityPresets: ['海'],
       }),
     ).toEqual({
-      genres: [
+      categories: [
         {
           name: '景色',
           stamps: [
@@ -121,11 +121,11 @@ describe('trip template merging', () => {
     const preview = previewTripTemplates(fixture(), {
       locations: ['山', '島'],
     });
-    expect(preview.genres[0].stamps.map((stamp) => stamp.title)).toEqual([
+    expect(preview.categories[0].stamps.map((stamp) => stamp.title)).toEqual([
       '山を見る',
       '海を見る',
     ]);
-    expect(preview.genres[0].stamps[0].sources).toEqual([
+    expect(preview.categories[0].stamps[0].sources).toEqual([
       { type: 'location', name: '山県' },
       { type: 'location', name: '島県' },
     ]);
@@ -136,7 +136,7 @@ describe('trip template merging', () => {
       locations: ['島県', '島', '島県'],
       activityPresets: ['島県', '島県', ' 海 ', '海'],
     });
-    expect(preview.genres[0].stamps[0].sources).toEqual([
+    expect(preview.categories[0].stamps[0].sources).toEqual([
       { type: 'location', name: '島県' },
       { type: 'activity', name: '島県' },
       { type: 'activity', name: '海' },
@@ -149,15 +149,15 @@ describe('trip template merging', () => {
       locations: ['島県'],
       activityPresets: ['海'],
     });
-    expect(initial.genres[0].stamps[0].sources).toHaveLength(2);
+    expect(initial.categories[0].stamps[0].sources).toHaveLength(2);
     const remaining = previewTripTemplates(catalog, {
       activityPresets: ['海'],
     });
-    expect(remaining.genres[0].stamps[0]).toEqual({
+    expect(remaining.categories[0].stamps[0]).toEqual({
       title: '海を見る',
       sources: [{ type: 'activity', name: '海' }],
     });
-    expect(previewTripTemplates(catalog, {})).toEqual({ genres: [] });
+    expect(previewTripTemplates(catalog, {})).toEqual({ categories: [] });
   });
 
   it('rejects unknown activities and ignores empty trimmed input', () => {
@@ -169,17 +169,19 @@ describe('trip template merging', () => {
         locations: [' '],
         activityPresets: [' '],
       }),
-    ).toEqual({ genres: [] });
+    ).toEqual({ categories: [] });
   });
 
-  it('treats prototype property names as ordinary preset, genre and stamp names', () => {
+  it('treats prototype property names as ordinary preset, category and stamp names', () => {
     const catalog = parseTripTemplatePresets({
       locations: [
         {
           name: '__proto__',
           aliases: ['constructor'],
           template: {
-            genres: [{ name: '__proto__', stamps: [{ title: 'constructor' }] }],
+            categories: [
+              { name: '__proto__', stamps: [{ title: 'constructor' }] },
+            ],
           },
         },
       ],
@@ -187,7 +189,9 @@ describe('trip template merging', () => {
         {
           name: 'toString',
           template: {
-            genres: [{ name: '__proto__', stamps: [{ title: 'constructor' }] }],
+            categories: [
+              { name: '__proto__', stamps: [{ title: 'constructor' }] },
+            ],
           },
         },
       ],
@@ -196,7 +200,7 @@ describe('trip template merging', () => {
       previewTripTemplates(catalog, {
         locations: ['constructor'],
         activityPresets: ['toString'],
-      }).genres,
+      }).categories,
     ).toEqual([
       {
         name: '__proto__',
@@ -217,11 +221,12 @@ describe('trip template merging', () => {
     const catalog = fixture();
     const before = structuredClone(catalog);
     const first = previewTripTemplates(catalog, { locations: ['島県'] });
-    first.genres[0].stamps[0].sources[0].name = 'changed';
-    first.genres[0].stamps.push({ title: 'extra', sources: [] });
+    first.categories[0].stamps[0].sources[0].name = 'changed';
+    first.categories[0].stamps.push({ title: 'extra', sources: [] });
     expect(catalog).toEqual(before);
     expect(
-      previewTripTemplates(catalog, { locations: ['島県'] }).genres[0].stamps,
+      previewTripTemplates(catalog, { locations: ['島県'] }).categories[0]
+        .stamps,
     ).toHaveLength(2);
   });
 });
@@ -234,22 +239,25 @@ describe('preset catalog validation', () => {
   it('accepts 100 Unicode characters for names and titles', () => {
     const catalog = fixture();
     catalog.activities[0].name = 'あ'.repeat(100);
-    catalog.activities[0].template.genres[0].name = '😀'.repeat(100);
-    catalog.activities[0].template.genres[0].stamps[0].title = '😀'.repeat(100);
+    catalog.activities[0].template.categories[0].name = '😀'.repeat(100);
+    catalog.activities[0].template.categories[0].stamps[0].title = '😀'.repeat(
+      100,
+    );
     expect(parseTripTemplatePresets(catalog)).toEqual(catalog);
   });
 
   it.each(['', '  ', ' 海', '海 ', 'あ'.repeat(101), '😀'.repeat(101)])(
     'rejects empty, padded, or overlong names and titles: %s',
     (invalidName) => {
-      for (const field of ['preset', 'alias', 'genre', 'stamp']) {
+      for (const field of ['preset', 'alias', 'category', 'stamp']) {
         const catalog = fixture();
         if (field === 'preset') catalog.locations[0].name = invalidName;
         if (field === 'alias') catalog.locations[0].aliases = [invalidName];
-        if (field === 'genre')
-          catalog.locations[0].template.genres[0].name = invalidName;
+        if (field === 'category')
+          catalog.locations[0].template.categories[0].name = invalidName;
         if (field === 'stamp')
-          catalog.locations[0].template.genres[0].stamps[0].title = invalidName;
+          catalog.locations[0].template.categories[0].stamps[0].title =
+            invalidName;
         expect(() => parseTripTemplatePresets(catalog)).toThrow(
           /Invalid trip-template-presets.json at \$\.locations\[0\]/,
         );
@@ -272,7 +280,7 @@ describe('preset catalog validation', () => {
       activities: [
         {
           name: '海',
-          template: { genres: [{ name: '景色', stamps: [null] }] },
+          template: { categories: [{ name: '景色', stamps: [null] }] },
         },
       ],
     },
@@ -282,7 +290,7 @@ describe('preset catalog validation', () => {
         {
           name: '海',
           template: {
-            genres: [{ name: '景色', stamps: [{ name: '誤った項目' }] }],
+            categories: [{ name: '景色', stamps: [{ name: '誤った項目' }] }],
           },
         },
       ],
@@ -335,7 +343,7 @@ describe('TripTemplatesService', () => {
     }
   });
 
-  it('selects only requested stamps and excludes empty genres', () => {
+  it('selects only requested stamps and excludes empty categories', () => {
     expect(
       service.select({ locations: ['島'] }, [
         { name: '景色', stamps: [{ title: '山を見る' }] },
@@ -344,7 +352,7 @@ describe('TripTemplatesService', () => {
     ).toEqual([{ name: '景色', stamps: [{ title: '山を見る' }] }]);
   });
 
-  it('deduplicates selected genres and stamps without mutating the selection', () => {
+  it('deduplicates selected categories and stamps without mutating the selection', () => {
     const selected = [
       { name: '景色', stamps: [{ title: '海を見る' }, { title: '海を見る' }] },
       { name: '景色', stamps: [{ title: '山を見る' }, { title: '海を見る' }] },
@@ -383,19 +391,19 @@ describe('TripTemplatesService', () => {
 });
 
 describe('bundled template memberships', () => {
-  it('shares night scenery across locations and activities in the scenery genre', () => {
+  it('shares night scenery across locations and activities in the scenery category', () => {
     const service = new TripTemplatesService();
     const preview = service.preview({
       locations: ['大阪府'],
       activityPresets: ['贅沢ディナー', '夜景'],
     });
-    const memberships = preview.genres.filter((genre) =>
-      genre.stamps.some((stamp) => stamp.title === '夜景を楽しむ'),
+    const memberships = preview.categories.filter((category) =>
+      category.stamps.some((stamp) => stamp.title === '夜景を楽しむ'),
     );
-    expect(memberships.map((genre) => genre.name)).toEqual(['景色']);
-    for (const genre of memberships) {
+    expect(memberships.map((category) => category.name)).toEqual(['景色']);
+    for (const category of memberships) {
       expect(
-        genre.stamps.filter((stamp) => stamp.title === '夜景を楽しむ'),
+        category.stamps.filter((stamp) => stamp.title === '夜景を楽しむ'),
       ).toEqual([
         {
           title: '夜景を楽しむ',
@@ -429,17 +437,17 @@ describe('bundled template memberships', () => {
     ['歴史探訪', '老舗の名物を食べる', ['歴史・文化', 'グルメ']],
     ['歴史探訪', '歴史にちなんだおみやげを買う', ['歴史・文化', 'おみやげ']],
   ] as const)(
-    '%s: %s belongs to each relevant genre',
+    '%s: %s belongs to each relevant category',
     (activity, title, expected) => {
       const preview = new TripTemplatesService().preview({
         activityPresets: [activity],
       });
       expect(
-        preview.genres
-          .filter((genre) =>
-            genre.stamps.some((stamp) => stamp.title === title),
+        preview.categories
+          .filter((category) =>
+            category.stamps.some((stamp) => stamp.title === title),
           )
-          .map((genre) => genre.name),
+          .map((category) => category.name),
       ).toEqual(expected);
     },
   );
@@ -451,8 +459,8 @@ describe('bundled template memberships', () => {
       locations: catalog.locations.map((preset) => preset.name),
       activityPresets: catalog.activities.map((preset) => preset.name),
     });
-    const titles = preview.genres.flatMap((genre) =>
-      genre.stamps.map((stamp) => stamp.title),
+    const titles = preview.categories.flatMap((category) =>
+      category.stamps.map((stamp) => stamp.title),
     );
     for (const replaced of [
       '街の夜景を眺める',
@@ -464,8 +472,8 @@ describe('bundled template memberships', () => {
       expect(titles).not.toContain(replaced);
     const craft = service.preview({ activityPresets: ['ものづくり体験'] });
     expect(
-      craft.genres
-        .find((genre) => genre.name === 'ものづくり')
+      craft.categories
+        .find((category) => category.name === 'ものづくり')
         ?.stamps.map((stamp) => stamp.title),
     ).toEqual(
       expect.arrayContaining([

@@ -13,16 +13,16 @@ export class TripAccessService {
     if (!member) throw new NotFoundException('Trip not found');
   }
 
-  async requireGenre(
+  async requireCategory(
     userId: string,
-    genreId: string,
+    categoryId: string,
   ): Promise<{ tripId: string }> {
-    const genre = await this.prisma.genre.findFirst({
-      where: { id: genreId, trip: { members: { some: { userId } } } },
+    const category = await this.prisma.category.findFirst({
+      where: { id: categoryId, trip: { members: { some: { userId } } } },
       select: { tripId: true },
     });
-    if (!genre) throw new NotFoundException('Genre not found');
-    return genre;
+    if (!category) throw new NotFoundException('Category not found');
+    return category;
   }
 
   async requireStamp(

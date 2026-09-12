@@ -7,7 +7,7 @@ import { OptionalField } from '../../common/validation.js';
 
 export type PostScope =
   | { type: 'trip'; id: string }
-  | { type: 'genre'; id: string }
+  | { type: 'category'; id: string }
   | { type: 'stamp'; id: string };
 
 export class ListPostsDto extends PaginationQueryDto {
@@ -21,7 +21,7 @@ export class ListPostsDto extends PaginationQueryDto {
 
   @OptionalField()
   @IsUUID()
-  genreId?: string;
+  categoryId?: string;
 
   @OptionalField()
   @IsUUID()
@@ -39,14 +39,14 @@ export function postScope(query: ListPostsDto): PostScope {
   const scopes: PostScope[] = [];
   if (query.tripId !== undefined)
     scopes.push({ type: 'trip', id: query.tripId });
-  if (query.genreId !== undefined)
-    scopes.push({ type: 'genre', id: query.genreId });
+  if (query.categoryId !== undefined)
+    scopes.push({ type: 'category', id: query.categoryId });
   if (query.stampId !== undefined)
     scopes.push({ type: 'stamp', id: query.stampId });
 
   if (scopes.length !== 1) {
     throw new BadRequestException(
-      'Specify exactly one of tripId, genreId or stampId',
+      'Specify exactly one of tripId, categoryId or stampId',
     );
   }
 

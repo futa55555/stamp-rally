@@ -14,7 +14,7 @@ export class Post {
   constructor(
     public readonly id: string,
     public readonly stampId: string,
-    public readonly genreIds: string[],
+    public readonly categoryIds: string[],
     public readonly tripId: string,
     public readonly author: { id: string; name: string | null },
     public readonly mediaType: MediaType,

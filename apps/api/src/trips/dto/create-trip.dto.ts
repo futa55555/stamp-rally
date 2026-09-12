@@ -24,7 +24,7 @@ export class SelectedStampDto {
   title!: string;
 }
 
-export class SelectedGenreDto {
+export class SelectedCategoryDto {
   @DomainName()
   name!: string;
 
@@ -63,8 +63,8 @@ export class CreateTripDto {
   @IsArray()
   @IsObject({ each: true })
   @ValidateNested({ each: true })
-  @Type(() => SelectedGenreDto)
-  selectedGenres?: SelectedGenreDto[];
+  @Type(() => SelectedCategoryDto)
+  selectedCategories?: SelectedCategoryDto[];
 
   @DomainName()
   name!: string;

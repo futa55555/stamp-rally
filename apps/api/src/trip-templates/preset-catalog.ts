@@ -1,6 +1,6 @@
 import type {
   ActivityPreset,
-  GenreTemplateItem,
+  CategoryTemplateItem,
   LocationPreset,
   TripTemplate,
   TripTemplatePresets,
@@ -43,17 +43,17 @@ function name(value: unknown, path: string): string {
 }
 
 function template(value: unknown, path: string): TripTemplate {
-  const record = object(value, path, ['genres']);
+  const record = object(value, path, ['categories']);
   return {
-    genres: array(record.genres, `${path}.genres`).map(
-      (value, genreIndex): GenreTemplateItem => {
-        const genrePath = `${path}.genres[${genreIndex}]`;
-        const genre = object(value, genrePath, ['name', 'stamps']);
+    categories: array(record.categories, `${path}.categories`).map(
+      (value, categoryIndex): CategoryTemplateItem => {
+        const categoryPath = `${path}.categories[${categoryIndex}]`;
+        const category = object(value, categoryPath, ['name', 'stamps']);
         return {
-          name: name(genre.name, `${genrePath}.name`),
-          stamps: array(genre.stamps, `${genrePath}.stamps`).map(
+          name: name(category.name, `${categoryPath}.name`),
+          stamps: array(category.stamps, `${categoryPath}.stamps`).map(
             (value, stampIndex) => {
-              const stampPath = `${genrePath}.stamps[${stampIndex}]`;
+              const stampPath = `${categoryPath}.stamps[${stampIndex}]`;
               const stamp = object(value, stampPath, ['title']);
               return { title: name(stamp.title, `${stampPath}.title`) };
             },

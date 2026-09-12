@@ -1,22 +1,22 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { TripAccessService } from '../trips/trip-access.service.js';
-import { GenreRepository } from './genre.repository.js';
-import { GenresService } from './genres.service.js';
+import { CategoryRepository } from './category.repository.js';
+import { CategoriesService } from './categories.service.js';
 
-describe('GenresService', () => {
+describe('CategoriesService', () => {
   const repo = {
     create: vi.fn(),
     findAll: vi.fn(),
     findById: vi.fn(),
     update: vi.fn(),
   };
-  const access = { requireTrip: vi.fn(), requireGenre: vi.fn() };
-  const service = new GenresService(
-    repo as unknown as GenreRepository,
+  const access = { requireTrip: vi.fn(), requireCategory: vi.fn() };
+  const service = new CategoriesService(
+    repo as unknown as CategoryRepository,
     access as unknown as TripAccessService,
   );
   const current = {
-    id: 'genre',
+    id: 'category',
     tripId: 'trip',
     name: '既存',
     description: '既存の説明',
@@ -41,10 +41,13 @@ describe('GenresService', () => {
   });
 
   it('updates only supplied fields', async () => {
-    await service.update('participant', 'genre', { name: '  改名  ' });
-    expect(access.requireGenre).toHaveBeenCalledWith('participant', 'genre');
+    await service.update('participant', 'category', { name: '  改名  ' });
+    expect(access.requireCategory).toHaveBeenCalledWith(
+      'participant',
+      'category',
+    );
     expect(repo.update).toHaveBeenCalledWith(
-      'genre',
+      'category',
       {
         name: '改名',
         description: undefined,
@@ -54,9 +57,9 @@ describe('GenresService', () => {
   });
 
   it('allows clearing a description', async () => {
-    await service.update('participant', 'genre', { description: '' });
+    await service.update('participant', 'category', { description: '' });
     expect(repo.update).toHaveBeenCalledWith(
-      'genre',
+      'category',
       {
         name: undefined,
         description: '',
@@ -69,7 +72,7 @@ describe('GenresService', () => {
     'rejects invalid updates %o',
     async (dto) => {
       await expect(
-        service.update('participant', 'genre', dto),
+        service.update('participant', 'category', dto),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(repo.update).not.toHaveBeenCalled();
     },
@@ -88,12 +91,12 @@ describe('GenresService', () => {
   });
 
   it('denies child reads and edits before repository access', async () => {
-    access.requireGenre.mockRejectedValue(new NotFoundException());
-    await expect(service.findOne('outsider', 'genre')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    access.requireCategory.mockRejectedValue(new NotFoundException());
     await expect(
-      service.update('outsider', 'genre', { name: '変更' }),
+      service.findOne('outsider', 'category'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.update('outsider', 'category', { name: '変更' }),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(repo.findById).not.toHaveBeenCalled();
     expect(repo.update).not.toHaveBeenCalled();

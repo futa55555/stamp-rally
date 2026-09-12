@@ -190,6 +190,74 @@ describe('Trip domain migration integration', () => {
     expect((await client.query('SELECT * FROM posts')).rows).toEqual([]);
   });
 
+  it('renames categories while preserving shared stamps and notification targets', async () => {
+    const owner = randomUUID(),
+      trip = randomUUID(),
+      category = randomUUID(),
+      stamp = randomUUID();
+    await client.query('INSERT INTO users (id,name) VALUES ($1,$2)', [
+      owner,
+      'Owner',
+    ]);
+    await client.query(migration);
+    await client.query(removeCommentsMigration);
+    await client.query(mobileMigration);
+    await client.query(mediaMigration);
+    await client.query(stampGenresMigration);
+    await client.query(
+      "INSERT INTO trips (id,name,start_date,end_date,created_by_id,updated_at) VALUES ($1,'Trip','2026-09-12','2026-09-13',$2,CURRENT_TIMESTAMP)",
+      [trip, owner],
+    );
+    await client.query(
+      "INSERT INTO genres (id,trip_id,name,updated_at) VALUES ($1,$2,'グルメ',CURRENT_TIMESTAMP)",
+      [category, trip],
+    );
+    await client.query(
+      "INSERT INTO stamps (id,trip_id,name,updated_at) VALUES ($1,$2,'食べる',CURRENT_TIMESTAMP)",
+      [stamp, trip],
+    );
+    await client.query(
+      'INSERT INTO stamp_genres (stamp_id,genre_id) VALUES ($1,$2)',
+      [stamp, category],
+    );
+    await client.query(
+      "INSERT INTO notifications (id,recipient_id,trip_id,title,body,target) VALUES ($1,$2,$3,'ジャンルが作成されました','グルメ',$4::jsonb)",
+      [
+        randomUUID(),
+        owner,
+        trip,
+        JSON.stringify({ type: 'genre', genreId: category }),
+      ],
+    );
+    const before = (await client.query('SELECT * FROM genres')).rows;
+    await client.query(
+      readFileSync(
+        new URL(
+          '../../prisma/migrations/20260912020000_categories/migration.sql',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    );
+    expect((await client.query('SELECT * FROM categories')).rows).toEqual(
+      before,
+    );
+    expect((await client.query('SELECT * FROM stamp_categories')).rows).toEqual(
+      [{ stamp_id: stamp, category_id: category }],
+    );
+    expect(
+      (await client.query('SELECT title,target FROM notifications')).rows,
+    ).toEqual([
+      {
+        title: 'カテゴリーが作成されました',
+        target: { type: 'category', categoryId: category },
+      },
+    ]);
+    expect(
+      (await client.query("SELECT to_regclass('genres') AS old_table")).rows,
+    ).toEqual([{ old_table: null }]);
+  });
+
   it('reports duplicate names, aborts before domain DDL, and preserves existing users', async () => {
     const first = randomUUID();
     const second = randomUUID();

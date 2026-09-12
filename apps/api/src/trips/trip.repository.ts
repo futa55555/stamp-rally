@@ -8,12 +8,12 @@ import {
 } from '../common/pagination.js';
 import { Prisma, type Trip as PrismaTrip } from '../generated/prisma/client.js';
 import { calendarDate, Trip, type TripInput } from './entities/trip.entity.js';
-import type { GenreTemplateItem } from '../trip-templates/types.js';
+import type { CategoryTemplateItem } from '../trip-templates/types.js';
 
 interface TripProgress {
   id: string;
-  totalGenreCount: number;
-  completedGenreCount: number;
+  totalCategoryCount: number;
+  completedCategoryCount: number;
 }
 
 @Injectable()
@@ -24,7 +24,7 @@ export class TripRepository {
     userId: string,
     input: TripInput,
     tx: Prisma.TransactionClient,
-    genres: GenreTemplateItem[] = [],
+    categories: CategoryTemplateItem[] = [],
   ): Promise<Trip> {
     const row = await tx.trip.create({
       data: {
@@ -43,24 +43,28 @@ export class TripRepository {
         members: { create: { userId } },
       },
     });
-    // A title identifies one new template stamp across the selected genres.
+    // A title identifies one new template stamp across the selected categories.
     const stamps = new Map<string, string[]>();
-    for (const genre of genres.filter((genre) => genre.stamps.length > 0)) {
-      const created = await tx.genre.create({
-        data: { tripId: row.id, name: genre.name },
+    for (const category of categories.filter(
+      (category) => category.stamps.length > 0,
+    )) {
+      const created = await tx.category.create({
+        data: { tripId: row.id, name: category.name },
       });
-      for (const { title } of genre.stamps) {
+      for (const { title } of category.stamps) {
         const ids = stamps.get(title) ?? [];
         if (!ids.includes(created.id)) ids.push(created.id);
         stamps.set(title, ids);
       }
     }
-    for (const [name, genreIds] of stamps) {
+    for (const [name, categoryIds] of stamps) {
       await tx.stamp.create({
         data: {
           tripId: row.id,
           name,
-          genres: { create: genreIds.map((genreId) => ({ genreId })) },
+          categories: {
+            create: categoryIds.map((categoryId) => ({ categoryId })),
+          },
         },
       });
     }
@@ -141,16 +145,16 @@ export class TripRepository {
   ) {
     if (ids.length === 0) return new Map<string, TripProgress>();
     const rows = await tx.$queryRaw<TripProgress[]>(Prisma.sql`
-      SELECT t.id, COUNT(g.id)::int AS "totalGenreCount",
+      SELECT t.id, COUNT(g.id)::int AS "totalCategoryCount",
         COUNT(g.id) FILTER (
-          WHERE EXISTS (SELECT 1 FROM stamp_genres s WHERE s.genre_id = g.id)
+          WHERE EXISTS (SELECT 1 FROM stamp_categories s WHERE s.category_id = g.id)
             AND NOT EXISTS (
-              SELECT 1 FROM stamp_genres s WHERE s.genre_id = g.id
+              SELECT 1 FROM stamp_categories s WHERE s.category_id = g.id
                 AND NOT EXISTS (SELECT 1 FROM posts p WHERE p.stamp_id = s.stamp_id AND p.status = 'READY')
             )
-        )::int AS "completedGenreCount"
+        )::int AS "completedCategoryCount"
       FROM trips t
-      LEFT JOIN genres g ON g.trip_id = t.id
+      LEFT JOIN categories g ON g.trip_id = t.id
       WHERE t.id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
       GROUP BY t.id
     `);
@@ -167,8 +171,8 @@ export class TripRepository {
       row.createdById,
       row.createdAt,
       row.updatedAt,
-      progress?.totalGenreCount ?? 0,
-      progress?.completedGenreCount ?? 0,
+      progress?.totalCategoryCount ?? 0,
+      progress?.completedCategoryCount ?? 0,
       row.locations,
       row.coverAssetId,
       row.activityPresets,

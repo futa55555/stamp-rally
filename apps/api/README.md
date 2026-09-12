@@ -1,6 +1,6 @@
 # Stamp Rally API
 
-NestJS + Prisma + PostgreSQL。認証済みの参加者が、trip → genre → stamp と投稿を共有するAPIです。
+NestJS + Prisma + PostgreSQL。認証済みの参加者が、trip → category → stamp と投稿を共有するAPIです。
 
 ## コード構成
 
@@ -122,49 +122,49 @@ domain APIには `Authorization: Bearer <accessToken>` と `ACTIVE` が必要で
 
 作成は201、取得・更新・招待の承認と辞退は200を返します。未知のbody/query項目はDTOを持つAPIで拒否します。
 
-| Method / Path                | 内容                                                                                                                              |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| GET /users/me                | 自分のプロフィール                                                                                                                |
-| PATCH /users/me              | `{ name }` で名前設定・変更                                                                                                       |
-| GET /users/lookup?name=...   | trim後の完全一致検索。返却は `{ id, name }` のみ                                                                                  |
-| GET /trip-templates/presets  | 場所presetの名前・別名と、活動presetの名前を取得                                                                                  |
-| POST /trip-templates/preview | `{ locations?, activityPresets? }` から候補と入力元を取得。成功は200                                                              |
-| POST /trips                  | `{ name, startDate, endDate, coverAssetId?, locations?, activityPresets?, customActivities?, selectedGenres?, clientRequestId? }` |
-| GET /trips                   | 参加中のtrip一覧と達成集計                                                                                                        |
-| GET /trips/:id               | trip詳細と達成集計                                                                                                                |
-| PATCH /trips/:id             | name・startDate・endDate・locations・coverAssetIdの部分更新                                                                       |
-| GET /trips/:id/members       | 参加者一覧。各項目に `user: { id, name }` を含む                                                                                  |
-| POST /genres                 | `{ tripId, name, description? }`                                                                                                  |
-| GET /genres?tripId=...       | trip内のgenre一覧と達成集計                                                                                                       |
-| GET /genres/:id              | genre詳細と達成集計                                                                                                               |
-| PATCH /genres/:id            | name・descriptionの部分更新                                                                                                       |
-| POST /stamps                 | `{ tripId, genreIds, name, description? }`                                                                                        |
-| GET /stamps?genreId=...      | genre内のstamp一覧と達成状態                                                                                                      |
-| GET /stamps/:id              | stamp詳細と達成状態                                                                                                               |
-| PATCH /stamps/:id            | name・description・genreIdsの部分更新                                                                                             |
-| POST /uploads/batches        | 写真・動画の追加を予約。詳細は[アップロード仕様](../../docs/media-uploads.md)                                                     |
-| GET /posts/:id/original      | 権限確認後、共有・保存用の原本URLを発行                                                                                           |
-| GET /posts                   | `tripId / genreId / stampId` のいずれか1つで一覧                                                                                  |
-| GET /posts/:id               | 投稿詳細                                                                                                                          |
-| PATCH /posts/:id/favorite    | `{ isFavorite: true }` または `false`                                                                                             |
+| Method / Path                | 内容                                                                                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| GET /users/me                | 自分のプロフィール                                                                                                                    |
+| PATCH /users/me              | `{ name }` で名前設定・変更                                                                                                           |
+| GET /users/lookup?name=...   | trim後の完全一致検索。返却は `{ id, name }` のみ                                                                                      |
+| GET /trip-templates/presets  | 場所presetの名前・別名と、活動presetの名前を取得                                                                                      |
+| POST /trip-templates/preview | `{ locations?, activityPresets? }` から候補と入力元を取得。成功は200                                                                  |
+| POST /trips                  | `{ name, startDate, endDate, coverAssetId?, locations?, activityPresets?, customActivities?, selectedCategories?, clientRequestId? }` |
+| GET /trips                   | 参加中のtrip一覧と達成集計                                                                                                            |
+| GET /trips/:id               | trip詳細と達成集計                                                                                                                    |
+| PATCH /trips/:id             | name・startDate・endDate・locations・coverAssetIdの部分更新                                                                           |
+| GET /trips/:id/members       | 参加者一覧。各項目に `user: { id, name }` を含む                                                                                      |
+| POST /categories             | `{ tripId, name, description? }`                                                                                                      |
+| GET /categories?tripId=...   | trip内のcategory一覧と達成集計                                                                                                        |
+| GET /categories/:id          | category詳細と達成集計                                                                                                                |
+| PATCH /categories/:id        | name・descriptionの部分更新                                                                                                           |
+| POST /stamps                 | `{ tripId, categoryIds, name, description? }`                                                                                         |
+| GET /stamps?categoryId=...   | category内のstamp一覧と達成状態                                                                                                       |
+| GET /stamps/:id              | stamp詳細と達成状態                                                                                                                   |
+| PATCH /stamps/:id            | name・description・categoryIdsの部分更新                                                                                              |
+| POST /uploads/batches        | 写真・動画の追加を予約。詳細は[アップロード仕様](../../docs/media-uploads.md)                                                         |
+| GET /posts/:id/original      | 権限確認後、共有・保存用の原本URLを発行                                                                                               |
+| GET /posts                   | `tripId / categoryId / stampId` のいずれか1つで一覧                                                                                   |
+| GET /posts/:id               | 投稿詳細                                                                                                                              |
+| PATCH /posts/:id/favorite    | `{ isFavorite: true }` または `false`                                                                                                 |
 
-リソースIDはUUIDです。genreのtripとstampのtripは変更できません。stampの所属genreは同じtrip内で変更できます。postの内容編集、trip・genre・stampの削除、退出・除名は今回のAPIには含みません。
+リソースIDはUUIDです。categoryのtripとstampのtripは変更できません。stampの所属categoryは同じtrip内で変更できます。postの内容編集、trip・category・stampの削除、退出・除名は今回のAPIには含みません。
 
-### trip・genre・stamp
+### trip・category・stamp
 
 tripの期間は `YYYY-MM-DD` の暦日で、開始日≦終了日（同日可）。時刻・タイムゾーンは持ちません。過去・未来の期間も指定でき、期間外の投稿・編集も可能です。
 
-新規Tripでは、`activityPresets` に選択した活動presetの名前、`customActivities` に自由入力した活動を保存できます。両方とも文字列配列で、省略時は空配列です。`selectedGenres` は `{ name, stamps: [{ title }] }[]`。場所・活動presetから得られる候補だけを選択でき、選択分のgenre・stampをTripと同じtransactionで作成します。候補はgenreごとに選択でき、保存時には同じtitleを1つのstampにまとめ、選択されたgenreすべてに紐付けます。stampが0件のgenreは作成しません。既存stampや手動で作成した同名stampは統合しません。選択を省略するか空配列にすると、活動情報を保存して空のTripを作成します。
+新規Tripでは、`activityPresets` に選択した活動presetの名前、`customActivities` に自由入力した活動を保存できます。両方とも文字列配列で、省略時は空配列です。`selectedCategories` は `{ name, stamps: [{ title }] }[]`。場所・活動presetから得られる候補だけを選択でき、選択分のcategory・stampをTripと同じtransactionで作成します。候補はcategoryごとに選択でき、保存時には同じtitleを1つのstampにまとめ、選択されたcategoryすべてに紐付けます。stampが0件のcategoryは作成しません。既存stampや手動で作成した同名stampは統合しません。選択を省略するか空配列にすると、活動情報を保存して空のTripを作成します。
 
-場所は前後空白除去後にpresetの `name` / `aliases` と完全一致で照合します。一致しない場所と自由入力の活動はTripに保存し、候補生成には使いません。活動・genre・stampの名前を使う選択方式のため、表記を統一してください。previewの各stampには `sources: [{ type: 'location' | 'activity', name }]` が付きます。
+場所は前後空白除去後にpresetの `name` / `aliases` と完全一致で照合します。一致しない場所と自由入力の活動はTripに保存し、候補生成には使いません。活動・category・stampの名前を使う選択方式のため、表記を統一してください。previewの各stampには `sources: [{ type: 'location' | 'activity', name }]` が付きます。
 
-`20260912000000_trip_templates` をAPI更新前に適用してください。既存Tripの活動情報は空配列になり、既存のgenre・stampは維持されます。Trip編集時に候補を再生成する処理はありません。JSONの仮presetはAPIに同梱されるため、内容を更新したらAPIを再ビルド・再起動します。
+`20260912000000_trip_templates` をAPI更新前に適用してください。既存Tripの活動情報は空配列になり、既存のcategory・stampは維持されます。Trip編集時に候補を再生成する処理はありません。JSONの仮presetはAPIに同梱されるため、内容を更新したらAPIを再ビルド・再起動します。
 
-stampは必ず1つのtripと、そのtrip内の1つ以上のgenreに所属します。stampレスポンスは `tripId` と `genreIds` を返し、`genreIds` はgenreの `createdAt, id` 昇順です。作成時の `genreIds` は必須、更新時は省略可能で、指定時は所属全体を置き換えます。空配列・重複・存在しないgenre・別tripのgenreは400です。並び順だけの変更は更新通知を発生させません。
+stampは必ず1つのtripと、そのtrip内の1つ以上のcategoryに所属します。stampレスポンスは `tripId` と `categoryIds` を返し、`categoryIds` はcategoryの `createdAt, id` 昇順です。作成時の `categoryIds` は必須、更新時は省略可能で、指定時は所属全体を置き換えます。空配列・重複・存在しないcategory・別tripのcategoryは400です。並び順だけの変更は更新通知を発生させません。
 
-`20260912010000_stamp_genres` は既存stampにtripと中間テーブルの所属を補完し、stamp ID・投稿・既読・お気に入り・日時を維持します。既存の同名stampは別々のままです。旧API・旧workerは旧カラムを参照するため、更新時はAPIとworkerを停止し、`pnpm api:migrate` → `pnpm api:generate` → APIのbuildを実行して両方を再起動してください。mobileも同時に更新します。旧 `genreId` のstamp作成・レスポンスとの互換性はありません。
+`20260912010000_stamp_categories` は既存stampにtripと中間テーブルの所属を補完し、stamp ID・投稿・既読・お気に入り・日時を維持します。既存の同名stampは別々のままです。旧API・旧workerは旧カラムを参照するため、更新時はAPIとworkerを停止し、`pnpm api:migrate` → `pnpm api:generate` → APIのbuildを実行して両方を再起動してください。mobileも同時に更新します。旧 `categoryId` のstamp作成・レスポンスとの互換性はありません。
 
-trip・genre・stampの名前は前後空白を除去した1〜100文字。descriptionは最大2,000文字で、省略時は空文字です。tripの代表画像URLは任意で、`null` で解除できます。部分更新は少なくとも1項目が必要です。
+trip・category・stampの名前は前後空白を除去した1〜100文字。descriptionは最大2,000文字で、省略時は空文字です。tripの代表画像URLは任意で、`null` で解除できます。部分更新は少なくとも1項目が必要です。
 
 ### 招待
 
@@ -180,30 +180,30 @@ postは1件の写真または動画です。原本・派生のkeyとBlurHashをD
 
 件数・容量・形式・API契約・R2設定・ワーカー起動・既存データ移行は[アップロード仕様](../../docs/media-uploads.md)を参照してください。R2未設定でも他のAPI機能とストレージを置き換えたテストは実行できます。
 
-stampに紐付くコンテンツはpostのみです。投稿者は認証中のユーザーから設定します。投稿には `author: { id, name }` と `tripId / genreIds / stampId` を含めます。`genreIds` は所属stampの現在のgenre一覧で、post自体は1つのstampにのみ紐付きます。
+stampに紐付くコンテンツはpostのみです。投稿者は認証中のユーザーから設定します。投稿には `author: { id, name }` と `tripId / categoryIds / stampId` を含めます。`categoryIds` は所属stampの現在のcategory一覧で、post自体は1つのstampにのみ紐付きます。
 
 お気に入りはpost共通のbooleanです。全参加者が設定・解除でき、個人別の状態や自動toggleではありません。`GET /posts` の `favoritesOnly=true` でお気に入りだけを返し、省略・falseでは全投稿を返します。
 
 ```text
 GET /posts?stampId=<uuid>
 GET /posts?stampId=<uuid>&favoritesOnly=true
-GET /posts?genreId=<uuid>&favoritesOnly=true
+GET /posts?categoryId=<uuid>&favoritesOnly=true
 GET /posts?tripId=<uuid>&favoritesOnly=true
 ```
 
-tripページからはgenreとstamp、genreページからはstampを一覧APIで選択し、共通の `POST /uploads/batches` にstampIdとファイル情報を送ります。
+tripページからはcategoryとstamp、categoryページからはstampを一覧APIで選択し、共通の `POST /uploads/batches` にstampIdとファイル情報を送ります。
 
 ### 達成集計・pagination
 
-| リソース | 返却する達成情報                                      |
-| -------- | ----------------------------------------------------- |
-| Stamp    | `isCompleted`：READYのpostが1件以上存在する           |
-| Genre    | `totalStampCount / completedStampCount / isCompleted` |
-| Trip     | `totalGenreCount / completedGenreCount / isCompleted` |
+| リソース | 返却する達成情報                                            |
+| -------- | ----------------------------------------------------------- |
+| Stamp    | `isCompleted`：READYのpostが1件以上存在する                 |
+| Category | `totalStampCount / completedStampCount / isCompleted`       |
+| Trip     | `totalCategoryCount / completedCategoryCount / isCompleted` |
 
-Genre・Tripは子が1件以上あり、そのすべてが達成済みなら達成済みです。複数genreに属するstampの達成・投稿・未読は各genreの集計に反映されます。tripの投稿一覧・お気に入りでは重複しません。投稿を既読にすると、その投稿由来の未読はすべての所属genreで解消します。お気に入りは達成に影響しません。途中で未達成のstamp・genreを追加すると、親も未達成に戻ります。集計は全配下を対象とし、一覧のページサイズには影響されません。
+Category・Tripは子が1件以上あり、そのすべてが達成済みなら達成済みです。複数categoryに属するstampの達成・投稿・未読は各categoryの集計に反映されます。tripの投稿一覧・お気に入りでは重複しません。投稿を既読にすると、その投稿由来の未読はすべての所属categoryで解消します。お気に入りは達成に影響しません。途中で未達成のstamp・categoryを追加すると、親も未達成に戻ります。集計は全配下を対象とし、一覧のページサイズには影響されません。
 
-一覧は `{ items, nextCursor }`。`limit` は既定20・最大100、続きは返された `cursor` を指定します。cursorは不透明な値として扱ってください。trip・post・招待は作成日時の降順、genre・stamp・参加者は昇順です。同時刻はIDで順序を確定します。
+一覧は `{ items, nextCursor }`。`limit` は既定20・最大100、続きは返された `cursor` を指定します。cursorは不透明な値として扱ってください。trip・post・招待は作成日時の降順、category・stamp・参加者は昇順です。同時刻はIDで順序を確定します。
 
 ## Mobile接続の追加契約
 
@@ -216,13 +216,13 @@ Genre・Tripは子が1件以上あり、そのすべてが達成済みなら達�
 | Post                            | 認証ユーザーの `readAt: string \| null`                                                                |
 | `PATCH /posts/:id/read`         | 画像・動画のユーザー別既読。更新後のPostを返し、同時・再送時も最初の日時を保持                         |
 | `DELETE /posts/:id`             | 参加者が削除でき、成功は204。写真既読・写真宛て通知はFKで同時に削除                                    |
-| Genre                           | `hasUnreadPhotos`。自分以外の未読画像が配下にあるか                                                    |
+| Category                        | `hasUnreadPhotos`。自分以外の未読画像が配下にあるか                                                    |
 | Stamp                           | `hasUnreadPhotos` と画像のみの `photoCount`。達成判定はREADYの投稿の有無                               |
 | `GET /notifications`            | `{ items, nextCursor, unreadCount }`。通常のcursor／limitに対応し、未読件数はページ外を含む全件        |
 | `PATCH /notifications/:id/read` | 本人宛て通知を既読化し、更新後の通知を返す。最初の既読日時を保持                                       |
 
-通知には `id / recipientId / title / body / target / readAt / createdAt` を返します。`target` は `{ type: 'trip', tripId }`、`{ type: 'genre', genreId }`、`{ type: 'stamp', stampId }`、`{ type: 'photo', postId }`、`{ type: 'video', postId }` のいずれかです。
+通知には `id / recipientId / title / body / target / readAt / createdAt` を返します。`target` は `{ type: 'trip', tripId }`、`{ type: 'category', categoryId }`、`{ type: 'stamp', stampId }`、`{ type: 'photo', postId }`、`{ type: 'video', postId }` のいずれかです。
 
-写真・動画の初回公開、旅行情報更新、ジャンル／スタンプ作成・更新時に、操作した本人を除く参加者へ通知を保存します。対象の変更と通知生成は同じserializable transactionで処理します。正規化後に変更のない更新、お気に入り、既読、削除では通知を作りません。写真と通知の既読は独立しています。新規APIにもJWT・ACTIVE・参加者権限を適用し、アクセスできない対象は404です。
+写真・動画の初回公開、旅行情報更新、カテゴリー／スタンプ作成・更新時に、操作した本人を除く参加者へ通知を保存します。対象の変更と通知生成は同じserializable transactionで処理します。正規化後に変更のない更新、お気に入り、既読、削除では通知を作りません。写真と通知の既読は独立しています。新規APIにもJWT・ACTIVE・参加者権限を適用し、アクセスできない対象は404です。
 
 投稿の`mediaUrl`は移行互換用の派生URLです。originalの表示用フォールバックはありません。未移行の既存投稿は取り込み完了まで一覧・集計に含めません。招待API、ユーザー名検索、運用用`GET /health`は維持しています。

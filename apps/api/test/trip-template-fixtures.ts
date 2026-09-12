@@ -14,19 +14,19 @@ const fixtures: TripTemplatePresets = {
       name: '沖縄県',
       aliases: ['沖縄', 'おきなわ'],
       template: {
-        genres: [
+        categories: [
           { name: 'グルメ', stamps: [{ title: '沖縄そばを食べる' }] },
           { name: '景色', stamps: [{ title: '海辺を散歩する' }] },
         ],
       },
     },
-    { name: '北海道', aliases: [], template: { genres: [] } },
+    { name: '北海道', aliases: [], template: { categories: [] } },
   ],
   activities: [
     {
       name: '夜景',
       template: {
-        genres: [
+        categories: [
           { name: '景色', stamps: [{ title: '夜景を楽しむ' }] },
           { name: '思い出', stamps: [{ title: '夜景を楽しむ' }] },
         ],
@@ -35,13 +35,13 @@ const fixtures: TripTemplatePresets = {
     {
       name: '温泉',
       template: {
-        genres: [{ name: '温泉', stamps: [{ title: '露天風呂につかる' }] }],
+        categories: [{ name: '温泉', stamps: [{ title: '露天風呂につかる' }] }],
       },
     },
     {
       name: '海',
       template: {
-        genres: [
+        categories: [
           {
             name: '景色',
             stamps: [{ title: '海辺を散歩する' }, { title: '夕日を見る' }],
@@ -49,7 +49,7 @@ const fixtures: TripTemplatePresets = {
         ],
       },
     },
-    { name: '登山', template: { genres: [] } },
+    { name: '登山', template: { categories: [] } },
   ],
 };
 
