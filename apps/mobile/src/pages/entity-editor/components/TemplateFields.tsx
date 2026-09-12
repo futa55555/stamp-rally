@@ -74,7 +74,7 @@ function ActivityChip({
   );
 }
 
-function CheckRow({
+export function CheckRow({
   label,
   checked,
   emphasized = false,
@@ -125,7 +125,10 @@ export function ActivitiesField({
   onChange,
   onCustomChange,
 }: {
-  templates: Templates;
+  templates: Pick<
+    Templates,
+    'presets' | 'presetsPending' | 'presetsError' | 'retryPresets'
+  >;
   selected: string[];
   custom: string[];
   disabled: boolean;
@@ -160,7 +163,12 @@ export function ActivitiesField({
         <AppText tone="textSecondary">やりたいことを読み込み中…</AppText>
       ) : null}
       <View className="flex-row flex-wrap gap-2">
-        {templates.presets?.activities.map(({ name }) => (
+        {[
+          ...new Set([
+            ...(templates.presets?.activities.map((item) => item.name) ?? []),
+            ...selected,
+          ]),
+        ].map((name) => (
           <ActivityChip
             key={name}
             label={name}
@@ -285,7 +293,7 @@ export function TemplateCandidatesField({
             const checked = categoryChecked(category, templates.selection);
             return (
               <View
-                key={category.name}
+                key={category.key ?? category.name}
                 className="rounded-xl border border-border px-3 py-1"
               >
                 <CheckRow
@@ -298,18 +306,24 @@ export function TemplateCandidatesField({
                   }
                 />
                 <View className="pl-5">
-                  {category.stamps.map(({ title }) => (
+                  {category.stamps.map(({ key, title }) => (
                     <CheckRow
-                      key={title}
+                      key={key ?? title}
                       label={title}
                       checked={
                         !!templates.selection[
-                          stampSelectionKey(category.name, title)
+                          stampSelectionKey(
+                            category.key ?? category.name,
+                            key ?? title,
+                          )
                         ]
                       }
                       disabled={disabled || !templates.ready}
                       onPress={() =>
-                        templates.toggleStamp(category.name, title)
+                        templates.toggleStamp(
+                          category.key ?? category.name,
+                          key ?? title,
+                        )
                       }
                     />
                   ))}

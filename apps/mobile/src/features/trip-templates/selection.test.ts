@@ -42,3 +42,30 @@ it('keeps identities unambiguous and omits empty categories without sending sour
   expect(categoryChecked(empty, { '["自然","海"]': false })).toBe(false);
   expect(selectedCategories([empty], { '["自然","海"]': false })).toEqual([]);
 });
+
+it('keeps deselected stable identities when category and stamp labels change', () => {
+  const category = {
+    key: 'category-key',
+    name: '景色',
+    stamps: [{ key: 'stamp-key', title: '海を見る', sources: [] }],
+  };
+  const previous = { [stampSelectionKey('category-key', 'stamp-key')]: false };
+  const renamed = {
+    ...category,
+    name: '自然',
+    stamps: [{ ...category.stamps[0], title: '海を眺める' }],
+  };
+  expect(reconcileSelection([renamed], previous)).toEqual(previous);
+  expect(selectedCategories([renamed], previous)).toEqual([]);
+  expect(
+    selectedCategories([renamed], {
+      [stampSelectionKey('category-key', 'stamp-key')]: true,
+    }),
+  ).toEqual([
+    {
+      key: 'category-key',
+      name: '自然',
+      stamps: [{ key: 'stamp-key', title: '海を眺める' }],
+    },
+  ]);
+});

@@ -336,10 +336,10 @@ describe('TripTemplatesService', () => {
     expect(Array.isArray(catalog.locations)).toBe(true);
     expect(Array.isArray(catalog.activities)).toBe(true);
     for (const preset of catalog.locations) {
-      expect(Object.keys(preset)).toEqual(['name', 'aliases']);
+      expect(Object.keys(preset)).toEqual(['key', 'name', 'aliases']);
     }
     for (const preset of catalog.activities) {
-      expect(Object.keys(preset)).toEqual(['name']);
+      expect(Object.keys(preset)).toEqual(['key', 'name']);
     }
   });
 
@@ -400,11 +400,13 @@ describe('bundled template memberships', () => {
     const memberships = preview.categories.filter((category) =>
       category.stamps.some((stamp) => stamp.title === '夜景を楽しむ'),
     );
-    expect(memberships.map((category) => category.name)).toEqual(['景色']);
+    expect(memberships.map((category) => category.name)).toMatchObject([
+      '景色',
+    ]);
     for (const category of memberships) {
       expect(
         category.stamps.filter((stamp) => stamp.title === '夜景を楽しむ'),
-      ).toEqual([
+      ).toMatchObject([
         {
           title: '夜景を楽しむ',
           sources: [
@@ -482,4 +484,67 @@ describe('bundled template memberships', () => {
       ]),
     );
   });
+});
+
+it('keeps template identity and source provenance after every display label changes', () => {
+  const catalog: TripTemplatePresets = {
+    locations: [],
+    activities: [
+      {
+        key: 'activity-one',
+        name: '海',
+        template: {
+          categories: [
+            {
+              key: 'category-one',
+              name: '景色',
+              stamps: [{ key: 'stamp-one', title: '海を見る' }],
+            },
+          ],
+        },
+      },
+    ],
+  };
+  const before = previewTripTemplates(parseTripTemplatePresets(catalog, true), {
+    activityPresets: ['海'],
+  });
+  catalog.activities[0].name = '海辺';
+  catalog.activities[0].template.categories[0].name = '自然';
+  catalog.activities[0].template.categories[0].stamps[0].title = '海を眺める';
+  const after = previewTripTemplates(parseTripTemplatePresets(catalog, true), {
+    activityPresets: ['海辺'],
+  });
+  expect(after.categories[0].key).toBe(before.categories[0].key);
+  expect(after.categories[0].stamps[0].key).toBe(
+    before.categories[0].stamps[0].key,
+  );
+  expect(after.categories[0].stamps[0].sources[0].key).toBe(
+    before.categories[0].stamps[0].sources[0].key,
+  );
+  delete catalog.activities[0].template.categories[0].stamps[0].key;
+  expect(() => parseTripTemplatePresets(catalog, true)).toThrow(
+    'stable template key',
+  );
+});
+
+it('accepts stable create selection keys after labels have changed', () => {
+  const service = new TripTemplatesService();
+  const input = { activityPresets: ['夜景'] };
+  const category = service.preview(input).categories[0];
+  const stamp = category.stamps[0];
+  expect(
+    service.identified(input, [
+      {
+        key: category.key,
+        name: '旧カテゴリー名',
+        stamps: [{ key: stamp.key, title: '旧スタンプ名' }],
+      },
+    ]),
+  ).toMatchObject([
+    {
+      key: category.key,
+      name: category.name,
+      stamps: [{ key: stamp.key, title: stamp.title, sources: stamp.sources }],
+    },
+  ]);
 });

@@ -48,14 +48,22 @@ function template(value: unknown, path: string): TripTemplate {
     categories: array(record.categories, `${path}.categories`).map(
       (value, categoryIndex): CategoryTemplateItem => {
         const categoryPath = `${path}.categories[${categoryIndex}]`;
-        const category = object(value, categoryPath, ['name', 'stamps']);
+        const category = object(value, categoryPath, ['key', 'name', 'stamps']);
         return {
+          ...(category.key !== undefined
+            ? { key: name(category.key, `${categoryPath}.key`) }
+            : {}),
           name: name(category.name, `${categoryPath}.name`),
           stamps: array(category.stamps, `${categoryPath}.stamps`).map(
             (value, stampIndex) => {
               const stampPath = `${categoryPath}.stamps[${stampIndex}]`;
-              const stamp = object(value, stampPath, ['title']);
-              return { title: name(stamp.title, `${stampPath}.title`) };
+              const stamp = object(value, stampPath, ['key', 'title']);
+              return {
+                ...(stamp.key !== undefined
+                  ? { key: name(stamp.key, `${stampPath}.key`) }
+                  : {}),
+                title: name(stamp.title, `${stampPath}.title`),
+              };
             },
           ),
         };
@@ -65,13 +73,24 @@ function template(value: unknown, path: string): TripTemplate {
 }
 
 /** Validate editable JSON once at startup, with an actionable path on failure. */
-export function parseTripTemplatePresets(value: unknown): TripTemplatePresets {
+export function parseTripTemplatePresets(
+  value: unknown,
+  requireKeys = false,
+): TripTemplatePresets {
   const root = object(value, '$', ['locations', 'activities']);
   const locations = array(root.locations, '$.locations').map(
     (value, index): LocationPreset => {
       const path = `$.locations[${index}]`;
-      const preset = object(value, path, ['name', 'aliases', 'template']);
+      const preset = object(value, path, [
+        'key',
+        'name',
+        'aliases',
+        'template',
+      ]);
       return {
+        ...(preset.key !== undefined
+          ? { key: name(preset.key, `${path}.key`) }
+          : {}),
         name: name(preset.name, `${path}.name`),
         aliases: array(preset.aliases, `${path}.aliases`).map((alias, index) =>
           name(alias, `${path}.aliases[${index}]`),
@@ -83,8 +102,11 @@ export function parseTripTemplatePresets(value: unknown): TripTemplatePresets {
   const activities = array(root.activities, '$.activities').map(
     (value, index): ActivityPreset => {
       const path = `$.activities[${index}]`;
-      const preset = object(value, path, ['name', 'template']);
+      const preset = object(value, path, ['key', 'name', 'template']);
       return {
+        ...(preset.key !== undefined
+          ? { key: name(preset.key, `${path}.key`) }
+          : {}),
         name: name(preset.name, `${path}.name`),
         template: template(preset.template, `${path}.template`),
       };
@@ -120,5 +142,36 @@ export function parseTripTemplatePresets(value: unknown): TripTemplatePresets {
     }
     activityNames.add(preset.name);
   });
+  if (requireKeys) {
+    const labels = new Map<string, string>();
+    for (const [kind, presets] of [
+      ['location', locations],
+      ['activity', activities],
+    ] as const) {
+      const seen = new Set<string>();
+      for (const preset of presets) {
+        if (
+          !preset.key ||
+          !/^[a-z0-9][a-z0-9-]{0,99}$/.test(preset.key) ||
+          seen.has(preset.key)
+        )
+          invalid(kind, 'missing or duplicate stable preset key');
+        seen.add(preset.key);
+        for (const category of preset.template.categories) {
+          for (const [type, key, label] of [
+            ['category', category.key, category.name],
+            ...category.stamps.map((s) => ['stamp', s.key, s.title]),
+          ] as const) {
+            if (!key || !/^[a-z0-9][a-z0-9-]{0,99}$/.test(key))
+              invalid(kind, 'missing or invalid stable template key');
+            const identity = `${type}:${key}`;
+            if (labels.has(identity) && labels.get(identity) !== label)
+              invalid(identity, 'a stable key has conflicting labels');
+            labels.set(identity, label!);
+          }
+        }
+      }
+    }
+  }
   return { locations, activities };
 }

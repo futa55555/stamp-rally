@@ -1,3 +1,6 @@
+import { Type } from 'class-transformer';
+import { IsObject, ValidateNested, MaxLength } from 'class-validator';
+import { SaveTripTemplateDto } from './edit-trip-template.dto.js';
 import {
   IsArray,
   IsUUID,
@@ -9,6 +12,22 @@ import {
 import { DomainName, OptionalField } from '../../common/validation.js';
 
 export class UpdateTripDto {
+  @OptionalField()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  activityPresets?: string[];
+  @OptionalField()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  customActivities?: string[];
+  @OptionalField()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => SaveTripTemplateDto)
+  templateEdit?: SaveTripTemplateDto;
+
   @OptionalField()
   @IsArray()
   @IsString({ each: true })

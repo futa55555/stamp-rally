@@ -78,6 +78,458 @@ describe('Trip API integration', () => {
   const storage = new TestObjectStorage();
   const queue = new TestMediaQueue();
 
+  describe('editing trip templates', () => {
+    const sources = { locations: ['沖縄'], activityPresets: ['海'] };
+    async function templated(input = sources) {
+      const candidates = app.get(TripTemplatesService).preview(input);
+      const selectedCategories = candidates.categories.map((category) => ({
+        name: category.name,
+        stamps: category.stamps.map(({ title }) => ({ title })),
+      }));
+      return http('post', '/trips', owner, {
+        ...tripInput,
+        ...input,
+        selectedCategories,
+      });
+    }
+    const preview = (id: string, input: Input = {}) =>
+      http<import('../src/trip-templates/edit-plan.js').TemplatePlan['view']>(
+        'post',
+        `/trips/${id}/template-preview`,
+        owner,
+        input,
+        200,
+      );
+    const save = (
+      id: string,
+      input: Input,
+      changes: unknown[] = [],
+      confirmationToken?: string,
+    ) =>
+      http('patch', `/trips/${id}`, owner, {
+        ...input,
+        templateEdit: {
+          changes,
+          confirmationToken,
+          clientRequestId: randomUUID(),
+        },
+      });
+
+    it('previews without writes, retains multiple sources, and removes only empty template-derived memberships', async () => {
+      const trip = await templated();
+      const manual = await http('post', '/categories', owner, {
+        tripId: trip.id,
+        name: 'グルメ',
+      });
+      const manualStamp = await http('post', '/stamps', owner, {
+        tripId: trip.id,
+        categoryIds: [manual.id],
+        name: '沖縄そばを食べる',
+      });
+      const before = await prisma.category.count({
+        where: { tripId: trip.id, deletedAt: null },
+      });
+      const draft = await preview(trip.id, {
+        locations: [],
+        activityPresets: ['海'],
+      });
+      expect(
+        draft.categories.find((category) => category.id === manual.id),
+      ).toMatchObject({
+        selected: true,
+        stamps: [{ selected: true, manual: true }],
+      });
+      expect(
+        await prisma.category.count({
+          where: { tripId: trip.id, deletedAt: null },
+        }),
+      ).toBe(before);
+      await save(trip.id, {
+        locations: [],
+        activityPresets: ['海'],
+        customActivities: [' 自分だけの予定 '],
+      });
+      expect((await get(`/trips/${trip.id}`, owner)).customActivities).toEqual([
+        '自分だけの予定',
+      ]);
+      const beach = await prisma.stamp.findFirstOrThrow({
+        where: { tripId: trip.id, name: '海辺を散歩する', deletedAt: null },
+        include: { categories: true },
+      });
+      expect(beach.categories[0].templateSources).toHaveLength(1);
+      await save(trip.id, { locations: [], activityPresets: [] });
+      expect(
+        await prisma.stamp.findUnique({ where: { id: beach.id } }),
+      ).toMatchObject({ deletedAt: expect.any(Date) });
+      expect(await get(`/stamps/${manualStamp.id}`, owner)).toMatchObject({
+        name: manualStamp.name,
+      });
+    });
+
+    it.each(['READY', 'TRASH', 'PENDING', 'PROCESSING', 'FAILED'])(
+      'keeps a %s post and its template category after the last input source is removed',
+      async (state) => {
+        const trip = await templated();
+        const stamp = await prisma.stamp.findFirstOrThrow({
+          where: { tripId: trip.id, name: '海辺を散歩する' },
+        });
+        const post = await publish(owner, { ...mediaInput, stampId: stamp.id });
+        if (state === 'TRASH')
+          await http('delete', `/posts/${post.id}`, owner, undefined, 204);
+        else
+          await prisma.post.update({
+            where: { id: post.id },
+            data: {
+              status: state as 'READY' | 'PENDING' | 'PROCESSING' | 'FAILED',
+            },
+          });
+        const draft = await preview(trip.id, {
+          locations: [],
+          activityPresets: [],
+        });
+        expect(
+          draft.categories
+            .flatMap((category) => category.stamps)
+            .find((item) => item.id === stamp.id),
+        ).toMatchObject({ selected: true, retained: true });
+        await save(trip.id, { locations: [], activityPresets: [] });
+        expect(
+          await prisma.post.findUnique({ where: { id: post.id } }),
+        ).toMatchObject({ purgedAt: null });
+        expect(await get(`/stamps/${stamp.id}`, owner)).toMatchObject({
+          id: stamp.id,
+        });
+        if (state === 'TRASH')
+          await http(
+            'post',
+            `/posts/${post.id}/restore`,
+            owner,
+            undefined,
+            200,
+          );
+      },
+    );
+
+    it('protects a newly added post automatically and requires new confirmation for a changed manual deletion impact', async () => {
+      const trip = await templated();
+      const draft = await preview(trip.id, {
+        locations: [],
+        activityPresets: [],
+      });
+      const category = draft.categories.find((item) => item.name === '景色')!;
+      const stamp = category.stamps.find(
+        (item) => item.name === '海辺を散歩する',
+      )!;
+      const changes = [
+        { categoryRef: category.ref, stampRef: stamp.ref, selected: false },
+      ];
+      const manual = await preview(trip.id, {
+        locations: [],
+        activityPresets: [],
+        changes,
+      });
+      expect(manual.impact.postCount).toBe(0);
+      const post = await publish(owner, { ...mediaInput, stampId: stamp.id });
+      await save(trip.id, { locations: [], activityPresets: [] });
+      expect(await get(`/posts/${post.id}`, owner)).toMatchObject({
+        id: post.id,
+      });
+      await http(
+        'patch',
+        `/trips/${trip.id}`,
+        owner,
+        {
+          name: 'must roll back',
+          templateEdit: {
+            clientRequestId: randomUUID(),
+            changes,
+            confirmationToken: manual.confirmationToken,
+          },
+        },
+        409,
+      );
+      expect((await get(`/trips/${trip.id}`, owner)).name).not.toBe(
+        'must roll back',
+      );
+      const updated = await preview(trip.id, { changes });
+      expect(updated.impact.postCount).toBe(1);
+      await save(trip.id, {}, changes, updated.confirmationToken);
+      expect(
+        await prisma.post.findUnique({ where: { id: post.id } }),
+      ).toMatchObject({ purgedAt: expect.any(Date) });
+    });
+
+    it('unlinks a shared stamp first, persists exclusions, and creates new rows on a later explicit re-add with idempotent saves', async () => {
+      const trip = await templated({
+        locations: [],
+        activityPresets: ['夜景'],
+      });
+      let draft = await preview(trip.id);
+      const first = draft.categories[0],
+        second = draft.categories[1];
+      const stamp = first.stamps[0];
+      const post = await publish(owner, { ...mediaInput, stampId: stamp.id });
+      await save(trip.id, {}, [{ categoryRef: first.ref, selected: false }]);
+      expect(await get(`/posts/${post.id}`, owner)).toMatchObject({
+        id: post.id,
+      });
+      draft = await preview(trip.id);
+      expect(
+        draft.categories.find((item) => item.templateKey === first.templateKey),
+      ).toMatchObject({ selected: false });
+      const changes = [{ categoryRef: second.ref, selected: false }];
+      draft = await preview(trip.id, { changes });
+      expect(draft.impact).toEqual({ stampCount: 1, postCount: 1 });
+      await save(trip.id, {}, changes, draft.confirmationToken);
+      await http('post', `/posts/${post.id}/restore`, owner, undefined, 404);
+      draft = await preview(trip.id);
+      expect(draft.categories.every((item) => !item.selected)).toBe(true);
+      const add = draft.categories.find(
+        (item) => item.templateKey === second.templateKey,
+      )!;
+      const body = {
+        templateEdit: {
+          clientRequestId: randomUUID(),
+          changes: [{ categoryRef: add.ref, selected: true }],
+        },
+      };
+      await http('patch', `/trips/${trip.id}`, owner, body);
+      await http('patch', `/trips/${trip.id}`, owner, body);
+      const active = await prisma.stamp.findMany({
+        where: { tripId: trip.id, deletedAt: null },
+      });
+      expect(active).toHaveLength(1);
+      expect(active[0].id).not.toBe(stamp.id);
+      expect(
+        await prisma.post.findUnique({ where: { id: post.id } }),
+      ).toMatchObject({ purgedAt: expect.any(Date) });
+      await http(
+        'patch',
+        `/trips/${trip.id}`,
+        owner,
+        { ...body, name: 'different replay' },
+        409,
+      );
+    });
+
+    it('preserves saved source identities and user labels when the catalog labels change', async () => {
+      const trip = await templated({
+        locations: [],
+        activityPresets: ['夜景'],
+      });
+      const originalRows = await prisma.stamp.findMany({
+        where: { tripId: trip.id },
+      });
+      const templates = app.get(TripTemplatesService);
+      const catalog = templates.catalog();
+      const originalPreview = templates.preview.bind(templates);
+      const catalogSpy = vi.spyOn(templates, 'catalog').mockReturnValue({
+        ...catalog,
+        activities: catalog.activities.map((item) => ({
+          ...item,
+          name: item.name === '夜景' ? '夜の景色' : item.name,
+        })),
+      });
+      const previewSpy = vi
+        .spyOn(templates, 'preview')
+        .mockImplementation((input) => ({
+          categories: originalPreview({
+            ...input,
+            activityPresets: input.activityPresets?.map((name) =>
+              name === '夜の景色' ? '夜景' : name,
+            ),
+          }).categories.map((category) => ({
+            ...category,
+            name: category.name + '改名',
+            stamps: category.stamps.map((stamp) => ({
+              ...stamp,
+              title: stamp.title + '改名',
+            })),
+          })),
+        }));
+      try {
+        await save(trip.id, { name: '旅行名を更新' });
+        expect(previewSpy).toHaveBeenCalledWith({
+          locations: [],
+          activityPresets: ['夜の景色'],
+        });
+        expect(
+          await prisma.stamp.findMany({
+            where: { tripId: trip.id, deletedAt: null },
+          }),
+        ).toEqual(originalRows);
+      } finally {
+        catalogSpy.mockRestore();
+        previewSpy.mockRestore();
+      }
+    });
+
+    it('keeps draft exclusions valid when their unsaved candidate disappears after changing a source', async () => {
+      const trip = await http('post', '/trips', owner, tripInput);
+      const draft = await preview(trip.id, sources);
+      const category = draft.categories.find((item) => item.name === '景色')!;
+      const changes = [
+        {
+          categoryRef: category.ref,
+          stampRef: category.stamps[0].ref,
+          selected: false,
+        },
+      ];
+      await save(trip.id, { locations: [], activityPresets: [] }, changes);
+      expect(await prisma.stamp.count({ where: { tripId: trip.id } })).toBe(0);
+      const returned = await preview(trip.id, sources);
+      expect(
+        returned.categories.find(
+          (item) => item.templateKey === category.templateKey,
+        )?.stamps[0].selected,
+      ).toBe(false);
+    });
+
+    it('preserves an explicit choice to keep a template after its sources are removed', async () => {
+      const trip = await templated();
+      const draft = await preview(trip.id, {
+        locations: [],
+        activityPresets: [],
+      });
+      const category = draft.categories.find((item) => item.name === '景色')!;
+      const stamp = category.stamps[0];
+      await save(trip.id, { locations: [], activityPresets: [] }, [
+        { categoryRef: category.ref, stampRef: stamp.ref, selected: true },
+      ]);
+      const reopened = await preview(trip.id);
+      expect(
+        reopened.categories
+          .flatMap((item) => item.stamps)
+          .find((item) => item.id === stamp.id),
+      ).toMatchObject({ selected: true, manual: true });
+    });
+
+    it('re-adds just one stamp from a deleted category without reselecting its siblings', async () => {
+      const trip = await templated();
+      let draft = await preview(trip.id);
+      const category = draft.categories.find((item) => item.name === '景色')!;
+      await http('delete', `/categories/${category.id}`, owner, undefined, 204);
+      draft = await preview(trip.id);
+      const candidate = draft.categories.find(
+        (item) => item.templateKey === category.templateKey,
+      )!;
+      expect(candidate.stamps).toHaveLength(2);
+      await save(trip.id, {}, [
+        {
+          categoryRef: candidate.ref,
+          stampRef: candidate.stamps[0].ref,
+          selected: true,
+        },
+      ]);
+      const reopened = (await preview(trip.id)).categories.find(
+        (item) => item.templateKey === category.templateKey,
+      )!;
+      expect(reopened.stamps.map((item) => item.selected)).toEqual([
+        true,
+        false,
+      ]);
+      expect(reopened.stamps[0].id).not.toBe(category.stamps[0].id);
+    });
+
+    it('keeps provenance through ordinary stamp edits and remembers deletions made outside the trip editor', async () => {
+      const trip = await templated();
+      const draft = await preview(trip.id);
+      const category = draft.categories.find((item) => item.name === '景色')!;
+      const stamp = category.stamps[0];
+      const manual = await http('post', '/categories', owner, {
+        tripId: trip.id,
+        name: '手動',
+      });
+      await http('patch', `/stamps/${stamp.id}`, owner, {
+        name: '名前を変更',
+        categoryIds: [category.id, manual.id],
+      });
+      const links = await prisma.stampCategory.findMany({
+        where: { stampId: stamp.id },
+      });
+      expect(
+        links.find((link) => link.categoryId === category.id),
+      ).toMatchObject({ manual: false });
+      expect(links.find((link) => link.categoryId === manual.id)).toMatchObject(
+        { manual: true },
+      );
+      await http('delete', `/categories/${category.id}`, owner, undefined, 204);
+      const next = await preview(trip.id);
+      expect(
+        next.categories.find(
+          (item) => item.templateKey === category.templateKey,
+        ),
+      ).toMatchObject({ selected: false });
+      expect(await get(`/stamps/${stamp.id}`, owner)).toMatchObject({
+        name: '名前を変更',
+        categoryIds: [manual.id],
+      });
+      await http(
+        'post',
+        `/trips/${trip.id}/template-preview`,
+        outsider,
+        {},
+        404,
+      );
+    });
+  });
+
+  it('stores stable template provenance and omissions while keeping manually created data manual', async () => {
+    const preview = app
+      .get(TripTemplatesService)
+      .preview({ locations: ['沖縄'], activityPresets: ['海'] });
+    const category = preview.categories.find(
+      (category) => category.name === '景色',
+    )!;
+    const beach = category.stamps.find(
+      (stamp) => stamp.title === '海辺を散歩する',
+    )!;
+    const trip = await http('post', '/trips', owner, {
+      ...tripInput,
+      locations: ['沖縄'],
+      activityPresets: ['海'],
+      selectedCategories: [
+        { name: category.name, stamps: [{ title: beach.title }] },
+      ],
+    });
+    const row = await prisma.stamp.findFirstOrThrow({
+      where: { tripId: trip.id },
+      include: { categories: true },
+    });
+    expect(row.templateKey).toBe(beach.key);
+    expect(row.categories[0]).toMatchObject({
+      manual: false,
+      templateSources: beach.sources.map(
+        (source) => `${source.type}:${source.key}`,
+      ),
+    });
+    expect(
+      (await prisma.trip.findUniqueOrThrow({ where: { id: trip.id } }))
+        .templateExclusions,
+    ).toHaveLength(2);
+    const manual = await http('post', '/categories', owner, {
+      tripId: trip.id,
+      name: category.name,
+    });
+    expect(
+      await prisma.category.findUnique({ where: { id: manual.id } }),
+    ).toMatchObject({ templateKey: null });
+    const stamp = await http('post', '/stamps', owner, {
+      tripId: trip.id,
+      categoryIds: [manual.id],
+      name: beach.title,
+    });
+    expect(
+      await prisma.stamp.findUnique({
+        where: { id: stamp.id },
+        include: { categories: true },
+      }),
+    ).toMatchObject({
+      templateKey: null,
+      categories: [{ manual: true, templateSources: [] }],
+    });
+  });
+
   it('deletes categories without losing shared stamps and permanently purges orphaned media including trash', async () => {
     const { trip, category, stamp } = await tree();
     await join(trip.id);
@@ -215,6 +667,39 @@ describe('Trip API integration', () => {
     await http('delete', `/trips/${trip.id}`, member, undefined, 204);
   });
 
+  it('serializes a new upload against trip deletion so no active descendant survives', async () => {
+    const { trip, stamp } = await tree();
+    const [upload, deletion] = await Promise.all([
+      request(app.getHttpServer())
+        .post('/uploads/batches')
+        .set('Authorization', `Bearer ${owner.accessToken}`)
+        .send({
+          stampId: stamp.id,
+          clientRequestId: randomUUID(),
+          files: [
+            {
+              clientId: randomUUID(),
+              fileName: 'photo.jpg',
+              mimeType: 'image/jpeg',
+              byteSize: 100,
+              mediaType: 'IMAGE',
+            },
+          ],
+        }),
+      request(app.getHttpServer())
+        .delete(`/trips/${trip.id}`)
+        .set('Authorization', `Bearer ${owner.accessToken}`),
+    ]);
+    expect(deletion.status).toBe(204);
+    expect([201, 404]).toContain(upload.status);
+    expect(
+      await prisma.post.count({ where: { stampId: stamp.id, purgedAt: null } }),
+    ).toBe(0);
+    expect(
+      await prisma.trip.findUnique({ where: { id: trip.id } }),
+    ).toMatchObject({ deletedAt: expect.any(Date) });
+  });
+
   it('does not republish media if a stamp is deleted during encoding', async () => {
     const { trip, stamp } = await tree();
     await join(trip.id);
@@ -326,6 +811,61 @@ describe('Trip API integration', () => {
     ).not.toBeNull();
     await http('post', `/posts/${kept.id}/restore`, owner, undefined, 200);
     await http('post', `/posts/${expired.id}/restore`, owner, undefined, 404);
+  });
+
+  it('keeps recoverable media and old failed staging objects safe from orphan sweeping during purge grace', async () => {
+    const lostTree = await tree(),
+      keptTree = await tree();
+    const lost = await publish(owner, {
+      ...mediaInput,
+      stampId: lostTree.stamp.id,
+    });
+    const kept = await publish(owner, {
+      ...mediaInput,
+      stampId: keptTree.stamp.id,
+    });
+    const lostRow = await prisma.post.update({
+      where: { id: lost.id },
+      data: { status: 'FAILED', stagingKey: 'staging/old-failed' },
+    });
+    const keptRow = await prisma.post.findUniqueOrThrow({
+      where: { id: kept.id },
+    });
+    await http('delete', `/posts/${kept.id}`, owner, undefined, 204);
+    await http('delete', `/stamps/${lostTree.stamp.id}`, owner, undefined, 204);
+    const keys = [
+      lostRow.originalKey!,
+      lostRow.stagingKey!,
+      keptRow.originalKey!,
+      keptRow.largeKey!,
+    ];
+    const list = vi
+      .spyOn(storage as unknown as ObjectStorageService, 'listObjects')
+      .mockImplementation(async (prefix) => ({
+        objects: keys
+          .filter((key) => key.startsWith(prefix))
+          .map((key) => ({ key, lastModified: new Date(0) })),
+        cursor: undefined,
+      }));
+    try {
+      await lifecycle.cleanup();
+      expect(storage.deleted).not.toEqual(
+        expect.arrayContaining([lostRow.stagingKey]),
+      );
+      expect(storage.deleted).not.toContain(lostRow.originalKey);
+      expect(storage.deleted).not.toContain(keptRow.originalKey);
+      await prisma.post.update({
+        where: { id: lost.id },
+        data: { purgedAt: new Date(Date.now() - 21 * 60_000) },
+      });
+      await lifecycle.cleanup();
+      expect(storage.deleted).toEqual(
+        expect.arrayContaining([lostRow.originalKey, lostRow.stagingKey]),
+      );
+      expect(storage.deleted).not.toContain(keptRow.largeKey);
+    } finally {
+      list.mockRestore();
+    }
   });
 
   it('rolls back expiration when the durable media cleanup cannot be recorded', async () => {
@@ -759,7 +1299,16 @@ describe('Trip API integration', () => {
     if (who) call.set('Authorization', `Bearer ${who.accessToken}`);
     if (body !== undefined) call.send(body);
     if (query) call.query(query);
-    const response = await call.expect(status);
+    const response = await call;
+    let diagnostic = `${method.toUpperCase()} ${path}: ${response.body?.message ?? ''}`;
+    if (response.status === 401 && status !== 401 && who) {
+      try {
+        await tokens.verifyAccessToken(who.accessToken);
+      } catch (error) {
+        diagnostic += ` (${error instanceof Error ? error.message : 'token verification failed'})`;
+      }
+    }
+    expect(response.status, diagnostic).toBe(status);
     return response.body as T;
   }
 
@@ -951,7 +1500,7 @@ describe('Trip API integration', () => {
         .find(({ name }) => name === '景色')!
         .stamps.filter(({ title }) => title === '海辺を散歩する');
       expect(beach).toHaveLength(1);
-      expect(beach[0].sources).toEqual([
+      expect(beach[0].sources).toMatchObject([
         { type: 'location', name: '沖縄県' },
         { type: 'activity', name: '海' },
       ]);
@@ -1023,7 +1572,7 @@ describe('Trip API integration', () => {
       },
     );
 
-    it('retains activities and existing children when editing trip metadata', async () => {
+    it('retains activity metadata and active sources when editing locations', async () => {
       const selectedCategories = selectAll(await preview());
       const trip = await http('post', '/trips', owner, {
         ...tripInput,
@@ -1041,11 +1590,16 @@ describe('Trip API integration', () => {
         locations: ['北海道'],
         activityPresets: ['海'],
         customActivities: ['星を見る'],
-        totalCategoryCount: selectedCategories.length,
+        totalCategoryCount: 1,
       });
-      expect(await prisma.stamp.findMany({ orderBy: { id: 'asc' } })).toEqual(
-        before,
-      );
+      const after = await prisma.stamp.findMany({ orderBy: { id: 'asc' } });
+      expect(after.map((row) => row.id)).toEqual(before.map((row) => row.id));
+      expect(
+        after.find((row) => row.name === '沖縄そばを食べる')?.deletedAt,
+      ).toBeInstanceOf(Date);
+      expect(
+        after.find((row) => row.name === '海辺を散歩する')?.deletedAt,
+      ).toBeNull();
     });
 
     it('creates one complete hierarchy and cover on concurrent requests and returns accurate replay counts', async () => {

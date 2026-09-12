@@ -210,6 +210,20 @@ export function createMockService(
       const trip = {
         ...current,
         ...validateTripInput(input),
+        ...(input.activityPresets !== undefined
+          ? {
+              activityPresets: normalizeLocations(input.activityPresets).map(
+                validateDomainName,
+              ),
+            }
+          : {}),
+        ...(input.customActivities !== undefined
+          ? {
+              customActivities: normalizeLocations(input.customActivities).map(
+                validateDomainName,
+              ),
+            }
+          : {}),
         ...(input.coverAssetId !== undefined
           ? {
               coverImageUrl: input.coverAssetId

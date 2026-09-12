@@ -4,8 +4,9 @@ export type TemplateSource = {
 };
 
 export type TemplateCategory = {
+  key?: string;
   name: string;
-  stamps: { title: string; sources: TemplateSource[] }[];
+  stamps: { key?: string; title: string; sources: TemplateSource[] }[];
 };
 
 export type TemplatePresets = {
@@ -14,8 +15,9 @@ export type TemplatePresets = {
 };
 
 export type SelectedCategory = {
+  key?: string;
   name: string;
-  stamps: { title: string }[];
+  stamps: { key?: string; title: string }[];
 };
 
 export type TemplateSelection = Record<string, boolean>;

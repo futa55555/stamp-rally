@@ -401,7 +401,14 @@ export class UploadLifecycleService {
             { playbackKey: { in: keys } },
             {
               stagingKey: { in: keys },
-              status: { in: ['PENDING', 'PROCESSING'] },
+              OR: [
+                { status: { in: ['PENDING', 'PROCESSING'] } },
+                {
+                  purgedAt: {
+                    gt: new Date(Date.now() - MEDIA_DELETE_GRACE_MS),
+                  },
+                },
+              ],
             },
           ],
         },

@@ -9,62 +9,79 @@
             "name": "グルメ",
             "stamps": [
               {
-                "title": "たこ焼きを食べる"
+                "title": "たこ焼きを食べる",
+                "key": "stamp-001"
               },
               {
-                "title": "お好み焼きを食べる"
+                "title": "お好み焼きを食べる",
+                "key": "stamp-002"
               },
               {
-                "title": "串カツを食べる"
+                "title": "串カツを食べる",
+                "key": "stamp-003"
               },
               {
-                "title": "豚まんを食べる"
+                "title": "豚まんを食べる",
+                "key": "stamp-004"
               }
-            ]
+            ],
+            "key": "category-001"
           },
           {
             "name": "まち歩き",
             "stamps": [
               {
-                "title": "道頓堀を散歩する"
+                "title": "道頓堀を散歩する",
+                "key": "stamp-005"
               },
               {
-                "title": "新世界を散歩する"
+                "title": "新世界を散歩する",
+                "key": "stamp-006"
               },
               {
-                "title": "商店街を散歩する"
+                "title": "商店街を散歩する",
+                "key": "stamp-007"
               }
-            ]
+            ],
+            "key": "category-002"
           },
           {
             "name": "歴史・文化",
             "stamps": [
               {
-                "title": "大阪城を訪れる"
+                "title": "大阪城を訪れる",
+                "key": "stamp-008"
               }
-            ]
+            ],
+            "key": "category-003"
           },
           {
             "name": "景色",
             "stamps": [
               {
-                "title": "高い場所から街を眺める"
+                "title": "高い場所から街を眺める",
+                "key": "stamp-009"
               },
               {
-                "title": "夜景を楽しむ"
+                "title": "夜景を楽しむ",
+                "key": "stamp-010"
               }
-            ]
+            ],
+            "key": "category-004"
           },
           {
             "name": "おみやげ",
             "stamps": [
               {
-                "title": "ご当地のお菓子を買う"
+                "title": "ご当地のお菓子を買う",
+                "key": "stamp-011"
               }
-            ]
+            ],
+            "key": "category-005"
           }
         ]
-      }
+      },
+      "key": "loc-001"
     }
   ],
   "activities": [
@@ -76,32 +93,41 @@
             "name": "グルメ",
             "stamps": [
               {
-                "title": "乾杯する"
+                "title": "乾杯する",
+                "key": "stamp-012"
               },
               {
-                "title": "前菜を味わう"
+                "title": "前菜を味わう",
+                "key": "stamp-013"
               },
               {
-                "title": "メイン料理を味わう"
+                "title": "メイン料理を味わう",
+                "key": "stamp-014"
               },
               {
-                "title": "デザートを味わう"
+                "title": "デザートを味わう",
+                "key": "stamp-015"
               }
-            ]
+            ],
+            "key": "category-001"
           },
           {
             "name": "景色",
             "stamps": [
               {
-                "title": "窓からの景色を眺める"
+                "title": "窓からの景色を眺める",
+                "key": "stamp-016"
               },
               {
-                "title": "夜景を楽しむ"
+                "title": "夜景を楽しむ",
+                "key": "stamp-010"
               }
-            ]
+            ],
+            "key": "category-004"
           }
         ]
-      }
+      },
+      "key": "act-001"
     },
     {
       "name": "ゆっくり",
@@ -111,54 +137,69 @@
             "name": "グルメ",
             "stamps": [
               {
-                "title": "カフェでひと休みする"
+                "title": "カフェでひと休みする",
+                "key": "stamp-017"
               },
               {
-                "title": "ゆっくり朝食を食べる"
+                "title": "ゆっくり朝食を食べる",
+                "key": "stamp-018"
               },
               {
-                "title": "気になるスイーツを食べる"
+                "title": "気になるスイーツを食べる",
+                "key": "stamp-019"
               }
-            ]
+            ],
+            "key": "category-001"
           },
           {
             "name": "まち歩き",
             "stamps": [
               {
-                "title": "公園を散歩する"
+                "title": "公園を散歩する",
+                "key": "stamp-020"
               },
               {
-                "title": "水辺を散歩する"
+                "title": "水辺を散歩する",
+                "key": "stamp-021"
               }
-            ]
+            ],
+            "key": "category-002"
           },
           {
             "name": "休息",
             "stamps": [
               {
-                "title": "カフェでひと休みする"
+                "title": "カフェでひと休みする",
+                "key": "stamp-017"
               },
               {
-                "title": "部屋でのんびり過ごす"
+                "title": "部屋でのんびり過ごす",
+                "key": "stamp-022"
               },
               {
-                "title": "本を読んで過ごす"
+                "title": "本を読んで過ごす",
+                "key": "stamp-023"
               }
-            ]
+            ],
+            "key": "category-006"
           },
           {
             "name": "景色",
             "stamps": [
               {
-                "title": "窓からの景色を眺める"
+                "title": "窓からの景色を眺める",
+                "key": "stamp-016"
               },
               {
-                "title": "夕日を眺める"
+                "title": "夕日を眺める",
+                "key": "stamp-024"
               }
-            ]
+            ],
+            "key": "category-004"
           }
         ]
-      }
+      },
+      "key": "act-002"
     },
     {
       "name": "遊園地・テーマパーク",
@@ -168,54 +209,69 @@
             "name": "グルメ",
             "stamps": [
               {
-                "title": "パークならではのフードを食べる"
+                "title": "パークならではのフードを食べる",
+                "key": "stamp-025"
               },
               {
-                "title": "パークならではのドリンクを飲む"
+                "title": "パークならではのドリンクを飲む",
+                "key": "stamp-026"
               }
-            ]
+            ],
+            "key": "category-001"
           },
           {
             "name": "景色",
             "stamps": [
               {
-                "title": "ライトアップを眺める"
+                "title": "ライトアップを眺める",
+                "key": "stamp-027"
               }
-            ]
+            ],
+            "key": "category-004"
           },
           {
             "name": "おみやげ",
             "stamps": [
               {
-                "title": "お気に入りのグッズを買う"
+                "title": "お気に入りのグッズを買う",
+                "key": "stamp-028"
               }
-            ]
+            ],
+            "key": "category-005"
           },
           {
             "name": "遊園地",
             "stamps": [
               {
-                "title": "気になるアトラクションに乗る"
+                "title": "気になるアトラクションに乗る",
+                "key": "stamp-029"
               },
               {
-                "title": "園内の世界観を楽しむ"
+                "title": "園内の世界観を楽しむ",
+                "key": "stamp-030"
               },
               {
-                "title": "ショーを観る"
+                "title": "ショーを観る",
+                "key": "stamp-031"
               },
               {
-                "title": "パレードを観る"
+                "title": "パレードを観る",
+                "key": "stamp-032"
               },
               {
-                "title": "パークならではのフードを食べる"
+                "title": "パークならではのフードを食べる",
+                "key": "stamp-025"
               },
               {
-                "title": "パークならではのドリンクを飲む"
+                "title": "パークならではのドリンクを飲む",
+                "key": "stamp-026"
               }
-            ]
+            ],
+            "key": "category-007"
           }
         ]
-      }
+      },
+      "key": "act-003"
     },
     {
       "name": "ものづくり体験",
@@ -225,40 +281,51 @@
             "name": "ものづくり",
             "stamps": [
               {
-                "title": "作品のデザインを考える"
+                "title": "作品のデザインを考える",
+                "key": "stamp-033"
               },
               {
-                "title": "材料や色を選ぶ"
+                "title": "材料や色を選ぶ",
+                "key": "stamp-034"
               },
               {
-                "title": "初めての道具を使う"
+                "title": "初めての道具を使う",
+                "key": "stamp-035"
               },
               {
-                "title": "制作途中の様子を写真に撮る"
+                "title": "制作途中の様子を写真に撮る",
+                "key": "stamp-036"
               },
               {
-                "title": "完成した作品を記念に残す"
+                "title": "完成した作品を記念に残す",
+                "key": "stamp-037"
               }
-            ]
+            ],
+            "key": "category-008"
           },
           {
             "name": "グルメ",
             "stamps": [
               {
-                "title": "カフェでひと休みする"
+                "title": "カフェでひと休みする",
+                "key": "stamp-017"
               }
-            ]
+            ],
+            "key": "category-001"
           },
           {
             "name": "休息",
             "stamps": [
               {
-                "title": "カフェでひと休みする"
+                "title": "カフェでひと休みする",
+                "key": "stamp-017"
               }
-            ]
+            ],
+            "key": "category-006"
           }
         ]
-      }
+      },
+      "key": "act-004"
     },
     {
       "name": "夜景",
@@ -268,29 +335,37 @@
             "name": "景色",
             "stamps": [
               {
-                "title": "夜景を楽しむ"
+                "title": "夜景を楽しむ",
+                "key": "stamp-010"
               },
               {
-                "title": "高い場所から街を眺める"
+                "title": "高い場所から街を眺める",
+                "key": "stamp-009"
               },
               {
-                "title": "ライトアップを眺める"
+                "title": "ライトアップを眺める",
+                "key": "stamp-027"
               },
               {
-                "title": "水面に映る光を写真に撮る"
+                "title": "水面に映る光を写真に撮る",
+                "key": "stamp-038"
               }
-            ]
+            ],
+            "key": "category-004"
           },
           {
             "name": "まち歩き",
             "stamps": [
               {
-                "title": "夜の街を散歩する"
+                "title": "夜の街を散歩する",
+                "key": "stamp-039"
               }
-            ]
+            ],
+            "key": "category-002"
           }
         ]
-      }
+      },
+      "key": "act-005"
     },
     {
       "name": "歴史探訪",
@@ -300,57 +375,73 @@
             "name": "歴史・文化",
             "stamps": [
               {
-                "title": "お城を訪れる"
+                "title": "お城を訪れる",
+                "key": "stamp-040"
               },
               {
-                "title": "神社やお寺を訪れる"
+                "title": "神社やお寺を訪れる",
+                "key": "stamp-041"
               },
               {
-                "title": "歴史ある建物を見学する"
+                "title": "歴史ある建物を見学する",
+                "key": "stamp-042"
               },
               {
-                "title": "資料館で地域の歴史を知る"
+                "title": "資料館で地域の歴史を知る",
+                "key": "stamp-043"
               },
               {
-                "title": "石碑や案内板から歴史を知る"
+                "title": "石碑や案内板から歴史を知る",
+                "key": "stamp-044"
               },
               {
-                "title": "古い町並みを散歩する"
+                "title": "古い町並みを散歩する",
+                "key": "stamp-045"
               },
               {
-                "title": "老舗の名物を食べる"
+                "title": "老舗の名物を食べる",
+                "key": "stamp-046"
               },
               {
-                "title": "歴史にちなんだおみやげを買う"
+                "title": "歴史にちなんだおみやげを買う",
+                "key": "stamp-047"
               }
-            ]
+            ],
+            "key": "category-003"
           },
           {
             "name": "まち歩き",
             "stamps": [
               {
-                "title": "古い町並みを散歩する"
+                "title": "古い町並みを散歩する",
+                "key": "stamp-045"
               }
-            ]
+            ],
+            "key": "category-002"
           },
           {
             "name": "グルメ",
             "stamps": [
               {
-                "title": "老舗の名物を食べる"
+                "title": "老舗の名物を食べる",
+                "key": "stamp-046"
               }
-            ]
+            ],
+            "key": "category-001"
           },
           {
             "name": "おみやげ",
             "stamps": [
               {
-                "title": "歴史にちなんだおみやげを買う"
+                "title": "歴史にちなんだおみやげを買う",
+                "key": "stamp-047"
               }
-            ]
+            ],
+            "key": "category-005"
           }
         ]
-      }
+      },
+      "key": "act-006"
     }
   ]
 }

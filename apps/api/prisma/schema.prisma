@@ -75,6 +75,9 @@ model Session {
 }
 
 model Trip {
+  templateSourceSelections Json @default("{}") @map("template_source_selections")
+  templateExclusions String[] @default([]) @map("template_exclusions")
+  edits TripEdit[]
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   id            String   @id @default(uuid()) @db.Uuid
   clientRequestId String? @map("client_request_id") @db.Uuid
@@ -171,6 +174,7 @@ model InvitationLink {
 }
 
 model Category {
+  templateKey String? @map("template_key") @db.VarChar(100)
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   id          String   @id @default(uuid()) @db.Uuid
   tripId      String   @map("trip_id") @db.Uuid
@@ -187,6 +191,7 @@ model Category {
 }
 
 model Stamp {
+  templateKey String? @map("template_key") @db.VarChar(100)
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   id          String   @id @default(uuid()) @db.Uuid
   tripId      String   @map("trip_id") @db.Uuid
@@ -204,6 +209,8 @@ model Stamp {
 }
 
 model StampCategory {
+  manual Boolean @default(true)
+  templateSources String[] @default([]) @map("template_sources")
   stampId String @map("stamp_id") @db.Uuid
   categoryId String @map("category_id") @db.Uuid
   stamp Stamp @relation(fields: [stampId], references: [id], onDelete: Cascade)
@@ -368,4 +375,14 @@ model Notification {
   @@index([invitationLinkId])
   @@unique([recipientId, invitationLinkId])
   @@map("notifications")
+}
+
+model TripEdit {
+  tripId String @map("trip_id") @db.Uuid
+  clientRequestId String @map("client_request_id") @db.Uuid
+  payloadHash String @map("payload_hash") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  @@id([tripId, clientRequestId])
+  @@map("trip_edits")
 }

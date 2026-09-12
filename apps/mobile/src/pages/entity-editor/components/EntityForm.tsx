@@ -1,3 +1,5 @@
+import { useTripTemplateEdit } from '../../../features/trip-templates/useTripTemplateEdit';
+import { confirmTemplateEdit, EditTemplateFields } from './EditTemplateFields';
 import { Alert } from 'react-native';
 import { Button } from '../../../shared/ui/Button';
 import { useCoverUpload } from '../../../features/trip-covers/useCoverUpload';
@@ -68,18 +70,30 @@ export function EntityForm({
     kind === 'stamp' && !!tripId,
   );
   const newTrip = kind === 'trip' && !id;
-  const [activityPresets, setActivityPresets] = useState<string[]>([]);
-  const [customActivities, setCustomActivities] = useState<string[]>([]);
+  const [activityPresets, setActivityPresets] = useState<string[]>(
+    initial.activityPresets ?? [],
+  );
+  const [customActivities, setCustomActivities] = useState<string[]>(
+    initial.customActivities ?? [],
+  );
   const [useTemplate, setUseTemplate] = useState(true);
   const templates = useTripTemplates(
-    newTrip,
+    kind === 'trip',
     values.locations,
     activityPresets,
+    newTrip,
+  );
+  const editTemplates = useTripTemplateEdit(
+    kind === 'trip' ? id : undefined,
+    values.locations,
+    activityPresets,
+    confirmTemplateEdit,
   );
   const task = useTask();
   const [coverPicking, setCoverPicking] = useState(false);
   const cover = useCoverUpload(initial.coverImageUrl);
-  const pending = task.pending || flow.finishing || coverPicking;
+  const pending =
+    task.pending || flow.finishing || coverPicking || editTemplates.busy;
   const dirty =
     !deleted &&
     !savedTarget &&
@@ -87,10 +101,14 @@ export function EntityForm({
       (kind === 'stamp' &&
         (categoryIds.length !== originalCategoryIds.length ||
           categoryIds.some((id) => !originalCategoryIds.includes(id)))) ||
+      (kind === 'trip' &&
+        (editTemplates.dirty ||
+          JSON.stringify(activityPresets) !==
+            JSON.stringify(original.activityPresets ?? []) ||
+          JSON.stringify(customActivities) !==
+            JSON.stringify(original.customActivities ?? []))) ||
       (newTrip &&
-        (activityPresets.length > 0 ||
-          customActivities.some(Boolean) ||
-          !useTemplate ||
+        (!useTemplate ||
           Object.values(templates.selection).some((checked) => !checked))) ||
       JSON.stringify(values.locations) !== JSON.stringify(original.locations) ||
       (
@@ -174,11 +192,15 @@ export function EntityForm({
             throw new Error(
               'スタンプ候補の読み込みを待つか、テンプレートを使わずに作成してください。',
             );
-          const activities = newTrip
+          if (!newTrip && !editTemplates.ready)
+            throw new Error('スタンプの読み込みを待ってから保存してください。');
+          const activities = {
+            activityPresets: activityPresets.map(validateDomainName),
+            customActivities:
+              normalizeLocations(customActivities).map(validateDomainName),
+          };
+          const selection = newTrip
             ? {
-                activityPresets: activityPresets.map(validateDomainName),
-                customActivities:
-                  normalizeLocations(customActivities).map(validateDomainName),
                 selectedCategories: useTemplate
                   ? selectedCategories(
                       templates.categories,
@@ -187,18 +209,27 @@ export function EntityForm({
                   : [],
               }
             : {};
+          const templateEdit = !newTrip
+            ? await editTemplates.prepare(cover.requestId)
+            : undefined;
+          if (templateEdit === null) return;
           const input: TripInput = validateTripInput({
             name: values.name,
             startDate: values.startDate,
             endDate: values.endDate,
             locations: values.locations,
           });
-          Object.assign(input, await cover.prepare());
+          Object.assign(
+            input,
+            activities,
+            templateEdit ? { templateEdit } : {},
+            await cover.prepare(),
+          );
           const trip = id
             ? await actions.updateTrip(userId!, id, input)
             : await actions.createTrip(userId!, {
                 ...input,
-                ...activities,
+                ...selection,
                 clientRequestId: cover.requestId,
               });
           cover.saved();
@@ -247,6 +278,7 @@ export function EntityForm({
         !deleted &&
         !savedTarget &&
         ((newTrip && useTemplate && !templates.ready) ||
+          (kind === 'trip' && !!id && !editTemplates.ready) ||
           (kind === 'stamp' &&
             (!categoryIds.length ||
               categories.isPending ||
@@ -282,6 +314,7 @@ export function EntityForm({
           onChange={setCategoryIds}
           disabled={
             pending ||
+            deleted ||
             !!savedTarget ||
             categories.isPending ||
             !!categories.error
@@ -303,7 +336,7 @@ export function EntityForm({
             onChange={(locations) => setValues((v) => ({ ...v, locations }))}
             disabled={pending || deleted || !!savedTarget}
           />
-          {newTrip ? (
+          {kind === 'trip' ? (
             <ActivitiesField
               templates={templates}
               selected={activityPresets}
@@ -328,7 +361,12 @@ export function EntityForm({
               onUseTemplateChange={setUseTemplate}
               disabled={pending || deleted || !!savedTarget}
             />
-          ) : null}
+          ) : (
+            <EditTemplateFields
+              templates={editTemplates}
+              disabled={pending || deleted || !!savedTarget}
+            />
+          )}
         </>
       ) : (
         <TextField

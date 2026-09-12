@@ -13,8 +13,11 @@ export function reconcileSelection(
 ): TemplateSelection {
   return Object.fromEntries(
     categories.flatMap((category) =>
-      category.stamps.map(({ title }) => {
-        const key = stampSelectionKey(category.name, title);
+      category.stamps.map(({ key: stampKey, title }) => {
+        const key = stampSelectionKey(
+          category.key ?? category.name,
+          stampKey ?? title,
+        );
         return [key, previous[key] ?? true];
       }),
     ),
@@ -26,7 +29,8 @@ export function categoryChecked(
   selection: TemplateSelection,
 ): boolean | 'mixed' {
   const count = category.stamps.filter(
-    ({ title }) => selection[stampSelectionKey(category.name, title)],
+    ({ key, title }) =>
+      selection[stampSelectionKey(category.key ?? category.name, key ?? title)],
   ).length;
   return count === 0
     ? false
@@ -41,12 +45,16 @@ export function selectedCategories(
 ): SelectedCategory[] {
   return categories
     .map((category) => ({
+      ...(category.key ? { key: category.key } : {}),
       name: category.name,
       stamps: category.stamps
         .filter(
-          ({ title }) => selection[stampSelectionKey(category.name, title)],
+          ({ key, title }) =>
+            selection[
+              stampSelectionKey(category.key ?? category.name, key ?? title)
+            ],
         )
-        .map(({ title }) => ({ title })),
+        .map(({ key, title }) => ({ ...(key ? { key } : {}), title })),
     }))
     .filter((category) => category.stamps.length > 0);
 }
