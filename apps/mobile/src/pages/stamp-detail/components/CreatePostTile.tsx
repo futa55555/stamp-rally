@@ -8,7 +8,7 @@ export function CreatePostTile({ onPress }: { onPress: () => void }) {
       accessibilityRole="button"
       accessibilityLabel="写真・動画を追加"
       onPress={onPress}
-      className="aspect-square w-1/2 items-center justify-center bg-border active:opacity-pressed"
+      className="aspect-square w-full items-center justify-center bg-border active:opacity-pressed"
     >
       <Icon name="camera-outline" size={32} tone="textMuted" />
       <AppText variant="caption" tone="textMuted">

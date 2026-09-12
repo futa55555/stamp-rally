@@ -2,7 +2,7 @@ import { UploadList } from '../../features/uploads/UploadList';
 import { QueryState } from '../../shared/ui/QueryState';
 import { usePullToRefresh } from '../../shared/hooks/usePullToRefresh';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { FlatList } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { PhotoTile } from '../../features/photos/ui/PhotoTile';
 import { useStamp } from '../../features/trips/hooks';
 import { useTripHeader } from '../../features/trips/navigation/useTripHeader';
@@ -70,26 +70,36 @@ export function StampDetailScreen() {
             icon="camera-outline"
           />
         }
-        renderItem={({ item }) =>
-          item ? (
-            <PhotoTile
-              photo={item}
-              onOpen={() =>
-                router.push({
-                  pathname: '/trips/photo/[postId]',
-                  params: {
-                    postId: item.id,
-                    source: 'stamp',
-                    stampId,
-                    viaCategoryId: category?.id,
-                  },
-                })
-              }
+        renderItem={({ item, index }) => (
+          <View className="w-1/2">
+            {item ? (
+              <PhotoTile
+                photo={item}
+                onOpen={() =>
+                  router.push({
+                    pathname: '/trips/photo/[postId]',
+                    params: {
+                      postId: item.id,
+                      source: 'stamp',
+                      stampId,
+                      viaCategoryId: category?.id,
+                    },
+                  })
+                }
+              />
+            ) : (
+              <CreatePostTile onPress={openPost} />
+            )}
+            <View
+              pointerEvents="none"
+              className={[
+                'absolute inset-0 border-surface',
+                index % 2 === 1 ? 'border-l' : '',
+                index >= 2 ? 'border-t' : '',
+              ].join(' ')}
             />
-          ) : (
-            <CreatePostTile onPress={openPost} />
-          )
-        }
+          </View>
+        )}
       />
     </>
   );
