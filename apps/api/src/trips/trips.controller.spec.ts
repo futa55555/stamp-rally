@@ -161,8 +161,15 @@ describe('TripsController', () => {
     { startDate: null },
     { endDate: '2026-02-29' },
     { inviteeNames: ['友達'] },
-    { activityPresets: ['海'] },
-    { customActivities: ['友達に会う'] },
+    { activityPresets: null },
+    { customActivities: [1] },
+    { templateEdit: { changes: [] } },
+    {
+      templateEdit: {
+        clientRequestId: id,
+        changes: [{ categoryRef: id, selected: 'no' }],
+      },
+    },
     { selectedCategories: [] },
   ])('rejects invalid patch payloads %o', async (body) => {
     await request(app.getHttpServer())

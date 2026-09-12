@@ -1,3 +1,7 @@
+import {
+  rememberCategoryRemoval,
+  rememberMembershipRemoval,
+} from '../trip-templates/remember-exclusions.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 import { serializable } from '../database/transaction.js';
@@ -42,9 +46,11 @@ export class DeletionsService {
       const now = new Date();
       if (kind === 'stamp') {
         await this.access.requireStamp(userId, id, tx);
+        await rememberMembershipRemoval(tx, id);
         await deleteStamps(tx, [id], now);
       } else if (kind === 'category') {
         await this.access.requireCategory(userId, id, tx);
+        await rememberCategoryRemoval(tx, id);
         await deleteCategories(tx, [id], now);
       } else {
         await this.access.requireTrip(userId, id, tx);

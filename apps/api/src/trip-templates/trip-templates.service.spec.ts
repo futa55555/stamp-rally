@@ -336,10 +336,10 @@ describe('TripTemplatesService', () => {
     expect(Array.isArray(catalog.locations)).toBe(true);
     expect(Array.isArray(catalog.activities)).toBe(true);
     for (const preset of catalog.locations) {
-      expect(Object.keys(preset)).toEqual(['name', 'aliases']);
+      expect(Object.keys(preset)).toEqual(['key', 'name', 'aliases']);
     }
     for (const preset of catalog.activities) {
-      expect(Object.keys(preset)).toEqual(['name']);
+      expect(Object.keys(preset)).toEqual(['key', 'name']);
     }
   });
 
@@ -525,4 +525,26 @@ it('keeps template identity and source provenance after every display label chan
   expect(() => parseTripTemplatePresets(catalog, true)).toThrow(
     'stable template key',
   );
+});
+
+it('accepts stable create selection keys after labels have changed', () => {
+  const service = new TripTemplatesService();
+  const input = { activityPresets: ['夜景'] };
+  const category = service.preview(input).categories[0];
+  const stamp = category.stamps[0];
+  expect(
+    service.identified(input, [
+      {
+        key: category.key,
+        name: '旧カテゴリー名',
+        stamps: [{ key: stamp.key, title: '旧スタンプ名' }],
+      },
+    ]),
+  ).toMatchObject([
+    {
+      key: category.key,
+      name: category.name,
+      stamps: [{ key: stamp.key, title: stamp.title, sources: stamp.sources }],
+    },
+  ]);
 });

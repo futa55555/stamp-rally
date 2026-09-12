@@ -1,3 +1,5 @@
+import { resolveSourceSelections } from '../trip-templates/source-selections.js';
+import type { TripTemplateCatalog } from '../trip-templates/types.js';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 import {
@@ -26,11 +28,14 @@ export class TripRepository {
     tx: Prisma.TransactionClient,
     categories: TripTemplatePreview['categories'] = [],
     templateExclusions: string[] = [],
+    catalog: TripTemplateCatalog = { locations: [], activities: [] },
   ): Promise<Trip> {
     const row = await tx.trip.create({
       data: {
         clientRequestId: input.clientRequestId,
         templateExclusions,
+        templateSourceSelections: resolveSourceSelections(catalog, input)
+          .selections,
         locations: input.locations ?? [],
         activityPresets: input.activityPresets ?? [],
         customActivities: input.customActivities ?? [],
@@ -144,6 +149,8 @@ export class TripRepository {
       where: { id: trip.id, deletedAt: null },
       data: {
         locations: trip.locations,
+        activityPresets: trip.activityPresets,
+        customActivities: trip.customActivities,
         name: trip.name,
         startDate: calendarDate(trip.startDate),
         endDate: calendarDate(trip.endDate),

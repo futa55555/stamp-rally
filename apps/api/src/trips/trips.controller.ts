@@ -1,3 +1,5 @@
+import { HttpCode } from '@nestjs/common';
+import { EditTripTemplateDto } from './dto/edit-trip-template.dto.js';
 import {
   Body,
   Controller,
@@ -53,6 +55,16 @@ export class TripsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.tripsService.findOne(request.auth.userId, id);
+  }
+
+  @Post(':id/template-preview')
+  @HttpCode(200)
+  previewTemplates(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: EditTripTemplateDto,
+  ) {
+    return this.tripsService.previewTemplates(request.auth.userId, id, dto);
   }
 
   @Patch(':id')

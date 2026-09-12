@@ -1,3 +1,7 @@
+import { buildTemplatePlan, hashPayload } from '../trip-templates/edit-plan.js';
+import { applyTemplatePlan } from '../trip-templates/apply-edit-plan.js';
+import type { EditTripTemplateDto } from './dto/edit-trip-template.dto.js';
+import { ConflictException } from '@nestjs/common';
 import { membershipExclusion } from '../trip-templates/identity.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { CoverAssetsService } from '../covers/cover-assets.service.js';
@@ -75,6 +79,7 @@ export class TripsService {
             tx,
             categories,
             excluded,
+            this.templates.catalog(),
           );
           return trip;
         });
@@ -111,21 +116,86 @@ export class TripsService {
     return this.presenter.present(trip.toJSON());
   }
 
+  async previewTemplates(userId: string, id: string, dto: EditTripTemplateDto) {
+    return serializable(this.prisma, async (tx) => {
+      await this.access.requireTrip(userId, id, tx);
+      return (await buildTemplatePlan(tx, id, this.templates, dto)).view;
+    });
+  }
+
   async update(userId: string, id: string, dto: UpdateTripDto) {
     await this.access.requireTrip(userId, id);
     if (Object.values(dto).every((value) => value === undefined)) {
       throw new BadRequestException('At least one field is required');
     }
+    const payloadHash = hashPayload({
+      ...dto,
+      templateEdit: dto.templateEdit
+        ? {
+            clientRequestId: dto.templateEdit.clientRequestId,
+            changes: dto.templateEdit.changes,
+          }
+        : undefined,
+    });
     try {
       const result = await serializable(this.prisma, async (tx) => {
         await this.access.requireTrip(userId, id, tx);
         const trip = await this.trips.findById(id, tx);
         if (!trip) throw new NotFoundException('Trip not found');
+        if (dto.templateEdit) {
+          const receipt = await tx.tripEdit.findUnique({
+            where: {
+              tripId_clientRequestId: {
+                tripId: id,
+                clientRequestId: dto.templateEdit.clientRequestId,
+              },
+            },
+          });
+          if (receipt) {
+            if (receipt.payloadHash !== payloadHash)
+              throw new ConflictException(
+                'This edit request has already been saved with different input',
+              );
+            return trip;
+          }
+        }
         if (dto.coverAssetId)
           await this.covers.assertAttachable(tx, userId, dto.coverAssetId, id);
         const before = JSON.stringify(trip);
         trip.update(dto);
-        if (JSON.stringify(trip) === before) return trip;
+        const syncTemplates =
+          !!dto.templateEdit ||
+          dto.locations !== undefined ||
+          dto.activityPresets !== undefined;
+        let templatesChanged = false;
+        if (syncTemplates) {
+          const plan = await buildTemplatePlan(tx, id, this.templates, {
+            locations: trip.locations,
+            activityPresets: trip.activityPresets,
+            changes: dto.templateEdit?.changes,
+          });
+          if (
+            plan.view.impact.stampCount > 0 &&
+            dto.templateEdit?.confirmationToken !== plan.view.confirmationToken
+          )
+            throw new ConflictException({
+              code: 'TEMPLATE_IMPACT_CHANGED',
+              message:
+                '削除対象が変わりました。投稿数を確認して、もう一度保存してください。',
+              preview: plan.view,
+            });
+          templatesChanged = plan.changed;
+          await applyTemplatePlan(tx, plan);
+        }
+        if (dto.templateEdit)
+          await tx.tripEdit.create({
+            data: {
+              tripId: id,
+              clientRequestId: dto.templateEdit.clientRequestId,
+              payloadHash,
+            },
+          });
+        if (JSON.stringify(trip) === before && !templatesChanged) return trip;
         const saved = await this.trips.save(trip, tx);
         await notifyMembers(
           tx,

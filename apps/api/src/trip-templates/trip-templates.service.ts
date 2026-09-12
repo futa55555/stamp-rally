@@ -103,11 +103,15 @@ export class TripTemplatesService {
 
   catalog(): TripTemplateCatalog {
     return {
-      locations: this.presets.locations.map(({ name, aliases }) => ({
+      locations: this.presets.locations.map(({ key, name, aliases }) => ({
+        key,
         name,
         aliases: [...aliases],
       })),
-      activities: this.presets.activities.map(({ name }) => ({ name })),
+      activities: this.presets.activities.map(({ key, name }) => ({
+        key,
+        name,
+      })),
     };
   }
 
@@ -118,13 +122,18 @@ export class TripTemplatesService {
   identified(input: TripTemplateInput, selected: CategoryTemplateItem[] = []) {
     const allowed = this.select(input, selected);
     return this.preview(input).categories.flatMap((category) => {
-      const choice = allowed.find((item) => item.name === category.name);
+      const choice = allowed.find(
+        (item) => (item.key ?? item.name) === (category.key ?? category.name),
+      );
       return choice
         ? [
             {
               ...category,
               stamps: category.stamps.filter((stamp) =>
-                choice.stamps.some((item) => item.title === stamp.title),
+                choice.stamps.some(
+                  (item) =>
+                    (item.key ?? item.title) === (stamp.key ?? stamp.title),
+                ),
               ),
             },
           ]
@@ -136,37 +145,46 @@ export class TripTemplatesService {
     input: TripTemplateInput,
     selectedCategories: CategoryTemplateItem[] = [],
   ): CategoryTemplateItem[] {
-    const candidates = new Map(
-      this.preview(input).categories.map((category) => [
-        category.name,
-        new Set(category.stamps.map((stamp) => stamp.title)),
-      ]),
-    );
-    const selected = new Map<string, Set<string>>();
+    const candidates = this.preview(input).categories;
+    const selected = new Map<string, CategoryTemplateItem>();
     for (const category of selectedCategories) {
-      const allowed = candidates.get(category.name);
-      if (!allowed) {
+      const matches = candidates.filter((item) =>
+        category.key ? item.key === category.key : item.name === category.name,
+      );
+      if (matches.length !== 1)
         throw new BadRequestException(
-          `Unknown template category: ${category.name}`,
+          `Unknown or ambiguous template category: ${category.name}`,
         );
-      }
-      let titles = selected.get(category.name);
-      if (!titles) {
-        titles = new Set();
-        selected.set(category.name, titles);
-      }
-      for (const { title } of category.stamps) {
-        if (!allowed.has(title)) {
+      const allowed = matches[0];
+      const identity = allowed.key ?? allowed.name;
+      const result = selected.get(identity) ?? {
+        ...(allowed.key ? { key: allowed.key } : {}),
+        name: allowed.name,
+        stamps: [],
+      };
+      for (const choice of category.stamps) {
+        const matches = allowed.stamps.filter((item) =>
+          choice.key ? item.key === choice.key : item.title === choice.title,
+        );
+        if (matches.length !== 1)
           throw new BadRequestException(
-            `Unknown template stamp: ${category.name} / ${title}`,
+            `Unknown or ambiguous template stamp: ${category.name} / ${choice.title}`,
           );
-        }
-        titles.add(title);
+        const item = matches[0];
+        if (
+          !result.stamps.some(
+            (stamp) => (stamp.key ?? stamp.title) === (item.key ?? item.title),
+          )
+        )
+          result.stamps.push({
+            ...(item.key ? { key: item.key } : {}),
+            title: item.title,
+          });
       }
+      selected.set(identity, result);
     }
-    return Array.from(selected, ([name, titles]) => ({
-      name,
-      stamps: Array.from(titles, (title) => ({ title })),
-    })).filter((category) => category.stamps.length > 0);
+    return [...selected.values()].filter(
+      (category) => category.stamps.length > 0,
+    );
   }
 }

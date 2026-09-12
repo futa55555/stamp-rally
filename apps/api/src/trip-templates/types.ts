@@ -39,6 +39,6 @@ export type TripTemplateInput = {
   activityPresets?: string[];
 };
 export type TripTemplateCatalog = {
-  locations: { name: string; aliases: string[] }[];
-  activities: { name: string }[];
+  locations: { key?: string; name: string; aliases: string[] }[];
+  activities: { key?: string; name: string }[];
 };

@@ -150,7 +150,11 @@ export function parseTripTemplatePresets(
     ] as const) {
       const seen = new Set<string>();
       for (const preset of presets) {
-        if (!preset.key || seen.has(preset.key))
+        if (
+          !preset.key ||
+          !/^[a-z0-9][a-z0-9-]{0,99}$/.test(preset.key) ||
+          seen.has(preset.key)
+        )
           invalid(kind, 'missing or duplicate stable preset key');
         seen.add(preset.key);
         for (const category of preset.template.categories) {

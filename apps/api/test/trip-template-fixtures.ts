@@ -91,11 +91,12 @@ const fixtures: TripTemplatePresets = {
 export class TestTripTemplatesService extends TripTemplatesService {
   override catalog() {
     return {
-      locations: fixtures.locations.map(({ name, aliases }) => ({
+      locations: fixtures.locations.map(({ key, name, aliases }) => ({
+        key,
         name,
         aliases: [...aliases],
       })),
-      activities: fixtures.activities.map(({ name }) => ({ name })),
+      activities: fixtures.activities.map(({ key, name }) => ({ key, name })),
     };
   }
 

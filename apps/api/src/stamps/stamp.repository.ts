@@ -1,3 +1,4 @@
+import { rememberMembershipRemoval } from '../trip-templates/remember-exclusions.js';
 import { activeStamp, visiblePost } from '../database/active-records.js';
 import { notifyMembers } from '../notifications/notify.js';
 import { serializable } from '../database/transaction.js';
@@ -118,6 +119,14 @@ export class StampRepository {
           current.categories.some(
             ({ categoryId }) => !input.categoryIds!.includes(categoryId),
           ));
+      if (membershipChanged)
+        await rememberMembershipRemoval(
+          tx,
+          id,
+          current.categories
+            .filter((link) => !input.categoryIds!.includes(link.categoryId))
+            .map((link) => link.categoryId),
+        );
       const changed =
         membershipChanged ||
         (input.name !== undefined && input.name !== current.name) ||
@@ -132,10 +141,17 @@ export class StampRepository {
               ...(membershipChanged
                 ? {
                     categories: {
-                      deleteMany: {},
-                      create: input.categoryIds!.map((categoryId) => ({
-                        categoryId,
-                      })),
+                      deleteMany: { categoryId: { notIn: input.categoryIds! } },
+                      create: input
+                        .categoryIds!.filter(
+                          (categoryId) =>
+                            !current.categories.some(
+                              (link) => link.categoryId === categoryId,
+                            ),
+                        )
+                        .map((categoryId) => ({
+                          categoryId,
+                        })),
                     },
                   }
                 : {}),

@@ -21,7 +21,7 @@ describe('TripsService', () => {
   };
   const access = { requireTrip: vi.fn() };
   const prisma = { $transaction: vi.fn() };
-  const templates = { identified: vi.fn(), preview: vi.fn() };
+  const templates = { identified: vi.fn(), preview: vi.fn(), catalog: vi.fn() };
   const service = new TripsService(
     repo as unknown as TripRepository,
     access as unknown as TripAccessService,
@@ -57,6 +57,7 @@ describe('TripsService', () => {
     repo.findByRequestId.mockResolvedValue(null);
     templates.identified.mockReturnValue([]);
     templates.preview.mockReturnValue({ categories: [] });
+    templates.catalog.mockReturnValue({ locations: [], activities: [] });
     repo.findAll.mockResolvedValue({ items: [], nextCursor: null });
     repo.findById.mockResolvedValue(trip);
     repo.save.mockImplementation(async (value: Trip) => value);
@@ -70,6 +71,7 @@ describe('TripsService', () => {
       tx,
       [],
       [],
+      { locations: [], activities: [] },
     );
     expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: 'Serializable',
@@ -102,6 +104,7 @@ describe('TripsService', () => {
       tx,
       selectedCategories,
       [],
+      { locations: [], activities: [] },
     );
   });
 

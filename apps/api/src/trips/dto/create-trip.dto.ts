@@ -20,11 +20,13 @@ const trimItems = ({ value }: { value: unknown }): unknown =>
     : value;
 
 export class SelectedStampDto {
+  @OptionalField() @IsString() @MaxLength(100) key?: string;
   @DomainName()
   title!: string;
 }
 
 export class SelectedCategoryDto {
+  @OptionalField() @IsString() @MaxLength(100) key?: string;
   @DomainName()
   name!: string;
 

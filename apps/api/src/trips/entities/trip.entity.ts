@@ -43,8 +43,8 @@ export class Trip {
     public readonly completedCategoryCount = 0,
     public locations: string[] = [],
     public coverAssetId: string | null = null,
-    public readonly activityPresets: string[] = [],
-    public readonly customActivities: string[] = [],
+    public activityPresets: string[] = [],
+    public customActivities: string[] = [],
   ) {}
 
   get isCompleted(): boolean {
@@ -128,6 +128,8 @@ export class Trip {
 
   update(input: Partial<TripInput>): void {
     const next = Trip.validate({
+      activityPresets: input.activityPresets ?? this.activityPresets,
+      customActivities: input.customActivities ?? this.customActivities,
       locations:
         input.locations === undefined ? this.locations : input.locations,
       name: input.name === undefined ? this.name : input.name,
@@ -146,6 +148,8 @@ export class Trip {
             : input.coverImageUrl,
     });
     this.locations = next.locations ?? [];
+    this.activityPresets = next.activityPresets ?? [];
+    this.customActivities = next.customActivities ?? [];
     this.name = next.name;
     this.startDate = next.startDate;
     this.endDate = next.endDate;
