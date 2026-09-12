@@ -100,6 +100,7 @@ export class TripRepository {
   async findAll(userId: string, query: PaginationQueryDto) {
     const rows = await this.prisma.trip.findMany({
       where: {
+        deletedAt: null,
         members: { some: { userId } },
         ...paginationWhere(query, 'desc'),
       },
@@ -115,7 +116,7 @@ export class TripRepository {
 
   async save(trip: Trip, tx: Prisma.TransactionClient): Promise<Trip> {
     const row = await tx.trip.update({
-      where: { id: trip.id },
+      where: { id: trip.id, deletedAt: null },
       data: {
         locations: trip.locations,
         name: trip.name,
@@ -147,15 +148,15 @@ export class TripRepository {
     const rows = await tx.$queryRaw<TripProgress[]>(Prisma.sql`
       SELECT t.id, COUNT(g.id)::int AS "totalCategoryCount",
         COUNT(g.id) FILTER (
-          WHERE EXISTS (SELECT 1 FROM stamp_categories s WHERE s.category_id = g.id)
+          WHERE EXISTS (SELECT 1 FROM stamp_categories s JOIN stamps st ON st.id = s.stamp_id AND st.deleted_at IS NULL WHERE s.category_id = g.id)
             AND NOT EXISTS (
-              SELECT 1 FROM stamp_categories s WHERE s.category_id = g.id
-                AND NOT EXISTS (SELECT 1 FROM posts p WHERE p.stamp_id = s.stamp_id AND p.status = 'READY')
+              SELECT 1 FROM stamp_categories s JOIN stamps st ON st.id = s.stamp_id AND st.deleted_at IS NULL WHERE s.category_id = g.id
+                AND NOT EXISTS (SELECT 1 FROM posts p WHERE p.stamp_id = s.stamp_id AND p.status = 'READY' AND p.deleted_at IS NULL AND p.purged_at IS NULL)
             )
         )::int AS "completedCategoryCount"
       FROM trips t
-      LEFT JOIN categories g ON g.trip_id = t.id
-      WHERE t.id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
+      LEFT JOIN categories g ON g.trip_id = t.id AND g.deleted_at IS NULL
+      WHERE t.deleted_at IS NULL AND t.id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
       GROUP BY t.id
     `);
     return new Map(rows.map((row) => [row.id, row]));

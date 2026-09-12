@@ -1,3 +1,10 @@
+import {
+  activeCategory,
+  activeStamp,
+  activePost,
+  memberTrip,
+} from '../database/active-records.js';
+import type { Prisma } from '../generated/prisma/client.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 
@@ -5,9 +12,13 @@ import { PrismaService } from '../database/prisma.service.js';
 export class TripAccessService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async requireTrip(userId: string, tripId: string): Promise<void> {
-    const member = await this.prisma.tripMember.findUnique({
-      where: { tripId_userId: { tripId, userId } },
+  async requireTrip(
+    userId: string,
+    tripId: string,
+    tx: Prisma.TransactionClient = this.prisma,
+  ): Promise<void> {
+    const member = await tx.tripMember.findUnique({
+      where: { tripId_userId: { tripId, userId }, trip: { deletedAt: null } },
       select: { id: true },
     });
     if (!member) throw new NotFoundException('Trip not found');
@@ -16,9 +27,10 @@ export class TripAccessService {
   async requireCategory(
     userId: string,
     categoryId: string,
+    tx: Prisma.TransactionClient = this.prisma,
   ): Promise<{ tripId: string }> {
-    const category = await this.prisma.category.findFirst({
-      where: { id: categoryId, trip: { members: { some: { userId } } } },
+    const category = await tx.category.findFirst({
+      where: { id: categoryId, ...activeCategory, trip: memberTrip(userId) },
       select: { tripId: true },
     });
     if (!category) throw new NotFoundException('Category not found');
@@ -28,11 +40,13 @@ export class TripAccessService {
   async requireStamp(
     userId: string,
     stampId: string,
+    tx: Prisma.TransactionClient = this.prisma,
   ): Promise<{ tripId: string }> {
-    const stamp = await this.prisma.stamp.findFirst({
+    const stamp = await tx.stamp.findFirst({
       where: {
         id: stampId,
-        trip: { members: { some: { userId } } },
+        ...activeStamp,
+        trip: memberTrip(userId),
       },
       select: { tripId: true },
     });
@@ -43,11 +57,13 @@ export class TripAccessService {
   async requirePost(
     userId: string,
     postId: string,
+    tx: Prisma.TransactionClient = this.prisma,
   ): Promise<{ tripId: string; stampId: string }> {
-    const post = await this.prisma.post.findFirst({
+    const post = await tx.post.findFirst({
       where: {
         id: postId,
-        stamp: { trip: { members: { some: { userId } } } },
+        ...activePost,
+        stamp: { ...activeStamp, trip: memberTrip(userId) },
       },
       select: {
         stampId: true,

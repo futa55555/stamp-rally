@@ -1,3 +1,4 @@
+import { activePost } from '../database/active-records.js';
 import {
   BadRequestException,
   ConflictException,
@@ -104,7 +105,12 @@ export class UploadsService {
   async getBatch(userId: string, id: string) {
     const batch = await this.prisma.uploadBatch.findFirst({
       where: { id, authorId: userId },
-      include: { posts: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
+      include: {
+        posts: {
+          where: activePost,
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        },
+      },
     });
     if (!batch) throw new NotFoundException('Upload batch not found');
     // Removing a member also removes their access to pending uploads and URLs.
@@ -338,7 +344,12 @@ export class UploadsService {
 
   private async requireOwned(userId: string, id: string): Promise<Post> {
     const row = await this.prisma.post.findFirst({
-      where: { id, authorId: userId, uploadBatchId: { not: null } },
+      where: {
+        id,
+        authorId: userId,
+        uploadBatchId: { not: null },
+        ...activePost,
+      },
     });
     if (!row) throw new NotFoundException('Upload not found');
     await this.access.requireStamp(userId, row.stampId);

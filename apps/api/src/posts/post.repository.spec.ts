@@ -1,3 +1,4 @@
+import { memberPost, visiblePost } from '../database/active-records.js';
 import { NotFoundException } from '@nestjs/common';
 import type { PrismaService } from '../database/prisma.service.js';
 import type { ObjectStorageService } from '../storage/object-storage.service.js';
@@ -33,11 +34,11 @@ describe('Post repository publication boundaries', () => {
       NotFoundException,
     );
     expect(context.post.deleteMany).toHaveBeenCalledWith({
-      where: { id: 'pending', status: 'READY' },
+      where: { id: 'pending', ...visiblePost },
     });
     await expect(context.repository.delete('ready')).resolves.toBeUndefined();
     expect(context.post.deleteMany).toHaveBeenCalledWith({
-      where: { id: 'ready', status: 'READY' },
+      where: { id: 'ready', ...visiblePost },
     });
   });
 
@@ -50,8 +51,7 @@ describe('Post repository publication boundaries', () => {
     expect(context.post.findFirst).toHaveBeenCalledWith({
       where: {
         id: 'post',
-        status: 'READY',
-        stamp: { trip: { members: { some: { userId: 'user' } } } },
+        ...memberPost('user'),
       },
     });
     expect(context.storage.signGet).not.toHaveBeenCalled();

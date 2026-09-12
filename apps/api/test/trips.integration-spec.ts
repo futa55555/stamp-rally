@@ -78,6 +78,86 @@ describe('Trip API integration', () => {
   const storage = new TestObjectStorage();
   const queue = new TestMediaQueue();
 
+  it('hides soft-deleted posts and ancestors from reads, counts, favorites and notifications', async () => {
+    const { trip, category, stamp } = await tree();
+    await join(trip.id);
+    const post = await publish(member, { stampId: stamp.id, ...mediaInput });
+    await http('patch', `/posts/${post.id}/favorite`, owner, {
+      isFavorite: true,
+    });
+    await prisma.post.update({
+      where: { id: post.id },
+      data: { deletedAt: new Date() },
+    });
+    expect(
+      (await get<Page>('/posts', owner, { tripId: trip.id })).items,
+    ).toEqual([]);
+    expect(await get(`/stamps/${stamp.id}`, owner)).toMatchObject({
+      photoCount: 0,
+      isCompleted: false,
+      hasUnreadPhotos: false,
+    });
+    expect(await get(`/categories/${category.id}`, owner)).toMatchObject({
+      completedStampCount: 0,
+    });
+    expect(await get(`/trips/${trip.id}`, owner)).toMatchObject({
+      completedCategoryCount: 0,
+    });
+    for (const suffix of ['', '/original'])
+      await request(app.getHttpServer())
+        .get(`/posts/${post.id}${suffix}`)
+        .auth(owner.accessToken, { type: 'bearer' })
+        .expect(404);
+    const notifications = await get<Page<{ target: { postId?: string } }>>(
+      '/notifications',
+      owner,
+    );
+    expect(notifications.items.some((n) => n.target.postId === post.id)).toBe(
+      false,
+    );
+    await prisma.post.update({
+      where: { id: post.id },
+      data: { deletedAt: null },
+    });
+    await prisma.stamp.update({
+      where: { id: stamp.id },
+      data: { deletedAt: new Date() },
+    });
+    expect(
+      (await get<Page>('/posts', owner, { tripId: trip.id })).items,
+    ).toEqual([]);
+    expect(await get(`/categories/${category.id}`, owner)).toMatchObject({
+      totalStampCount: 0,
+    });
+    await prisma.category.update({
+      where: { id: category.id },
+      data: { deletedAt: new Date() },
+    });
+    expect(
+      (await get<Page>('/categories', owner, { tripId: trip.id })).items,
+    ).toEqual([]);
+    const link = await http<{ token: string }>(
+      'post',
+      `/trips/${trip.id}/invitation-links`,
+      owner,
+      {},
+    );
+    await prisma.trip.update({
+      where: { id: trip.id },
+      data: { deletedAt: new Date() },
+    });
+    expect((await get<Page>('/trips', owner)).items).toEqual([]);
+    await request(app.getHttpServer())
+      .get(`/trips/${trip.id}`)
+      .auth(owner.accessToken, { type: 'bearer' })
+      .expect(404);
+    await request(app.getHttpServer())
+      .post('/public/invitation-links/status')
+      .send({ token: link.token })
+      .expect(200)
+      .expect(({ body }) => expect(body.status).toBe('NOT_FOUND'));
+  });
+
   it('shares progress, unread state and posts across memberships without duplicating trip media', async () => {
     const { trip, category, stamp } = await tree();
     await join(trip.id);

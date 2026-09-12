@@ -1,3 +1,4 @@
+import { memberPost, visiblePost } from '../database/active-records.js';
 import { categoryMemberships } from '../stamps/stamp-categories.js';
 import { serializable } from '../database/transaction.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -34,8 +35,7 @@ export class PostRepository {
     const row = await this.prisma.post.findFirst({
       where: {
         id,
-        status: 'READY',
-        stamp: { trip: { members: { some: { userId } } } },
+        ...memberPost(userId),
       },
     });
     if (!row?.originalKey)
@@ -54,8 +54,7 @@ export class PostRepository {
     const row = await this.prisma.post.findFirst({
       where: {
         id,
-        status: 'READY',
-        stamp: { trip: { members: { some: { userId } } } },
+        ...memberPost(userId),
       },
       include: postInclude(userId),
     });
@@ -71,8 +70,7 @@ export class PostRepository {
           : { stampId: scope.id };
     const rows = await this.prisma.post.findMany({
       where: {
-        ...scopeWhere,
-        status: 'READY',
+        AND: [scopeWhere, memberPost(userId)],
         mediaType: query.mediaType,
         ...(query.favoritesOnly === true ? { isFavorite: true } : {}),
         ...paginationWhere(query, 'desc'),
@@ -96,8 +94,7 @@ export class PostRepository {
       const changed = await tx.post.updateMany({
         where: {
           id,
-          status: 'READY',
-          stamp: { trip: { members: { some: { userId } } } },
+          ...memberPost(userId),
         },
         data: { isFavorite },
       });
@@ -115,8 +112,7 @@ export class PostRepository {
       const visible = await tx.post.findFirst({
         where: {
           id,
-          status: 'READY',
-          stamp: { trip: { members: { some: { userId } } } },
+          ...memberPost(userId),
         },
         select: { id: true },
       });
@@ -128,7 +124,7 @@ export class PostRepository {
         update: {},
       });
       const row = await tx.post.findUniqueOrThrow({
-        where: { id, status: 'READY' },
+        where: { id, ...visiblePost },
         include: postInclude(userId),
       });
       return this.toDomain(row);
@@ -140,7 +136,7 @@ export class PostRepository {
     // The status predicate and deletion are atomic, including concurrent publication.
     await serializable(this.prisma, async (tx) => {
       const deleted = await tx.post.deleteMany({
-        where: { id, status: 'READY' },
+        where: { id, ...visiblePost },
       });
       if (!deleted.count) throw new NotFoundException('Post not found');
       // Foreign keys remove reads/notifications; the DB trigger queues object cleanup.

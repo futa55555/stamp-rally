@@ -53,7 +53,10 @@ describe('Public invitation status', () => {
       expect(result.body).toEqual({ status });
       expect(result.headers['cache-control']).toBe('no-store');
       expect(findUnique).toHaveBeenCalledExactlyOnceWith({
-        where: { tokenHash: createHash('sha256').update(token).digest('hex') },
+        where: {
+          tokenHash: createHash('sha256').update(token).digest('hex'),
+          trip: { deletedAt: null },
+        },
         select: { expiresAt: true, revokedAt: true },
       });
     },
