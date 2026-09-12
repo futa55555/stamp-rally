@@ -38,3 +38,9 @@
 JSONの構造、文字数、preset名・場所の別名の衝突はAPI起動時に検証します。不正なデータはファイル内の項目位置を示して起動に失敗します。変更後はリポジトリのルートで `pnpm --filter api test src/trip-templates` と `pnpm --filter api build` を実行してください。JSONはAPIビルドに同梱されるため、反映にはAPIの再ビルド・再起動（デプロイ）が必要です。
 
 例えば「パークならではのフードを食べる」はグルメ・遊園地の両方に記載します。「夜景を楽しむ」は景色・思い出の両方で使います。同じ体験を複数categoryで扱うときはtitleを統一し、別々に達成したい体験（フードとドリンクなど）は別のtitleを維持してください。
+
+## Stable identities and existing data
+
+Every bundled preset, category and stamp has a permanent `key`. Keep the key when changing a label, and use a new key for a different concept. Repeated category/stamp keys represent the same concept across sources. Production startup rejects missing keys and conflicting labels for a shared key.
+
+New trips store category/stamp keys and source keys on each membership. Unselected candidates are stored as exclusions on the trip. Existing database rows and memberships remain manual; the migration never infers provenance from matching names. Deleted template rows are retained, and selecting that template again creates a new active row.

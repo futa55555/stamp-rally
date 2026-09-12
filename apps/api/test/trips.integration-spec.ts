@@ -78,6 +78,62 @@ describe('Trip API integration', () => {
   const storage = new TestObjectStorage();
   const queue = new TestMediaQueue();
 
+  it('stores stable template provenance and omissions while keeping manually created data manual', async () => {
+    const preview = app
+      .get(TripTemplatesService)
+      .preview({ locations: ['沖縄'], activityPresets: ['海'] });
+    const category = preview.categories.find(
+      (category) => category.name === '景色',
+    )!;
+    const beach = category.stamps.find(
+      (stamp) => stamp.title === '海辺を散歩する',
+    )!;
+    const trip = await http('post', '/trips', owner, {
+      ...tripInput,
+      locations: ['沖縄'],
+      activityPresets: ['海'],
+      selectedCategories: [
+        { name: category.name, stamps: [{ title: beach.title }] },
+      ],
+    });
+    const row = await prisma.stamp.findFirstOrThrow({
+      where: { tripId: trip.id },
+      include: { categories: true },
+    });
+    expect(row.templateKey).toBe(beach.key);
+    expect(row.categories[0]).toMatchObject({
+      manual: false,
+      templateSources: beach.sources.map(
+        (source) => `${source.type}:${source.key}`,
+      ),
+    });
+    expect(
+      (await prisma.trip.findUniqueOrThrow({ where: { id: trip.id } }))
+        .templateExclusions,
+    ).toHaveLength(2);
+    const manual = await http('post', '/categories', owner, {
+      tripId: trip.id,
+      name: category.name,
+    });
+    expect(
+      await prisma.category.findUnique({ where: { id: manual.id } }),
+    ).toMatchObject({ templateKey: null });
+    const stamp = await http('post', '/stamps', owner, {
+      tripId: trip.id,
+      categoryIds: [manual.id],
+      name: beach.title,
+    });
+    expect(
+      await prisma.stamp.findUnique({
+        where: { id: stamp.id },
+        include: { categories: true },
+      }),
+    ).toMatchObject({
+      templateKey: null,
+      categories: [{ manual: true, templateSources: [] }],
+    });
+  });
+
   it('deletes categories without losing shared stamps and permanently purges orphaned media including trash', async () => {
     const { trip, category, stamp } = await tree();
     await join(trip.id);
@@ -951,7 +1007,7 @@ describe('Trip API integration', () => {
         .find(({ name }) => name === '景色')!
         .stamps.filter(({ title }) => title === '海辺を散歩する');
       expect(beach).toHaveLength(1);
-      expect(beach[0].sources).toEqual([
+      expect(beach[0].sources).toMatchObject([
         { type: 'location', name: '沖縄県' },
         { type: 'activity', name: '海' },
       ]);

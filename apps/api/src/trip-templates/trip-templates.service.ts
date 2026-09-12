@@ -32,7 +32,11 @@ export function previewTripTemplates(
     if (!preset || usedLocations.has(preset.name)) continue;
     usedLocations.add(preset.name);
     selected.push({
-      source: { type: 'location', name: preset.name },
+      source: {
+        type: 'location',
+        name: preset.name,
+        ...(preset.key ? { key: preset.key } : {}),
+      },
       categories: preset.template.categories,
     });
   }
@@ -47,48 +51,55 @@ export function previewTripTemplates(
     if (usedActivities.has(name)) continue;
     usedActivities.add(name);
     selected.push({
-      source: { type: 'activity', name },
+      source: {
+        type: 'activity',
+        name,
+        ...(preset.key ? { key: preset.key } : {}),
+      },
       categories: preset.template.categories,
     });
   }
 
   const categories = new Map<
     string,
-    Map<string, TripTemplatePreview['categories'][number]['stamps'][number]>
+    TripTemplatePreview['categories'][number]
   >();
   for (const { source, categories: sourceCategories } of selected) {
     for (const category of sourceCategories) {
-      let stamps = categories.get(category.name);
-      if (!stamps) {
-        stamps = new Map();
-        categories.set(category.name, stamps);
+      const identity = category.key ?? category.name;
+      let result = categories.get(identity);
+      if (!result) {
+        result = {
+          ...(category.key ? { key: category.key } : {}),
+          name: category.name,
+          stamps: [],
+        };
+        categories.set(identity, result);
       }
-      for (const { title } of category.stamps) {
-        const stamp = stamps.get(title);
-        if (!stamp) {
-          stamps.set(title, { title, sources: [{ ...source }] });
-        } else if (
+      for (const item of category.stamps) {
+        const stamp = result.stamps.find(
+          (s) => (s.key ?? s.title) === (item.key ?? item.title),
+        );
+        if (!stamp) result.stamps.push({ ...item, sources: [{ ...source }] });
+        else if (
           !stamp.sources.some(
-            (existing) =>
-              existing.type === source.type && existing.name === source.name,
+            (s) =>
+              s.type === source.type &&
+              (s.key ?? s.name) === (source.key ?? source.name),
           )
-        ) {
+        )
           stamp.sources.push({ ...source });
-        }
       }
     }
   }
   return {
-    categories: Array.from(categories, ([name, stamps]) => ({
-      name,
-      stamps: Array.from(stamps.values()),
-    })).filter((category) => category.stamps.length > 0),
+    categories: [...categories.values()].filter((c) => c.stamps.length > 0),
   };
 }
 
 @Injectable()
 export class TripTemplatesService {
-  private readonly presets = parseTripTemplatePresets(presets);
+  private readonly presets = parseTripTemplatePresets(presets, true);
 
   catalog(): TripTemplateCatalog {
     return {
@@ -102,6 +113,23 @@ export class TripTemplatesService {
 
   preview(input: TripTemplateInput): TripTemplatePreview {
     return previewTripTemplates(this.presets, input);
+  }
+
+  identified(input: TripTemplateInput, selected: CategoryTemplateItem[] = []) {
+    const allowed = this.select(input, selected);
+    return this.preview(input).categories.flatMap((category) => {
+      const choice = allowed.find((item) => item.name === category.name);
+      return choice
+        ? [
+            {
+              ...category,
+              stamps: category.stamps.filter((stamp) =>
+                choice.stamps.some((item) => item.title === stamp.title),
+              ),
+            },
+          ]
+        : [];
+    });
   }
 
   select(

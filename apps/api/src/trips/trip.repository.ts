@@ -8,7 +8,7 @@ import {
 } from '../common/pagination.js';
 import { Prisma, type Trip as PrismaTrip } from '../generated/prisma/client.js';
 import { calendarDate, Trip, type TripInput } from './entities/trip.entity.js';
-import type { CategoryTemplateItem } from '../trip-templates/types.js';
+import type { TripTemplatePreview } from '../trip-templates/types.js';
 
 interface TripProgress {
   id: string;
@@ -24,11 +24,13 @@ export class TripRepository {
     userId: string,
     input: TripInput,
     tx: Prisma.TransactionClient,
-    categories: CategoryTemplateItem[] = [],
+    categories: TripTemplatePreview['categories'] = [],
+    templateExclusions: string[] = [],
   ): Promise<Trip> {
     const row = await tx.trip.create({
       data: {
         clientRequestId: input.clientRequestId,
+        templateExclusions,
         locations: input.locations ?? [],
         activityPresets: input.activityPresets ?? [],
         customActivities: input.customActivities ?? [],
@@ -43,31 +45,54 @@ export class TripRepository {
         members: { create: { userId } },
       },
     });
-    // A title identifies one new template stamp across the selected categories.
-    const stamps = new Map<string, string[]>();
+    const stamps = new Map<
+      string,
+      {
+        name: string;
+        key?: string;
+        memberships: {
+          categoryId: string;
+          manual: boolean;
+          templateSources: string[];
+        }[];
+      }
+    >();
     for (const category of categories.filter(
-      (category) => category.stamps.length > 0,
+      (category) => category.stamps.length,
     )) {
       const created = await tx.category.create({
-        data: { tripId: row.id, name: category.name },
+        data: {
+          tripId: row.id,
+          name: category.name,
+          templateKey: category.key,
+        },
       });
-      for (const { title } of category.stamps) {
-        const ids = stamps.get(title) ?? [];
-        if (!ids.includes(created.id)) ids.push(created.id);
-        stamps.set(title, ids);
+      for (const item of category.stamps) {
+        const identity = item.key ?? item.title;
+        const stamp = stamps.get(identity) ?? {
+          name: item.title,
+          key: item.key,
+          memberships: [],
+        };
+        stamp.memberships.push({
+          categoryId: created.id,
+          manual: !item.key,
+          templateSources: (item.sources ?? []).flatMap((source) =>
+            source.key ? [`${source.type}:${source.key}`] : [],
+          ),
+        });
+        stamps.set(identity, stamp);
       }
     }
-    for (const [name, categoryIds] of stamps) {
+    for (const stamp of stamps.values())
       await tx.stamp.create({
         data: {
           tripId: row.id,
-          name,
-          categories: {
-            create: categoryIds.map((categoryId) => ({ categoryId })),
-          },
+          name: stamp.name,
+          templateKey: stamp.key,
+          categories: { create: stamp.memberships },
         },
       });
-    }
     const progress = await this.progress([row.id], tx);
     return this.toDomain(row, progress.get(row.id));
   }

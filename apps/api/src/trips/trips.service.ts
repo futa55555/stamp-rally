@@ -1,3 +1,4 @@
+import { membershipExclusion } from '../trip-templates/identity.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { CoverAssetsService } from '../covers/cover-assets.service.js';
 import { CoverPresenter } from '../covers/cover-presenter.service.js';
@@ -46,14 +47,35 @@ export class TripsService {
           }
           if (dto.coverAssetId)
             await this.covers.assertAttachable(tx, userId, dto.coverAssetId);
-          const categories = this.templates.select(
+          const categories = this.templates.identified(
             {
               locations: input.locations,
               activityPresets: input.activityPresets,
             },
             dto.selectedCategories,
           );
-          const trip = await this.trips.create(userId, input, tx, categories);
+          const excluded = this.templates
+            .preview(input)
+            .categories.flatMap((category) =>
+              category.stamps.flatMap((stamp) =>
+                category.key &&
+                stamp.key &&
+                !categories.some(
+                  (selected) =>
+                    selected.key === category.key &&
+                    selected.stamps.some((item) => item.key === stamp.key),
+                )
+                  ? [membershipExclusion(category.key, stamp.key)]
+                  : [],
+              ),
+            );
+          const trip = await this.trips.create(
+            userId,
+            input,
+            tx,
+            categories,
+            excluded,
+          );
           return trip;
         });
         return this.presenter.present(result.toJSON());
