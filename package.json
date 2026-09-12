@@ -13,7 +13,6 @@
     "mobile:start:remote": "pnpm --filter mobile start:remote",
     "mobile:ios": "pnpm --filter mobile ios",
     "mobile:android": "pnpm --filter mobile android",
-    "mobile:android:connect": "pnpm --filter mobile android:connect",
     "mobile:prebuild": "pnpm --filter mobile prebuild:local --clean",
     "mobile:build:development": "pnpm --filter mobile build:development",
     "mobile:build:staging": "pnpm --filter mobile build:staging",
