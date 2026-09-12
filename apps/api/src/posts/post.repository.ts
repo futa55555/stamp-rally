@@ -1,7 +1,10 @@
+import { restorablePosts, trashExpiresAt } from './trash-policy.js';
+import { trashAfter, trashCursor, trashOrder } from './trash-pagination.js';
+import type { PaginationQueryDto } from '../common/pagination.js';
 import { memberPost, visiblePost } from '../database/active-records.js';
 import { categoryMemberships } from '../stamps/stamp-categories.js';
 import { serializable } from '../database/transaction.js';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { GoneException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 import {
   paginate,
@@ -22,6 +25,30 @@ const postInclude = (userId: string) =>
 
 type PostRecord = Prisma.PostGetPayload<{
   include: ReturnType<typeof postInclude>;
+}>;
+
+const trashInclude = (userId: string) =>
+  ({
+    ...postInclude(userId),
+    stamp: {
+      select: {
+        tripId: true,
+        name: true,
+        categories: categoryMemberships,
+        trip: {
+          select: {
+            id: true,
+            name: true,
+            startDate: true,
+            endDate: true,
+            createdAt: true,
+          },
+        },
+      },
+    },
+  }) satisfies Prisma.PostInclude;
+type TrashRecord = Prisma.PostGetPayload<{
+  include: ReturnType<typeof trashInclude>;
 }>;
 
 @Injectable()
@@ -131,16 +158,77 @@ export class PostRepository {
     });
   }
 
-  async delete(id: string): Promise<void> {
-    // Unpublished uploads have a separate author-only cancellation endpoint.
-    // The status predicate and deletion are atomic, including concurrent publication.
+  async delete(id: string, userId: string): Promise<void> {
     await serializable(this.prisma, async (tx) => {
-      const deleted = await tx.post.deleteMany({
-        where: { id, ...visiblePost },
+      const row = await tx.post.findFirst({
+        where: { ...memberPost(userId), id, deletedAt: undefined },
       });
-      if (!deleted.count) throw new NotFoundException('Post not found');
-      // Foreign keys remove reads/notifications; the DB trigger queues object cleanup.
+      if (!row) throw new NotFoundException('Post not found');
+      // Retrying a trash operation never extends its restoration deadline.
+      if (row.deletedAt) return;
+      await tx.post.update({ where: { id }, data: { deletedAt: new Date() } });
     });
+  }
+
+  async trash(userId: string, query: PaginationQueryDto) {
+    const rows = await this.prisma.post.findMany({
+      where: { AND: [restorablePosts(userId), trashAfter(query.cursor)] },
+      include: trashInclude(userId),
+      orderBy: trashOrder,
+      take: query.limit + 1,
+    });
+    const items = rows.slice(0, query.limit);
+    return {
+      items: await Promise.all(items.map((row) => this.toTrash(row))),
+      nextCursor:
+        rows.length > query.limit && items.length
+          ? trashCursor(items[items.length - 1])
+          : null,
+    };
+  }
+
+  async trashDetail(id: string, userId: string) {
+    const row = await this.prisma.post.findFirst({
+      where: { id, ...restorablePosts(userId) },
+      include: trashInclude(userId),
+    });
+    if (!row) throw new NotFoundException('Trashed post not found');
+    return this.toTrash(row);
+  }
+
+  async restore(id: string, userId: string): Promise<Post> {
+    return serializable(this.prisma, async (tx) => {
+      const row = await tx.post.findFirst({
+        where: { ...memberPost(userId), id, deletedAt: undefined },
+        include: postInclude(userId),
+      });
+      if (!row) throw new NotFoundException('Post not found');
+      if (!row.deletedAt) return this.toDomain(row);
+      if (trashExpiresAt(row.deletedAt).getTime() <= Date.now())
+        throw new GoneException('復元できる30日間を過ぎています。');
+      const restored = await tx.post.update({
+        where: { id },
+        data: { deletedAt: null },
+        include: postInclude(userId),
+      });
+      return this.toDomain(restored);
+    });
+  }
+
+  private async toTrash(row: TrashRecord) {
+    const trip = row.stamp.trip;
+    return {
+      ...(await this.toDomain(row)),
+      deletedAt: row.deletedAt!.toISOString(),
+      expiresAt: trashExpiresAt(row.deletedAt!).toISOString(),
+      stampName: row.stamp.name,
+      trip: {
+        id: trip.id,
+        name: trip.name,
+        startDate: trip.startDate.toISOString().slice(0, 10),
+        endDate: trip.endDate.toISOString().slice(0, 10),
+      },
+    };
   }
 
   private async toDomain(row: PostRecord): Promise<Post> {

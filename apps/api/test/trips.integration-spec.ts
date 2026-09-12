@@ -78,6 +78,109 @@ describe('Trip API integration', () => {
   const storage = new TestObjectStorage();
   const queue = new TestMediaQueue();
 
+  it.each(['IMAGE', 'VIDEO'])(
+    'restores %s with its original identity, favorite and read history',
+    async (mediaType) => {
+      const { trip, stamp } = await tree();
+      await join(trip.id);
+      const post = await publish(owner, {
+        stampId: stamp.id,
+        ...mediaInput,
+        mediaType,
+      });
+      await http('patch', `/posts/${post.id}/favorite`, member, {
+        isFavorite: true,
+      });
+      const read = await http('patch', `/posts/${post.id}/read`, member);
+      await http('delete', `/posts/${post.id}`, member, undefined, 204);
+      const deleted = await prisma.post.findUniqueOrThrow({
+        where: { id: post.id },
+      });
+      await http('delete', `/posts/${post.id}`, owner, undefined, 204);
+      expect(
+        (await prisma.post.findUniqueOrThrow({ where: { id: post.id } }))
+          .deletedAt,
+      ).toEqual(deleted.deletedAt);
+      const trash = await get<
+        Page<
+          Resource & {
+            expiresAt: string;
+            trip: { id: string };
+            stampName: string;
+          }
+        >
+      >('/posts/trash', member);
+      expect(trash.items[0]).toMatchObject({
+        id: post.id,
+        trip: { id: trip.id },
+        stampName: stamp.name,
+      });
+      expect(
+        new Date(trash.items[0].expiresAt).getTime() -
+          deleted.deletedAt!.getTime(),
+      ).toBe(30 * 86400000);
+      await http('get', `/posts/trash/${post.id}`, outsider, undefined, 404);
+      await http('post', `/posts/${post.id}/restore`, outsider, undefined, 404);
+      expect((await get<Page>('/posts/trash', outsider)).items).toEqual([]);
+      const results = await Promise.all([
+        http('post', `/posts/${post.id}/restore`, member, undefined, 200),
+        http('post', `/posts/${post.id}/restore`, owner, undefined, 200),
+      ]);
+      expect(results[0]).toMatchObject({
+        id: post.id,
+        isFavorite: true,
+        readAt: read.readAt,
+      });
+      expect((await get<Page>('/posts/trash', member)).items).toEqual([]);
+      expect(await get(`/stamps/${stamp.id}`, owner)).toMatchObject({
+        isCompleted: true,
+      });
+      expect(
+        await prisma.notification.count({ where: { postId: post.id } }),
+      ).toBe(1);
+    },
+  );
+
+  it('paginates trash contiguously by trip and rejects expired or inaccessible restoration', async () => {
+    const first = await tree(),
+      second = await tree();
+    const posts: Resource[] = [];
+    for (const stamp of [first.stamp, second.stamp, first.stamp]) {
+      const post = await publish(owner, { ...mediaInput, stampId: stamp.id });
+      await http('delete', `/posts/${post.id}`, owner, undefined, 204);
+      posts.push(post);
+    }
+    const seen: Resource[] = [];
+    let cursor: string | null = null;
+    do {
+      const page: Page = await get<Page>('/posts/trash', owner, {
+        limit: 1,
+        ...(cursor ? { cursor } : {}),
+      });
+      seen.push(...page.items);
+      cursor = page.nextCursor;
+    } while (cursor);
+    expect(seen.map((p) => p.id)).toEqual([
+      posts[1].id,
+      posts[2].id,
+      posts[0].id,
+    ]);
+    await prisma.post.update({
+      where: { id: posts[0].id },
+      data: { deletedAt: new Date(Date.now() - 30 * 86400000) },
+    });
+    await http('post', `/posts/${posts[0].id}/restore`, owner, undefined, 410);
+    await prisma.stamp.update({
+      where: { id: second.stamp.id },
+      data: { deletedAt: new Date() },
+    });
+    await http('post', `/posts/${posts[1].id}/restore`, owner, undefined, 404);
+    expect(
+      (await get<Page>('/posts/trash', owner)).items.map((p) => p.id),
+    ).toEqual([posts[2].id]);
+    await http('get', '/posts/trash?cursor=invalid', owner, undefined, 400);
+  });
+
   it('hides soft-deleted posts and ancestors from reads, counts, favorites and notifications', async () => {
     const { trip, category, stamp } = await tree();
     await join(trip.id);
@@ -1604,7 +1707,7 @@ describe('Trip API integration', () => {
     }
   });
 
-  it('keeps photo reads per user, idempotent and separate from notifications; cascades deletion and progress', async () => {
+  it('keeps reads for restoration while excluding trashed photos from progress and notifications', async () => {
     const { trip, category, stamp } = await tree();
     await join(trip.id);
     const photo = await publish(owner, {
@@ -1661,8 +1764,9 @@ describe('Trip API integration', () => {
         .unreadCount,
     ).toBe(1);
     await http('delete', `/posts/${photo.id}`, member, undefined, 204);
-    expect(await prisma.photoRead.count()).toBe(0);
-    expect(await prisma.notification.count()).toBe(0);
+    expect(await prisma.photoRead.count()).toBe(1);
+    expect(await prisma.notification.count()).toBe(1);
+    expect((await get<Page>('/notifications', member)).items).toEqual([]);
     expect(await get(`/stamps/${stamp.id}`, owner)).toMatchObject({
       isCompleted: false,
       photoCount: 0,
@@ -1956,9 +2060,13 @@ describe('Trip API integration', () => {
     ).toBe(1);
     await http('delete', `/posts/${post.id}`, member, undefined, 204);
     await lifecycle.process(row.id, row.processingVersion);
-    expect(await prisma.post.findUnique({ where: { id: post.id } })).toBeNull();
-    expect(await prisma.mediaCleanup.count()).toBeGreaterThan(0);
-    expect(await prisma.notification.count()).toBe(0);
+    expect(
+      await prisma.post.findUnique({ where: { id: post.id } }),
+    ).toMatchObject({ deletedAt: expect.any(Date), purgedAt: null });
+    expect((await get<Page>('/notifications', member)).items).toEqual([]);
+    expect(
+      (await get<Page>('/posts/trash', member)).items.map((p) => p.id),
+    ).toEqual([post.id]);
   });
 
   it('keeps legacy media hidden and preserves identity, timestamps, favorites and reads through backfill', async () => {

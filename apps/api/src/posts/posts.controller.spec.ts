@@ -252,6 +252,6 @@ describe('PostsController', () => {
       .delete(`/posts/${postId}`)
       .set('Authorization', 'Bearer token')
       .expect(204);
-    expect(repository.delete).toHaveBeenCalledWith(postId);
+    expect(repository.delete).toHaveBeenCalledWith(postId, 'user');
   });
 });

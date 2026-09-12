@@ -1,3 +1,4 @@
+import type { PaginationQueryDto } from '../common/pagination.js';
 import {
   BadRequestException,
   Injectable,
@@ -51,8 +52,17 @@ export class PostsService {
   }
 
   async delete(userId: string, id: string): Promise<void> {
-    await this.access.requirePost(userId, id);
-    await this.posts.delete(id);
+    await this.posts.delete(id, userId);
+  }
+
+  trash(userId: string, query: PaginationQueryDto) {
+    return this.posts.trash(userId, query);
+  }
+  trashDetail(userId: string, id: string) {
+    return this.posts.trashDetail(id, userId);
+  }
+  restore(userId: string, id: string) {
+    return this.posts.restore(id, userId);
   }
 
   async setFavorite(
