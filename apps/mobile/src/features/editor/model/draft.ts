@@ -1,11 +1,15 @@
 import type { AppData } from '../../app-data/model/types';
 import {
-  requireGenreAccess,
+  requireCategoryAccess,
   requireStampAccess,
   requireTripAccess,
 } from '../../trips/model/access';
 
-export type PostScope = { tripId?: string; genreId?: string; stampId?: string };
+export type PostScope = {
+  tripId?: string;
+  categoryId?: string;
+  stampId?: string;
+};
 
 export type PostDraft = PostScope & { mediaUrls: string[] };
 
@@ -14,24 +18,24 @@ export function initializePostDraft(
   userId: string,
   scope: PostScope,
 ): PostDraft {
-  let { tripId, genreId, stampId } = scope;
+  let { tripId, categoryId, stampId } = scope;
   if (stampId) {
     const { stamp } = requireStampAccess(data, userId, stampId);
-    if (genreId && !stamp.genreIds.includes(genreId))
-      throw new Error('投稿先のジャンルが一致しません。');
-    genreId ??= stamp.genreIds[0];
+    if (categoryId && !stamp.categoryIds.includes(categoryId))
+      throw new Error('投稿先のカテゴリーが一致しません。');
+    categoryId ??= stamp.categoryIds[0];
     if (tripId && tripId !== stamp.tripId)
       throw new Error('投稿先の旅行が一致しません。');
     tripId = stamp.tripId;
   }
-  if (genreId) {
-    const genre = requireGenreAccess(data, userId, genreId);
-    if (tripId && tripId !== genre.tripId)
+  if (categoryId) {
+    const category = requireCategoryAccess(data, userId, categoryId);
+    if (tripId && tripId !== category.tripId)
       throw new Error('投稿先の旅行が一致しません。');
-    tripId = genre.tripId;
+    tripId = category.tripId;
   }
   if (tripId) requireTripAccess(data, userId, tripId);
-  return { tripId, genreId, stampId, mediaUrls: [] };
+  return { tripId, categoryId, stampId, mediaUrls: [] };
 }
 
 export function selectPostScope(
@@ -41,7 +45,8 @@ export function selectPostScope(
 ): PostDraft {
   if (draft[field] === id) return draft;
   if (field === 'tripId')
-    return { ...draft, tripId: id, genreId: undefined, stampId: undefined };
-  if (field === 'genreId') return { ...draft, genreId: id, stampId: undefined };
+    return { ...draft, tripId: id, categoryId: undefined, stampId: undefined };
+  if (field === 'categoryId')
+    return { ...draft, categoryId: id, stampId: undefined };
   return { ...draft, stampId: id };
 }

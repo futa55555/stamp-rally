@@ -1,6 +1,6 @@
-export class InvalidGenreError extends Error {}
+export class InvalidCategoryError extends Error {}
 
-export class Genre {
+export class Category {
   constructor(
     public readonly id: string,
     public readonly tripId: string,
@@ -26,15 +26,15 @@ export class Genre {
     const description =
       input.description === undefined ? '' : input.description;
     if (!name || Array.from(name).length > 100) {
-      throw new InvalidGenreError(
-        'Genre name must be between 1 and 100 characters',
+      throw new InvalidCategoryError(
+        'Category name must be between 1 and 100 characters',
       );
     }
     if (
       typeof description !== 'string' ||
       Array.from(description).length > 2000
     ) {
-      throw new InvalidGenreError(
+      throw new InvalidCategoryError(
         'Description must be at most 2000 characters',
       );
     }

@@ -13,13 +13,14 @@ export function isUnreadPhoto(data: AppData, userId: string, photo: Post) {
 export function hasUnreadPhotos(
   data: AppData,
   userId: string,
-  scope: { genreId: string } | { stampId: string },
+  scope: { categoryId: string } | { stampId: string },
 ) {
   return data.posts.some(
     (p) =>
       ('stampId' in scope
         ? p.stampId === scope.stampId
-        : p.genreIds.includes(scope.genreId)) && isUnreadPhoto(data, userId, p),
+        : p.categoryIds.includes(scope.categoryId)) &&
+      isUnreadPhoto(data, userId, p),
   );
 }
 

@@ -1,31 +1,31 @@
 import { expect, it } from 'vitest';
 import {
-  genreChecked,
+  categoryChecked,
   reconcileSelection,
-  selectedGenres,
+  selectedCategories,
   stampSelectionKey,
 } from './selection';
-import type { TemplateGenre } from './types';
+import type { TemplateCategory } from './types';
 
-const genre = (name: string, titles: string[]): TemplateGenre => ({
+const category = (name: string, titles: string[]): TemplateCategory => ({
   name,
   stamps: titles.map((title) => ({ title, sources: [] })),
 });
 
 it('preserves choices for remaining candidates, enables new ones and forgets removed ones', () => {
-  const original = [genre('自然', ['海', '山']), genre('ごはん', ['海'])];
+  const original = [category('自然', ['海', '山']), category('ごはん', ['海'])];
   const first = reconcileSelection(original, {});
   first[stampSelectionKey('自然', '海')] = false;
-  const next = [genre('自然', ['海', '川']), genre('ごはん', ['海'])];
+  const next = [category('自然', ['海', '川']), category('ごはん', ['海'])];
   const reconciled = reconcileSelection(next, first);
   expect(reconciled).toEqual({
     '["自然","海"]': false,
     '["自然","川"]': true,
     '["ごはん","海"]': true,
   });
-  expect(genreChecked(next[0], reconciled)).toBe('mixed');
-  expect(genreChecked(next[1], reconciled)).toBe(true);
-  expect(selectedGenres(next, reconciled)).toEqual([
+  expect(categoryChecked(next[0], reconciled)).toBe('mixed');
+  expect(categoryChecked(next[1], reconciled)).toBe(true);
+  expect(selectedCategories(next, reconciled)).toEqual([
     { name: '自然', stamps: [{ title: '川' }] },
     { name: 'ごはん', stamps: [{ title: '海' }] },
   ]);
@@ -36,9 +36,9 @@ it('preserves choices for remaining candidates, enables new ones and forgets rem
   ).toBe(true);
 });
 
-it('keeps identities unambiguous and omits empty genres without sending sources', () => {
+it('keeps identities unambiguous and omits empty categories without sending sources', () => {
   expect(stampSelectionKey('a:b', 'c')).not.toBe(stampSelectionKey('a', 'b:c'));
-  const empty = genre('自然', ['海']);
-  expect(genreChecked(empty, { '["自然","海"]': false })).toBe(false);
-  expect(selectedGenres([empty], { '["自然","海"]': false })).toEqual([]);
+  const empty = category('自然', ['海']);
+  expect(categoryChecked(empty, { '["自然","海"]': false })).toBe(false);
+  expect(selectedCategories([empty], { '["自然","海"]': false })).toEqual([]);
 });

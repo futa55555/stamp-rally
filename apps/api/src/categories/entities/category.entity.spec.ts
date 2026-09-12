@@ -1,22 +1,22 @@
-import { Genre, InvalidGenreError } from './genre.entity.js';
+import { Category, InvalidCategoryError } from './category.entity.js';
 
-describe('Genre', () => {
+describe('Category', () => {
   it.each([null, 42, false, {}])(
     'rejects invalid direct-caller names and descriptions',
     (value) => {
       expect(() =>
-        Genre.validate({ name: value as unknown as string }),
-      ).toThrow(InvalidGenreError);
+        Category.validate({ name: value as unknown as string }),
+      ).toThrow(InvalidCategoryError);
       expect(() =>
-        Genre.validate({
+        Category.validate({
           name: '有効',
           description: value as unknown as string,
         }),
-      ).toThrow(InvalidGenreError);
+      ).toThrow(InvalidCategoryError);
     },
   );
   it('trims names and defaults descriptions to an empty string', () => {
-    expect(Genre.validate({ name: '  食べ物  ' })).toEqual({
+    expect(Category.validate({ name: '  食べ物  ' })).toEqual({
       name: '食べ物',
       description: '',
     });
@@ -27,7 +27,7 @@ describe('Genre', () => {
     { name: 'あ'.repeat(101) },
     { name: '有効', description: 'あ'.repeat(2001) },
   ])('rejects invalid text %o', (input) => {
-    expect(() => Genre.validate(input)).toThrow(InvalidGenreError);
+    expect(() => Category.validate(input)).toThrow(InvalidCategoryError);
   });
   it.each([
     [0, 0, false],
@@ -37,8 +37,8 @@ describe('Genre', () => {
   ] as const)(
     'derives completion for %i stamps, %i completed',
     (total, completed, expected) => {
-      const genre = new Genre(
-        'genre',
+      const category = new Category(
+        'category',
         'trip',
         '名前',
         '',
@@ -47,7 +47,7 @@ describe('Genre', () => {
         total,
         completed,
       );
-      expect(genre.toJSON().isCompleted).toBe(expected);
+      expect(category.toJSON().isCompleted).toBe(expected);
     },
   );
 });

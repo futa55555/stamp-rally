@@ -6,7 +6,7 @@ import { Button } from '../../../shared/ui/Button';
 import { ErrorMessage } from '../../../shared/ui/ErrorMessage';
 import { Icon } from '../../../shared/ui/Icon';
 import {
-  genreChecked,
+  categoryChecked,
   stampSelectionKey,
 } from '../../../features/trip-templates/selection';
 import type { useTripTemplates } from '../../../features/trip-templates/useTripTemplates';
@@ -260,12 +260,12 @@ export function TemplateCandidatesField({
       </View>
       {!useTemplate ? (
         <AppText variant="caption" tone="textSecondary">
-          ジャンル・スタンプを追加せずに旅行を作成します。
+          カテゴリー・スタンプを追加せずに旅行を作成します。
         </AppText>
       ) : (
         <>
           <AppText variant="caption" tone="textSecondary">
-            スタンプを選択。ジャンル名でまとめて切り替えられます。
+            スタンプを選択。カテゴリー名でまとめて切り替えられます。
           </AppText>
           {templates.pending ? (
             <AppText variant="caption" tone="textSecondary">
@@ -281,39 +281,43 @@ export function TemplateCandidatesField({
               disabled={disabled}
             />
           ) : null}
-          {templates.genres.map((genre) => {
-            const checked = genreChecked(genre, templates.selection);
+          {templates.categories.map((category) => {
+            const checked = categoryChecked(category, templates.selection);
             return (
               <View
-                key={genre.name}
+                key={category.name}
                 className="rounded-xl border border-border px-3 py-1"
               >
                 <CheckRow
-                  label={genre.name}
+                  label={category.name}
                   checked={checked}
                   emphasized
                   disabled={disabled || !templates.ready}
-                  onPress={() => templates.toggleGenre(genre, checked !== true)}
+                  onPress={() =>
+                    templates.toggleCategory(category, checked !== true)
+                  }
                 />
                 <View className="pl-5">
-                  {genre.stamps.map(({ title }) => (
+                  {category.stamps.map(({ title }) => (
                     <CheckRow
                       key={title}
                       label={title}
                       checked={
                         !!templates.selection[
-                          stampSelectionKey(genre.name, title)
+                          stampSelectionKey(category.name, title)
                         ]
                       }
                       disabled={disabled || !templates.ready}
-                      onPress={() => templates.toggleStamp(genre.name, title)}
+                      onPress={() =>
+                        templates.toggleStamp(category.name, title)
+                      }
                     />
                   ))}
                 </View>
               </View>
             );
           })}
-          {templates.ready && !templates.genres.length ? (
+          {templates.ready && !templates.categories.length ? (
             <AppText variant="caption" tone="textSecondary">
               行き先ややりたいことに合う候補があると、ここに表示されます。そのまま旅行を作成することもできます。
             </AppText>

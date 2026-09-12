@@ -31,27 +31,29 @@ describe('domain creation and shared progress', () => {
       clientRequestId: 'same-request',
       activityPresets: ['海'],
       customActivities: [' 星空を見る '],
-      selectedGenres: [
+      selectedCategories: [
         {
           name: '自然',
           stamps: [{ title: '海を見る' }, { title: '海を見る' }],
         },
         { name: '自然', stamps: [{ title: '山を見る' }] },
-        { name: '空のジャンル', stamps: [] },
+        { name: '空のカテゴリー', stamps: [] },
       ],
     };
     const trip = await service.createTrip(DEMO_USER_ID, input);
-    expect(trip.totalGenreCount).toBe(1);
+    expect(trip.totalCategoryCount).toBe(1);
     expect(trip.activityPresets).toEqual(['海']);
     expect(trip.customActivities).toEqual(['星空を見る']);
     const repeated = await service.createTrip(DEMO_USER_ID, input);
     expect(repeated.id).toBe(trip.id);
     const data = await service.load();
-    const genres = data.genres.filter((genre) => genre.tripId === trip.id);
-    expect(genres).toHaveLength(1);
+    const categories = data.categories.filter(
+      (category) => category.tripId === trip.id,
+    );
+    expect(categories).toHaveLength(1);
     expect(
       data.stamps
-        .filter((stamp) => stamp.genreIds[0] === genres[0].id)
+        .filter((stamp) => stamp.categoryIds[0] === categories[0].id)
         .map((stamp) => stamp.name),
     ).toEqual(['海を見る', '山を見る']);
     const edited = await service.updateTrip(DEMO_USER_ID, trip.id, {
@@ -67,7 +69,7 @@ describe('domain creation and shared progress', () => {
     await expect(
       service.createTrip(DEMO_USER_ID, {
         ...tripInput,
-        selectedGenres: [
+        selectedCategories: [
           { name: '自然', stamps: [{ title: '海を見る' }, { title: '' }] },
         ],
       }),
@@ -98,20 +100,20 @@ describe('domain creation and shared progress', () => {
       [{ tripId: trip.id, userId: DEMO_USER_ID }],
     );
     expect(trip.isCompleted).toBe(false);
-    const genre = await service.createGenre(DEMO_USER_ID, {
+    const category = await service.createCategory(DEMO_USER_ID, {
       ...named,
       tripId: trip.id,
     });
-    apply({ type: 'genreSaved', genre });
+    apply({ type: 'categorySaved', category });
     expect(state.data!.trips.find((t) => t.id === trip.id)).toMatchObject({
-      totalGenreCount: 1,
-      completedGenreCount: 0,
+      totalCategoryCount: 1,
+      completedCategoryCount: 0,
       isCompleted: false,
     });
     const stamp = await service.createStamp(DEMO_USER_ID, {
       ...named,
-      tripId: genre.tripId,
-      genreIds: [genre.id],
+      tripId: category.tripId,
+      categoryIds: [category.id],
     });
     apply({ type: 'stampSaved', stamp });
     const before = state.data!;
@@ -125,7 +127,7 @@ describe('domain creation and shared progress', () => {
     for (const post of posts) {
       expect(post).toMatchObject({
         stampId: stamp.id,
-        genreIds: [genre.id],
+        categoryIds: [category.id],
         tripId: trip.id,
         mediaType: 'IMAGE',
         isFavorite: false,
@@ -134,13 +136,15 @@ describe('domain creation and shared progress', () => {
       expect(isUnreadPhoto(state.data!, DEMO_USER_ID, post)).toBe(false);
       expect(isUnreadPhoto(state.data!, initial.users[1].id, post)).toBe(true);
     }
-    expect(state.data!.genres.find((g) => g.id === genre.id)).toMatchObject({
+    expect(
+      state.data!.categories.find((g) => g.id === category.id),
+    ).toMatchObject({
       totalStampCount: 1,
       completedStampCount: 1,
       isCompleted: true,
     });
     expect(state.data!.trips.find((t) => t.id === trip.id)).toMatchObject({
-      completedGenreCount: 1,
+      completedCategoryCount: 1,
       isCompleted: true,
     });
     expect(before.stamps.find((s) => s.id === stamp.id)?.isCompleted).toBe(
@@ -153,7 +157,12 @@ describe('domain creation and shared progress', () => {
         { type: 'stamp', stampId: stamp.id },
         DEMO_USER_ID,
       )?.map((r) => r.name),
-    ).toEqual(['index', 'trip/[tripId]', 'genre/[genreId]', 'stamp/[stampId]']);
+    ).toEqual([
+      'index',
+      'trip/[tripId]',
+      'category/[categoryId]',
+      'stamp/[stampId]',
+    ]);
     apply({ type: 'postsCreated', posts });
     expect(selectPhotos(state.data!, { stampId: stamp.id })).toHaveLength(2);
     const favorite = await service.setFavorite(posts[0].id, true);
@@ -163,11 +172,13 @@ describe('domain creation and shared progress', () => {
     ).toEqual([posts[0].id]);
     const another = await service.createStamp(DEMO_USER_ID, {
       ...named,
-      tripId: genre.tripId,
-      genreIds: [genre.id],
+      tripId: category.tripId,
+      categoryIds: [category.id],
     });
     apply({ type: 'stampSaved', stamp: another });
-    expect(state.data!.genres.find((g) => g.id === genre.id)).toMatchObject({
+    expect(
+      state.data!.categories.find((g) => g.id === category.id),
+    ).toMatchObject({
       completedStampCount: 1,
       totalStampCount: 2,
       isCompleted: false,
@@ -185,14 +196,14 @@ describe('domain creation and shared progress', () => {
     expect(state.data!.trips.find((t) => t.id === trip.id)?.isCompleted).toBe(
       true,
     );
-    const emptyGenre = await service.createGenre(DEMO_USER_ID, {
+    const emptyCategory = await service.createCategory(DEMO_USER_ID, {
       ...named,
       tripId: trip.id,
     });
-    apply({ type: 'genreSaved', genre: emptyGenre });
+    apply({ type: 'categorySaved', category: emptyCategory });
     expect(state.data!.trips.find((t) => t.id === trip.id)).toMatchObject({
-      totalGenreCount: 2,
-      completedGenreCount: 1,
+      totalCategoryCount: 2,
+      completedCategoryCount: 1,
       isCompleted: false,
     });
     expect(state.data).toEqual(await service.load());
@@ -202,7 +213,7 @@ describe('domain creation and shared progress', () => {
     const service = createMockService(createDemoData(), 0);
     const snapshot = await service.load();
     const trip = snapshot.trips[0],
-      genre = snapshot.genres[0],
+      category = snapshot.categories[0],
       stamp = snapshot.stamps[0];
     const updated = await service.updateTrip(DEMO_USER_ID, trip.id, {
       ...tripInput,
@@ -211,17 +222,21 @@ describe('domain creation and shared progress', () => {
       endDate: '2030-01-02',
       coverAssetId: '12345678-1234-4234-8234-123456789abc',
     });
-    const newGenre = await service.updateGenre(DEMO_USER_ID, genre.id, {
-      name: '新ジャンル',
-      description: '',
-    });
+    const newCategory = await service.updateCategory(
+      DEMO_USER_ID,
+      category.id,
+      {
+        name: '新カテゴリー',
+        description: '',
+      },
+    );
     const newStamp = await service.updateStamp(DEMO_USER_ID, stamp.id, {
       name: '新スタンプ',
       description: '説明を更新',
     });
     expect(updated.createdAt).toBe(trip.createdAt);
-    expect(newGenre.tripId).toBe(genre.tripId);
-    expect(newStamp.genreIds[0]).toBe(stamp.genreIds[0]);
+    expect(newCategory.tripId).toBe(category.tripId);
+    expect(newStamp.categoryIds[0]).toBe(stamp.categoryIds[0]);
     expect(newStamp.isCompleted).toBe(stamp.isCompleted);
     expect(snapshot.trips[0].name).toBe(trip.name);
     expect((await service.load()).trips[0].name).toBe('更新した旅');
@@ -233,7 +248,7 @@ describe('domain creation and shared progress', () => {
     await service.signIn('google');
     const after = await service.load();
     expect(after.trips[0].coverImageUrl).toBeNull();
-    expect(after.genres[0].description).toBe('');
+    expect(after.categories[0].description).toBe('');
     expect(sortTrips(after.trips, '2030-01-01')[0].id).toBe(trip.id);
     expect((await createMockService(snapshot, 0).load()).trips[0].name).toBe(
       trip.name,
@@ -247,7 +262,7 @@ describe('domain creation and shared progress', () => {
     );
     const service = createMockService(initial, 0);
     await expect(
-      service.createGenre(DEMO_USER_ID, {
+      service.createCategory(DEMO_USER_ID, {
         ...named,
         tripId: initial.trips[0].id,
       }),
@@ -255,8 +270,8 @@ describe('domain creation and shared progress', () => {
     await expect(
       service.createStamp(DEMO_USER_ID, {
         ...named,
-        tripId: initial.genres[0].tripId,
-        genreIds: [initial.genres[0].id],
+        tripId: initial.categories[0].tripId,
+        categoryIds: [initial.categories[0].id],
       }),
     ).rejects.toThrow();
     await expect(
@@ -269,7 +284,7 @@ describe('domain creation and shared progress', () => {
       service.updateTrip(DEMO_USER_ID, initial.trips[0].id, tripInput),
     ).rejects.toThrow();
     await expect(
-      service.updateGenre(DEMO_USER_ID, initial.genres[0].id, named),
+      service.updateCategory(DEMO_USER_ID, initial.categories[0].id, named),
     ).rejects.toThrow();
     await expect(
       service.updateStamp(DEMO_USER_ID, initial.stamps[0].id, named),

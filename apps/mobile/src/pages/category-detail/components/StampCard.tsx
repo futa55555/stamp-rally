@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { Pressable, View } from 'react-native';
-import type { useGenre } from '../../../features/trips/hooks';
+import type { useCategory } from '../../../features/trips/hooks';
 import { AppText } from '../../../shared/ui/AppText';
 import { Icon } from '../../../shared/ui/Icon';
 import { PostImage } from '../../../features/photos/ui/PostImage';
@@ -9,11 +9,11 @@ import { UnreadBadge } from '../../../shared/ui/UnreadBadge';
 export function StampCard({
   stamp,
   photo,
-  genreId,
+  categoryId,
 }: {
-  stamp: ReturnType<typeof useGenre>['stamps'][number];
+  stamp: ReturnType<typeof useCategory>['stamps'][number];
   photo?: Post;
-  genreId: string;
+  categoryId: string;
 }) {
   const router = useRouter();
   return (
@@ -30,7 +30,7 @@ export function StampCard({
       onPress={() =>
         router.push({
           pathname: '/trips/stamp/[stampId]',
-          params: { stampId: stamp.id, viaGenreId: genreId },
+          params: { stampId: stamp.id, viaCategoryId: categoryId },
         })
       }
       className="min-w-0 flex-1 gap-2 active:opacity-pressed"

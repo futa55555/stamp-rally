@@ -1,42 +1,52 @@
-import type { SelectedGenre, TemplateGenre, TemplateSelection } from './types';
+import type {
+  SelectedCategory,
+  TemplateCategory,
+  TemplateSelection,
+} from './types';
 
-export const stampSelectionKey = (genre: string, title: string) =>
-  JSON.stringify([genre, title]);
+export const stampSelectionKey = (category: string, title: string) =>
+  JSON.stringify([category, title]);
 
 export function reconcileSelection(
-  genres: TemplateGenre[],
+  categories: TemplateCategory[],
   previous: TemplateSelection,
 ): TemplateSelection {
   return Object.fromEntries(
-    genres.flatMap((genre) =>
-      genre.stamps.map(({ title }) => {
-        const key = stampSelectionKey(genre.name, title);
+    categories.flatMap((category) =>
+      category.stamps.map(({ title }) => {
+        const key = stampSelectionKey(category.name, title);
         return [key, previous[key] ?? true];
       }),
     ),
   );
 }
 
-export function genreChecked(
-  genre: TemplateGenre,
+export function categoryChecked(
+  category: TemplateCategory,
   selection: TemplateSelection,
 ): boolean | 'mixed' {
-  const count = genre.stamps.filter(
-    ({ title }) => selection[stampSelectionKey(genre.name, title)],
+  const count = category.stamps.filter(
+    ({ title }) => selection[stampSelectionKey(category.name, title)],
   ).length;
-  return count === 0 ? false : count === genre.stamps.length ? true : 'mixed';
+  return count === 0
+    ? false
+    : count === category.stamps.length
+      ? true
+      : 'mixed';
 }
 
-export function selectedGenres(
-  genres: TemplateGenre[],
+export function selectedCategories(
+  categories: TemplateCategory[],
   selection: TemplateSelection,
-): SelectedGenre[] {
-  return genres
-    .map((genre) => ({
-      name: genre.name,
-      stamps: genre.stamps
-        .filter(({ title }) => selection[stampSelectionKey(genre.name, title)])
+): SelectedCategory[] {
+  return categories
+    .map((category) => ({
+      name: category.name,
+      stamps: category.stamps
+        .filter(
+          ({ title }) => selection[stampSelectionKey(category.name, title)],
+        )
         .map(({ title }) => ({ title })),
     }))
-    .filter((genre) => genre.stamps.length > 0);
+    .filter((category) => category.stamps.length > 0);
 }

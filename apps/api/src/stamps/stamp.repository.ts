@@ -15,10 +15,13 @@ import { CreateStampDto } from './dto/create-stamp.dto.js';
 import { ListStampsDto } from './dto/list-stamps.dto.js';
 import { UpdateStampDto } from './dto/update-stamp.dto.js';
 import { Stamp } from './entities/stamp.entity.js';
-import { genreMemberships, requireStampGenres } from './stamp-genres.js';
+import {
+  categoryMemberships,
+  requireStampCategories,
+} from './stamp-categories.js';
 
 const completion = {
-  genres: genreMemberships,
+  categories: categoryMemberships,
   posts: { where: { status: 'READY' as const }, take: 1, select: { id: true } },
 } as const;
 
@@ -36,11 +39,13 @@ export class StampRepository {
 
   async create(input: CreateStampDto, userId: string): Promise<Stamp> {
     return serializable(this.prisma, async (tx) => {
-      await requireStampGenres(tx, input.tripId, input.genreIds);
+      await requireStampCategories(tx, input.tripId, input.categoryIds);
       const row = await tx.stamp.create({
         data: {
           tripId: input.tripId,
-          genres: { create: input.genreIds.map((genreId) => ({ genreId })) },
+          categories: {
+            create: input.categoryIds.map((categoryId) => ({ categoryId })),
+          },
           name: input.name,
           description: input.description ?? '',
         },
@@ -70,7 +75,7 @@ export class StampRepository {
   async findAll(query: ListStampsDto, userId: string) {
     const rows = await this.prisma.stamp.findMany({
       where: {
-        genres: { some: { genreId: query.genreId } },
+        categories: { some: { categoryId: query.categoryId } },
         ...paginationWhere(query, 'asc'),
       },
       include: completion,
@@ -97,13 +102,13 @@ export class StampRepository {
         where: { id },
         include: completion,
       });
-      if (input.genreIds)
-        await requireStampGenres(tx, current.tripId, input.genreIds);
+      if (input.categoryIds)
+        await requireStampCategories(tx, current.tripId, input.categoryIds);
       const membershipChanged =
-        input.genreIds !== undefined &&
-        (input.genreIds.length !== current.genres.length ||
-          current.genres.some(
-            ({ genreId }) => !input.genreIds!.includes(genreId),
+        input.categoryIds !== undefined &&
+        (input.categoryIds.length !== current.categories.length ||
+          current.categories.some(
+            ({ categoryId }) => !input.categoryIds!.includes(categoryId),
           ));
       const changed =
         membershipChanged ||
@@ -118,9 +123,11 @@ export class StampRepository {
               description: input.description,
               ...(membershipChanged
                 ? {
-                    genres: {
+                    categories: {
                       deleteMany: {},
-                      create: input.genreIds!.map((genreId) => ({ genreId })),
+                      create: input.categoryIds!.map((categoryId) => ({
+                        categoryId,
+                      })),
                     },
                   }
                 : {}),
@@ -166,14 +173,14 @@ export class StampRepository {
   private toDomain(
     row: PrismaStamp & {
       posts: { id: string }[];
-      genres: { genreId: string }[];
+      categories: { categoryId: string }[];
     },
     stats?: StampMediaStats,
   ): Stamp {
     return new Stamp(
       row.id,
       row.tripId,
-      row.genres.map(({ genreId }) => genreId),
+      row.categories.map(({ categoryId }) => categoryId),
       row.name,
       row.description,
       row.createdAt,

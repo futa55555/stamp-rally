@@ -3,11 +3,11 @@ import { validateName } from '../../auth/model/validation';
 import { MAX_POST_PHOTOS } from '../../photos/model/inputs';
 import type { Post } from '../../photos/model/types';
 import {
-  requireGenreAccess,
+  requireCategoryAccess,
   requireStampAccess,
   requireTripAccess,
 } from '../../trips/model/access';
-import type { Genre, Stamp, Trip } from '../../trips/model/types';
+import type { Category, Stamp, Trip } from '../../trips/model/types';
 import {
   validateNamedInput,
   validateTripInput,
@@ -47,18 +47,23 @@ export function createMockService(
     if (!item) throw new Error('対象のデータが見つかりませんでした。');
     return item;
   };
-  const membership = (userId: string, tripId: string, genreIds: string[]) => {
+  const membership = (
+    userId: string,
+    tripId: string,
+    categoryIds: string[],
+  ) => {
     requireTripAccess(data, userId, tripId);
     if (
-      !genreIds.length ||
-      new Set(genreIds).size !== genreIds.length ||
-      genreIds.some(
-        (id) => !data.genres.some((g) => g.id === id && g.tripId === tripId),
+      !categoryIds.length ||
+      new Set(categoryIds).size !== categoryIds.length ||
+      categoryIds.some(
+        (id) =>
+          !data.categories.some((g) => g.id === id && g.tripId === tripId),
       )
     )
-      throw new Error('同じ旅行のジャンルを1つ以上選んでください。');
-    return data.genres
-      .filter((g) => genreIds.includes(g.id))
+      throw new Error('同じ旅行のカテゴリーを1つ以上選んでください。');
+    return data.categories
+      .filter((g) => categoryIds.includes(g.id))
       .sort(
         (a, b) =>
           a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
@@ -123,10 +128,10 @@ export function createMockService(
         validateDomainName,
       );
       const selected = new Map<string, Set<string>>();
-      for (const genre of input.selectedGenres ?? []) {
-        const name = validateDomainName(genre.name);
+      for (const category of input.selectedCategories ?? []) {
+        const name = validateDomainName(category.name);
         const stamps = selected.get(name) ?? new Set<string>();
-        for (const stamp of genre.stamps)
+        for (const stamp of category.stamps)
           stamps.add(validateDomainName(stamp.title));
         if (stamps.size) selected.set(name, stamps);
       }
@@ -140,14 +145,14 @@ export function createMockService(
         createdById: userId,
         createdAt: now,
         updatedAt: now,
-        totalGenreCount: 0,
-        completedGenreCount: 0,
+        totalCategoryCount: 0,
+        completedCategoryCount: 0,
         isCompleted: false,
       };
-      const genres: Genre[] = [];
+      const categories: Category[] = [];
       const stamps: Stamp[] = [];
       for (const [name, titles] of selected) {
-        const genre: Genre = {
+        const category: Category = {
           id: id(),
           tripId: trip.id,
           name,
@@ -159,17 +164,17 @@ export function createMockService(
           isCompleted: false,
           hasUnreadPhotos: false,
         };
-        genres.push(genre);
+        categories.push(category);
         for (const title of titles) {
           const shared = stamps.find((stamp) => stamp.name === title);
           if (shared) {
-            shared.genreIds.push(genre.id);
+            shared.categoryIds.push(category.id);
             continue;
           }
           stamps.push({
             id: id(),
             tripId: trip.id,
-            genreIds: [genre.id],
+            categoryIds: [category.id],
             name: title,
             description: '',
             createdAt: now,
@@ -183,7 +188,7 @@ export function createMockService(
       data = withProgress({
         ...data,
         trips: [...data.trips, trip],
-        genres: [...data.genres, ...genres],
+        categories: [...data.categories, ...categories],
         stamps: [...data.stamps, ...stamps],
         memberships: [...data.memberships, { tripId: trip.id, userId }],
       });
@@ -208,12 +213,12 @@ export function createMockService(
       commit({ type: 'tripSaved', trip });
       return copy(trip);
     },
-    async createGenre(userId, input) {
+    async createCategory(userId, input) {
       await delay();
       requireTripAccess(data, userId, input.tripId);
       const values = validateNamedInput(input);
       const now = new Date().toISOString();
-      const genre: Genre = {
+      const category: Category = {
         ...values,
         tripId: input.tripId,
         id: id(),
@@ -224,29 +229,29 @@ export function createMockService(
         isCompleted: false,
         hasUnreadPhotos: false,
       };
-      commit({ type: 'genreSaved', genre });
-      return copy(genre);
+      commit({ type: 'categorySaved', category });
+      return copy(category);
     },
-    async updateGenre(userId, genreId, input) {
+    async updateCategory(userId, categoryId, input) {
       await delay();
-      const current = requireGenreAccess(data, userId, genreId);
-      const genre = {
+      const current = requireCategoryAccess(data, userId, categoryId);
+      const category = {
         ...current,
         ...validateNamedInput(input),
         updatedAt: new Date().toISOString(),
       };
-      commit({ type: 'genreSaved', genre });
-      return copy(genre);
+      commit({ type: 'categorySaved', category });
+      return copy(category);
     },
     async createStamp(userId, input) {
       await delay();
-      const genreIds = membership(userId, input.tripId, input.genreIds);
+      const categoryIds = membership(userId, input.tripId, input.categoryIds);
       const values = validateNamedInput(input);
       const now = new Date().toISOString();
       const stamp: Stamp = {
         ...values,
         tripId: input.tripId,
-        genreIds,
+        categoryIds,
         id: id(),
         createdAt: now,
         updatedAt: now,
@@ -260,14 +265,14 @@ export function createMockService(
     async updateStamp(userId, stampId, input) {
       await delay();
       const { stamp: current } = requireStampAccess(data, userId, stampId);
-      const genreIds = membership(
+      const categoryIds = membership(
         userId,
         current.tripId,
-        input.genreIds ?? current.genreIds,
+        input.categoryIds ?? current.categoryIds,
       );
       const stamp = {
         ...current,
-        genreIds,
+        categoryIds,
         ...validateNamedInput(input),
         updatedAt: new Date().toISOString(),
       };
@@ -285,7 +290,7 @@ export function createMockService(
       const posts: Post[] = urls.map((mediaUrl) => ({
         id: id(),
         stampId: stamp.id,
-        genreIds: [...stamp.genreIds],
+        categoryIds: [...stamp.categoryIds],
         tripId: stamp.tripId,
         author: { id: user.id, name: user.name },
         mediaType: 'IMAGE',

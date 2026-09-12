@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import presets from './trip-template-presets.json' with { type: 'json' };
 import { parseTripTemplatePresets } from './preset-catalog.js';
 import type {
-  GenreTemplateItem,
+  CategoryTemplateItem,
   TripTemplateCatalog,
   TripTemplateInput,
   TripTemplatePresets,
@@ -24,7 +24,7 @@ export function previewTripTemplates(
   );
   const selected: {
     source: TripTemplateSource;
-    genres: GenreTemplateItem[];
+    categories: CategoryTemplateItem[];
   }[] = [];
   const usedLocations = new Set<string>();
   for (const value of input.locations ?? []) {
@@ -33,7 +33,7 @@ export function previewTripTemplates(
     usedLocations.add(preset.name);
     selected.push({
       source: { type: 'location', name: preset.name },
-      genres: preset.template.genres,
+      categories: preset.template.categories,
     });
   }
   const usedActivities = new Set<string>();
@@ -48,22 +48,22 @@ export function previewTripTemplates(
     usedActivities.add(name);
     selected.push({
       source: { type: 'activity', name },
-      genres: preset.template.genres,
+      categories: preset.template.categories,
     });
   }
 
-  const genres = new Map<
+  const categories = new Map<
     string,
-    Map<string, TripTemplatePreview['genres'][number]['stamps'][number]>
+    Map<string, TripTemplatePreview['categories'][number]['stamps'][number]>
   >();
-  for (const { source, genres: sourceGenres } of selected) {
-    for (const genre of sourceGenres) {
-      let stamps = genres.get(genre.name);
+  for (const { source, categories: sourceCategories } of selected) {
+    for (const category of sourceCategories) {
+      let stamps = categories.get(category.name);
       if (!stamps) {
         stamps = new Map();
-        genres.set(genre.name, stamps);
+        categories.set(category.name, stamps);
       }
-      for (const { title } of genre.stamps) {
+      for (const { title } of category.stamps) {
         const stamp = stamps.get(title);
         if (!stamp) {
           stamps.set(title, { title, sources: [{ ...source }] });
@@ -79,10 +79,10 @@ export function previewTripTemplates(
     }
   }
   return {
-    genres: Array.from(genres, ([name, stamps]) => ({
+    categories: Array.from(categories, ([name, stamps]) => ({
       name,
       stamps: Array.from(stamps.values()),
-    })).filter((genre) => genre.stamps.length > 0),
+    })).filter((category) => category.stamps.length > 0),
   };
 }
 
@@ -106,29 +106,31 @@ export class TripTemplatesService {
 
   select(
     input: TripTemplateInput,
-    selectedGenres: GenreTemplateItem[] = [],
-  ): GenreTemplateItem[] {
+    selectedCategories: CategoryTemplateItem[] = [],
+  ): CategoryTemplateItem[] {
     const candidates = new Map(
-      this.preview(input).genres.map((genre) => [
-        genre.name,
-        new Set(genre.stamps.map((stamp) => stamp.title)),
+      this.preview(input).categories.map((category) => [
+        category.name,
+        new Set(category.stamps.map((stamp) => stamp.title)),
       ]),
     );
     const selected = new Map<string, Set<string>>();
-    for (const genre of selectedGenres) {
-      const allowed = candidates.get(genre.name);
+    for (const category of selectedCategories) {
+      const allowed = candidates.get(category.name);
       if (!allowed) {
-        throw new BadRequestException(`Unknown template genre: ${genre.name}`);
+        throw new BadRequestException(
+          `Unknown template category: ${category.name}`,
+        );
       }
-      let titles = selected.get(genre.name);
+      let titles = selected.get(category.name);
       if (!titles) {
         titles = new Set();
-        selected.set(genre.name, titles);
+        selected.set(category.name, titles);
       }
-      for (const { title } of genre.stamps) {
+      for (const { title } of category.stamps) {
         if (!allowed.has(title)) {
           throw new BadRequestException(
-            `Unknown template stamp: ${genre.name} / ${title}`,
+            `Unknown template stamp: ${category.name} / ${title}`,
           );
         }
         titles.add(title);
@@ -137,6 +139,6 @@ export class TripTemplatesService {
     return Array.from(selected, ([name, titles]) => ({
       name,
       stamps: Array.from(titles, (title) => ({ title })),
-    })).filter((genre) => genre.stamps.length > 0);
+    })).filter((category) => category.stamps.length > 0);
   }
 }

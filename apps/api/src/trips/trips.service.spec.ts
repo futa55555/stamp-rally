@@ -75,20 +75,20 @@ describe('TripsService', () => {
   });
 
   it('creates only the validated selection in the trip transaction and retains activity metadata', async () => {
-    const selectedGenres = [
+    const selectedCategories = [
       { name: '景色', stamps: [{ title: '海辺を散歩する' }] },
     ];
-    templates.select.mockReturnValue(selectedGenres);
+    templates.select.mockReturnValue(selectedCategories);
     await service.create('owner', {
       ...input,
       locations: [' 沖縄 '],
       activityPresets: [' 海 '],
       customActivities: [' 自分だけの体験 ', ' '],
-      selectedGenres,
+      selectedCategories,
     });
     expect(templates.select).toHaveBeenCalledWith(
       { locations: ['沖縄'], activityPresets: ['海'] },
-      selectedGenres,
+      selectedCategories,
     );
     expect(repo.create).toHaveBeenCalledWith(
       'owner',
@@ -98,7 +98,7 @@ describe('TripsService', () => {
         customActivities: ['自分だけの体験'],
       }),
       tx,
-      selectedGenres,
+      selectedCategories,
     );
   });
 
@@ -111,8 +111,8 @@ describe('TripsService', () => {
       ...input,
       clientRequestId: 'request-id',
       activityPresets: ['以前のpreset'],
-      selectedGenres: [
-        { name: '以前のジャンル', stamps: [{ title: '以前のスタンプ' }] },
+      selectedCategories: [
+        { name: '以前のカテゴリー', stamps: [{ title: '以前のスタンプ' }] },
       ],
     });
     expect(result).toEqual(trip.toJSON());
@@ -133,7 +133,7 @@ describe('TripsService', () => {
     await expect(
       service.create('owner', {
         ...input,
-        selectedGenres: [
+        selectedCategories: [
           { name: '景色', stamps: [{ title: '存在しない候補' }] },
         ],
       }),

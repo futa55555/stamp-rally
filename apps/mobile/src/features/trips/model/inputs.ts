@@ -1,5 +1,5 @@
-import type { Genre, Trip } from './types';
-import type { SelectedGenre } from '../../trip-templates/types';
+import type { Category, Trip } from './types';
+import type { SelectedCategory } from '../../trip-templates/types';
 
 export type TripInput = Pick<
   Trip,
@@ -9,17 +9,17 @@ export type TripInput = Pick<
 export type CreateTripInput = TripInput & {
   activityPresets?: string[];
   customActivities?: string[];
-  selectedGenres?: SelectedGenre[];
+  selectedCategories?: SelectedCategory[];
 };
 
 export type TripFormValues = TripInput & { coverImageUrl: string | null };
 
-export type NamedInput = Pick<Genre, 'name' | 'description'>;
+export type NamedInput = Pick<Category, 'name' | 'description'>;
 
-export type CreateGenreInput = NamedInput & { tripId: string };
+export type CreateCategoryInput = NamedInput & { tripId: string };
 
-export type StampInput = NamedInput & { genreIds?: string[] };
+export type StampInput = NamedInput & { categoryIds?: string[] };
 export type CreateStampInput = NamedInput & {
   tripId: string;
-  genreIds: string[];
+  categoryIds: string[];
 };

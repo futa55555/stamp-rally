@@ -22,7 +22,7 @@ describe('Application bootstrap (e2e)', () => {
       .expect({ health: 'ok' });
     for (const path of [
       '/trips',
-      '/genres',
+      '/categories',
       '/stamps',
       '/posts',
       '/uploads/batches/00000000-0000-4000-8000-000000000001',

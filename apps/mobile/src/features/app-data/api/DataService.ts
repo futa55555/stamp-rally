@@ -3,14 +3,14 @@ import type { AppNotification } from '../../notifications/model/types';
 import type { CreatePostsInput } from '../../photos/model/inputs';
 import type { Post } from '../../photos/model/types';
 import type {
-  CreateGenreInput,
+  CreateCategoryInput,
   CreateStampInput,
   NamedInput,
   StampInput,
   TripInput,
   CreateTripInput,
 } from '../../trips/model/inputs';
-import type { Genre, Stamp, Trip } from '../../trips/model/types';
+import type { Category, Stamp, Trip } from '../../trips/model/types';
 import type { AppData } from '../model/types';
 
 // Inject an implementation into AppDataProvider to connect the UI to the API.
@@ -25,8 +25,12 @@ export interface DataService {
   updateName(userId: string, name: string): Promise<User>;
   createTrip(userId: string, input: CreateTripInput): Promise<Trip>;
   updateTrip(userId: string, id: string, input: TripInput): Promise<Trip>;
-  createGenre(userId: string, input: CreateGenreInput): Promise<Genre>;
-  updateGenre(userId: string, id: string, input: NamedInput): Promise<Genre>;
+  createCategory(userId: string, input: CreateCategoryInput): Promise<Category>;
+  updateCategory(
+    userId: string,
+    id: string,
+    input: NamedInput,
+  ): Promise<Category>;
   createStamp(userId: string, input: CreateStampInput): Promise<Stamp>;
   updateStamp(userId: string, id: string, input: StampInput): Promise<Stamp>;
   createPosts(userId: string, input: CreatePostsInput): Promise<Post[]>;

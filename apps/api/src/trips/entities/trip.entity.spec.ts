@@ -114,7 +114,7 @@ describe('Trip', () => {
     [2, 1, false],
     [2, 2, true],
   ] as const)(
-    'derives completion for %i genres, %i completed',
+    'derives completion for %i categories, %i completed',
     (total, completed, expected) => {
       expect(makeTrip(total, completed).toJSON().isCompleted).toBe(expected);
     },

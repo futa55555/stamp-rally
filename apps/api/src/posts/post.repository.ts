@@ -1,4 +1,4 @@
-import { genreMemberships } from '../stamps/stamp-genres.js';
+import { categoryMemberships } from '../stamps/stamp-categories.js';
 import { serializable } from '../database/transaction.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
@@ -16,7 +16,7 @@ const postInclude = (userId: string) =>
   ({
     reads: { where: { userId }, select: { readAt: true } },
     author: { select: { id: true, name: true } },
-    stamp: { select: { tripId: true, genres: genreMemberships } },
+    stamp: { select: { tripId: true, categories: categoryMemberships } },
   }) satisfies Prisma.PostInclude;
 
 type PostRecord = Prisma.PostGetPayload<{
@@ -66,8 +66,8 @@ export class PostRepository {
     const scopeWhere: Prisma.PostWhereInput =
       scope.type === 'trip'
         ? { stamp: { tripId: scope.id } }
-        : scope.type === 'genre'
-          ? { stamp: { genres: { some: { genreId: scope.id } } } }
+        : scope.type === 'category'
+          ? { stamp: { categories: { some: { categoryId: scope.id } } } }
           : { stampId: scope.id };
     const rows = await this.prisma.post.findMany({
       where: {
@@ -162,7 +162,7 @@ export class PostRepository {
     return new Post(
       row.id,
       row.stampId,
-      row.stamp.genres.map(({ genreId }) => genreId),
+      row.stamp.categories.map(({ categoryId }) => categoryId),
       row.stamp.tripId,
       row.author,
       row.mediaType,

@@ -14,12 +14,12 @@ vi.mock('../../../shared/ui/Icon', () => ({ Icon: 'Icon' }));
 vi.mock('./TextField', () => ({ TextField: 'TextField' }));
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-it('exposes a mixed genre checkbox and keeps the skip control available during preview failure', async () => {
+it('exposes a mixed category checkbox and keeps the skip control available during preview failure', async () => {
   const warning = vi.spyOn(console, 'error').mockImplementation(() => {});
-  const toggleGenre = vi.fn();
+  const toggleCategory = vi.fn();
   const toggleStamp = vi.fn();
   const onUseTemplateChange = vi.fn();
-  const genre = {
+  const category = {
     name: '自然',
     stamps: [
       { title: '海を見る', sources: [] },
@@ -27,12 +27,12 @@ it('exposes a mixed genre checkbox and keeps the skip control available during p
     ],
   };
   const templates = {
-    genres: [genre],
+    categories: [category],
     selection: { '["自然","海を見る"]': true, '["自然","山を見る"]': false },
     ready: true,
     pending: false,
     error: null,
-    toggleGenre,
+    toggleCategory,
     toggleStamp,
     retry: vi.fn(),
   } as unknown as ReturnType<typeof useTripTemplates>;
@@ -54,7 +54,7 @@ it('exposes a mixed genre checkbox and keeps the skip control available during p
         .find((row) => row.props.accessibilityLabel === label)!;
     expect(checkbox('自然').props.accessibilityState.checked).toBe('mixed');
     await act(async () => checkbox('自然').props.onPress());
-    expect(toggleGenre).toHaveBeenCalledWith(genre, true);
+    expect(toggleCategory).toHaveBeenCalledWith(category, true);
     await act(async () => checkbox('山を見る').props.onPress());
     expect(toggleStamp).toHaveBeenCalledWith('自然', '山を見る');
     await act(async () =>

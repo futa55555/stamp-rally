@@ -20,18 +20,20 @@ vi.mock('../../../shared/ui/IconButton', () => ({ IconButton: 'IconButton' }));
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const data = createDemoData();
 const trip = data.trips[0];
-const genre = data.genres.find((item) => item.tripId === trip.id)!;
-const stamp = data.stamps.find((item) => item.genreIds.includes(genre.id))!;
+const category = data.categories.find((item) => item.tripId === trip.id)!;
+const stamp = data.stamps.find((item) =>
+  item.categoryIds.includes(category.id),
+)!;
 const index = { name: 'index', key: 'list-key' };
 const tripRoute = {
   name: 'trip/[tripId]',
   key: 'trip-key',
   params: { tripId: trip.id },
 };
-const genreRoute = {
-  name: 'genre/[genreId]',
-  key: 'genre-key',
-  params: { genreId: genre.id },
+const categoryRoute = {
+  name: 'category/[categoryId]',
+  key: 'category-key',
+  params: { categoryId: category.id },
 };
 const stampRoute = {
   name: 'stamp/[stampId]',
@@ -55,7 +57,7 @@ beforeEach(() => {
   native.focused.mockReturnValue(true);
   native.navigation.getState.mockReturnValue({
     index: 3,
-    routes: [index, tripRoute, genreRoute, stampRoute],
+    routes: [index, tripRoute, categoryRoute, stampRoute],
   });
   const original = console.error;
   vi.spyOn(console, 'error').mockImplementation((...args) => {
@@ -70,7 +72,7 @@ afterEach(async () => {
 });
 
 it('shows the current stamp title, leaves Back to the native stack, and preserves contextual posting', async () => {
-  await render({ title: stamp.name, trip, genre, stamp });
+  await render({ title: stamp.name, trip, category, stamp });
   const options = native.navigation.setOptions.mock.lastCall![0];
   expect(options.title).toBe(stamp.name);
   expect(options.headerBackTitle).toBeUndefined();
@@ -84,7 +86,7 @@ it('shows the current stamp title, leaves Back to the native stack, and preserve
     pathname: '/editor/post',
     params: {
       initialTripId: trip.id,
-      initialGenreId: genre.id,
+      initialCategoryId: category.id,
       initialStampId: stamp.id,
     },
   });
@@ -96,7 +98,7 @@ it('inserts named ancestors for a directly linked stamp while retaining the curr
     index: 1,
     routes: [index, stampRoute],
   });
-  await render({ title: stamp.name, trip, genre, stamp });
+  await render({ title: stamp.name, trip, category, stamp });
   expect(native.navigation.dispatch).toHaveBeenCalledExactlyOnceWith({
     type: 'RESET',
     payload: {
@@ -108,8 +110,8 @@ it('inserts named ancestors for a directly linked stamp while retaining the curr
           params: { tripId: trip.id, title: trip.name },
         },
         {
-          name: 'genre/[genreId]',
-          params: { genreId: genre.id, title: genre.name },
+          name: 'category/[categoryId]',
+          params: { categoryId: category.id, title: category.name },
         },
         stampRoute,
       ],
@@ -117,19 +119,21 @@ it('inserts named ancestors for a directly linked stamp while retaining the curr
   });
 });
 
-it('gives a directly linked genre a native back path through the trip and list', async () => {
+it('gives a directly linked category a native back path through the trip and list', async () => {
   native.navigation.getState.mockReturnValue({
     index: 0,
-    routes: [genreRoute],
+    routes: [categoryRoute],
   });
-  await render({ title: genre.name, trip, genre });
-  expect(native.navigation.setOptions.mock.lastCall![0].title).toBe(genre.name);
+  await render({ title: category.name, trip, category });
+  expect(native.navigation.setOptions.mock.lastCall![0].title).toBe(
+    category.name,
+  );
   expect(native.navigation.dispatch.mock.lastCall![0].payload).toEqual({
     index: 2,
     routes: [
       { name: 'index', params: undefined },
       { name: 'trip/[tripId]', params: { tripId: trip.id, title: trip.name } },
-      genreRoute,
+      categoryRoute,
     ],
   });
 });
@@ -138,9 +142,9 @@ it('preserves existing navigation history even when it differs from the entity h
   const previous = { ...tripRoute, params: { tripId: 'another-trip' } };
   native.navigation.getState.mockReturnValue({
     index: 2,
-    routes: [index, previous, genreRoute],
+    routes: [index, previous, categoryRoute],
   });
-  await render({ title: genre.name, trip, genre });
+  await render({ title: category.name, trip, category });
   expect(native.navigation.dispatch).not.toHaveBeenCalled();
 });
 
@@ -150,7 +154,7 @@ it('does not rewrite the active stack from an unfocused screen or before ancesto
     routes: [stampRoute],
   });
   native.focused.mockReturnValue(false);
-  await render({ title: stamp.name, trip, genre, stamp });
+  await render({ title: stamp.name, trip, category, stamp });
   expect(native.navigation.dispatch).not.toHaveBeenCalled();
   native.focused.mockReturnValue(true);
   await act(async () =>

@@ -4,7 +4,7 @@ export type Post = {
   readAt: string | null;
   id: string;
   tripId: string;
-  genreIds: string[];
+  categoryIds: string[];
   stampId: string;
   author: Pick<User, 'id' | 'name'>;
   mediaType: 'IMAGE' | 'VIDEO';

@@ -19,9 +19,9 @@ export default function TripsLayout() {
         options={({ route }) => ({ title: routeTitle(route.params, '旅行') })}
       />
       <Stack.Screen
-        name="genre/[genreId]"
+        name="category/[categoryId]"
         options={({ route }) => ({
-          title: routeTitle(route.params, 'ジャンル'),
+          title: routeTitle(route.params, 'カテゴリー'),
         })}
       />
       <Stack.Screen

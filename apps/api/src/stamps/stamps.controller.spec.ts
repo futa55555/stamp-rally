@@ -11,7 +11,7 @@ import { StampsService } from './stamps.service.js';
 describe('StampsController', () => {
   let app: INestApplication;
   const id = '31fc6c40-7810-4b31-9d59-8b7042479410';
-  const valid = { tripId: id, genreIds: [id], name: '  名前  ' };
+  const valid = { tripId: id, categoryIds: [id], name: '  名前  ' };
   const service = {
     create: vi.fn(),
     findAll: vi.fn(),
@@ -61,27 +61,27 @@ describe('StampsController', () => {
       .expect(201);
     expect(service.create).toHaveBeenCalledWith(
       'participant',
-      expect.objectContaining({ tripId: id, genreIds: [id], name: '名前' }),
+      expect.objectContaining({ tripId: id, categoryIds: [id], name: '名前' }),
     );
   });
 
   it.each([
     {},
-    { ...valid, genreIds: [] },
-    { ...valid, genreIds: [id, id] },
-    { ...valid, genreIds: null },
-    { ...valid, genreIds: ['invalid'] },
-    { tripId: id, genreIds: [id], name: '' },
-    { tripId: id, genreIds: [id], name: null },
-    { tripId: id, genreIds: [id], name: '有効', description: null },
-    { tripId: 'invalid', genreIds: ['invalid'], name: '有効' },
+    { ...valid, categoryIds: [] },
+    { ...valid, categoryIds: [id, id] },
+    { ...valid, categoryIds: null },
+    { ...valid, categoryIds: ['invalid'] },
+    { tripId: id, categoryIds: [id], name: '' },
+    { tripId: id, categoryIds: [id], name: null },
+    { tripId: id, categoryIds: [id], name: '有効', description: null },
+    { tripId: 'invalid', categoryIds: ['invalid'], name: '有効' },
     {
       tripId: id,
-      genreIds: [id],
+      categoryIds: [id],
       name: '有効',
       description: 'あ'.repeat(2001),
     },
-    { tripId: id, genreIds: [id], name: '有効', extra: true },
+    { tripId: id, categoryIds: [id], name: '有効', extra: true },
   ])('rejects invalid create payloads %o', async (body) => {
     await request(app.getHttpServer())
       .post('/stamps')
@@ -93,13 +93,13 @@ describe('StampsController', () => {
 
   it.each([
     { name: null },
-    { genreIds: [] },
-    { genreIds: [id, id] },
-    { genreIds: null },
-    { genreIds: ['invalid'] },
+    { categoryIds: [] },
+    { categoryIds: [id, id] },
+    { categoryIds: null },
+    { categoryIds: ['invalid'] },
     { tripId: id },
     { description: null },
-    { genreId: id },
+    { categoryId: id },
     { name: 'あ'.repeat(101) },
   ])('rejects invalid patch payloads %o', async (body) => {
     await request(app.getHttpServer())
@@ -136,7 +136,7 @@ describe('StampsController', () => {
   it('provides pagination defaults and accepts an explicit limit', async () => {
     await request(app.getHttpServer())
       .get('/stamps')
-      .query({ genreId: id })
+      .query({ categoryId: id })
       .set('Authorization', 'Bearer token')
       .expect(200);
     expect(service.findAll).toHaveBeenCalledWith(
@@ -145,7 +145,7 @@ describe('StampsController', () => {
     );
     await request(app.getHttpServer())
       .get('/stamps')
-      .query({ genreId: id, limit: 2 })
+      .query({ categoryId: id, limit: 2 })
       .set('Authorization', 'Bearer token')
       .expect(200);
     expect(service.findAll).toHaveBeenLastCalledWith(
@@ -159,7 +159,7 @@ describe('StampsController', () => {
     async (limit) => {
       await request(app.getHttpServer())
         .get('/stamps')
-        .query({ genreId: id, limit })
+        .query({ categoryId: id, limit })
         .set('Authorization', 'Bearer token')
         .expect(400);
       expect(service.findAll).not.toHaveBeenCalled();

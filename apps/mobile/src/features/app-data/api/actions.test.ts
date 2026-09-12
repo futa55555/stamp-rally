@@ -31,16 +31,16 @@ describe('API mutations', () => {
       '/posts',
       { tripId: 'trip', favoritesOnly: true, mediaType: 'IMAGE' },
     ];
-    const genre = ['user', 'viewer', '/genres/genre', {}];
+    const category = ['user', 'viewer', '/categories/category', {}];
     const other = ['user', 'other', '/posts', {}];
-    for (const key of [favorites, genre, other]) cache.setQueryData(key, []);
+    for (const key of [favorites, category, other]) cache.setQueryData(key, []);
     request.mockResolvedValue(post);
     await actions.setFavorite('photo', true);
     expect(cache.getQueryData(['user', 'viewer', '/posts/photo', {}])).toEqual(
       post,
     );
     expect(cache.getQueryState(favorites)?.isInvalidated).toBe(true);
-    expect(cache.getQueryState(genre)?.isInvalidated).toBe(true);
+    expect(cache.getQueryState(category)?.isInvalidated).toBe(true);
     expect(cache.getQueryState(other)?.isInvalidated).toBe(false);
     expect(request).toHaveBeenCalledWith({
       method: 'PATCH',
@@ -124,7 +124,7 @@ describe('API mutations', () => {
       locations: ['沖縄'],
       activityPresets: ['海'],
       customActivities: ['星空を見る'],
-      selectedGenres: [{ name: '自然', stamps: [{ title: '海を見る' }] }],
+      selectedCategories: [{ name: '自然', stamps: [{ title: '海を見る' }] }],
       clientRequestId: 'request-id',
     };
     await actions.createTrip('viewer', input);

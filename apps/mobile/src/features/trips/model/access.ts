@@ -14,15 +14,15 @@ export function requireTripAccess(
   return trip;
 }
 
-export function requireGenreAccess(
+export function requireCategoryAccess(
   data: AppData,
   userId: string,
-  genreId: string,
+  categoryId: string,
 ) {
-  const genre = data.genres.find((item) => item.id === genreId);
-  if (!genre) throw new Error('ジャンルが見つかりません。');
-  requireTripAccess(data, userId, genre.tripId);
-  return genre;
+  const category = data.categories.find((item) => item.id === categoryId);
+  if (!category) throw new Error('カテゴリーが見つかりません。');
+  requireTripAccess(data, userId, category.tripId);
+  return category;
 }
 
 export function requireStampAccess(

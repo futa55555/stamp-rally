@@ -27,8 +27,8 @@ export class PostsService {
   async findAll(userId: string, query: ListPostsDto) {
     const scope = postScope(query);
     if (scope.type === 'trip') await this.access.requireTrip(userId, scope.id);
-    else if (scope.type === 'genre')
-      await this.access.requireGenre(userId, scope.id);
+    else if (scope.type === 'category')
+      await this.access.requireCategory(userId, scope.id);
     else await this.access.requireStamp(userId, scope.id);
     return this.posts.list(scope, query, userId);
   }

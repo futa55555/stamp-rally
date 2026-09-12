@@ -24,13 +24,13 @@ export function FavoritePhotosSection({
           contentContainerClassName="gap-3 px-4"
         >
           {favorites.map((photo) => {
-            const { genreName, stampName } = photo;
+            const { categoryName, stampName } = photo;
             return (
               <Pressable
                 key={photo.id}
                 accessibilityRole="button"
                 accessibilityLabel={
-                  genreName + '、' + stampName + 'の写真を開く'
+                  categoryName + '、' + stampName + 'の写真を開く'
                 }
                 onPress={() =>
                   router.push({
@@ -54,9 +54,9 @@ export function FavoritePhotosSection({
                   tone="textSecondary"
                   numberOfLines={1}
                   ellipsizeMode="tail"
-                  accessibilityLabel={genreName}
+                  accessibilityLabel={categoryName}
                 >
-                  {genreName}
+                  {categoryName}
                 </AppText>
                 <AppText
                   variant="label"

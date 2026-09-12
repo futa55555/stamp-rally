@@ -13,13 +13,13 @@ import { PostsService } from './posts.service.js';
 
 const postId = '00000000-0000-4000-8000-000000000001';
 const stampId = '00000000-0000-4000-8000-000000000002';
-const genreId = '00000000-0000-4000-8000-000000000003';
+const categoryId = '00000000-0000-4000-8000-000000000003';
 const tripId = '00000000-0000-4000-8000-000000000004';
 const auth = { verifyAccessToken: vi.fn() };
 const prisma = { user: { findUnique: vi.fn() } };
 const access = {
   requireTrip: vi.fn(),
-  requireGenre: vi.fn(),
+  requireCategory: vi.fn(),
   requireStamp: vi.fn(),
   requirePost: vi.fn(),
 };
@@ -105,14 +105,14 @@ describe('PostsController', () => {
     expect(repository.create).not.toHaveBeenCalled();
   });
 
-  it.each(['tripId', 'genreId', 'stampId'] as const)(
+  it.each(['tripId', 'categoryId', 'stampId'] as const)(
     'lists favorite posts under %s',
     async (parentKey) => {
       repository.list.mockResolvedValue({
         items: [{ id: postId }],
         nextCursor: null,
       });
-      const parentId = { tripId, genreId, stampId }[parentKey];
+      const parentId = { tripId, categoryId, stampId }[parentKey];
       await request(app.getHttpServer())
         .get('/posts')
         .set('Authorization', 'Bearer token')
@@ -147,8 +147,8 @@ describe('PostsController', () => {
 
   it.each([
     {},
-    { tripId, genreId },
-    { genreId, stampId },
+    { tripId, categoryId },
+    { categoryId, stampId },
     { tripId, stampId },
     { stampId, favoritesOnly: 'yes' },
     { stampId, limit: 0 },
@@ -168,14 +168,14 @@ describe('PostsController', () => {
     repository.findById.mockResolvedValue({
       id: postId,
       stampId,
-      genreIds: [genreId],
+      categoryIds: [categoryId],
       tripId,
     });
     await request(app.getHttpServer())
       .get(`/posts/${postId}`)
       .set('Authorization', 'Bearer token')
       .expect(200)
-      .expect({ id: postId, stampId, genreIds: [genreId], tripId });
+      .expect({ id: postId, stampId, categoryIds: [categoryId], tripId });
     repository.setFavorite.mockResolvedValue({ id: postId, isFavorite: false });
     await request(app.getHttpServer())
       .patch(`/posts/${postId}/favorite`)

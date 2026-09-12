@@ -11,7 +11,7 @@ export class UpdateStampDto {
   @ArrayMinSize(1)
   @ArrayUnique()
   @IsUUID('all', { each: true })
-  genreIds?: string[];
+  categoryIds?: string[];
 
   @OptionalField()
   @DomainName()

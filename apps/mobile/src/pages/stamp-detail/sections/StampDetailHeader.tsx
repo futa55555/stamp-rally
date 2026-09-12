@@ -5,13 +5,13 @@ import { AppText } from '../../../shared/ui/AppText';
 export function StampDetailHeader({
   stamp,
   tripName,
-  genreNames,
-  viaGenreId,
+  categoryNames,
+  viaCategoryId,
 }: {
   stamp: Stamp;
   tripName?: string;
-  genreNames: string[];
-  viaGenreId?: string;
+  categoryNames: string[];
+  viaCategoryId?: string;
 }) {
   return (
     <View className="gap-4 px-4 py-6">
@@ -22,14 +22,14 @@ export function StampDetailHeader({
           </AppText>
         ) : null}
         <AppText variant="caption" tone="textSecondary">
-          {genreNames.join(', ')}
+          {categoryNames.join(', ')}
         </AppText>
       </View>
       <EditableTitle
         title={stamp.name}
         kind="stamp"
         id={stamp.id}
-        viaGenreId={viaGenreId}
+        viaCategoryId={viaCategoryId}
       />
       {stamp.description ? (
         <AppText tone="textSecondary">{stamp.description}</AppText>

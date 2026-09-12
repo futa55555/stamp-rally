@@ -5,11 +5,11 @@ import type {
 } from '../../invitations/types';
 import type { QueryClient } from '@tanstack/react-query';
 import type { SessionClient } from './SessionClient';
-import type { Trip, Genre, Stamp } from '../../trips/model/types';
+import type { Trip, Category, Stamp } from '../../trips/model/types';
 import type {
   TripInput,
   CreateTripInput,
-  CreateGenreInput,
+  CreateCategoryInput,
   CreateStampInput,
   NamedInput,
   StampInput,
@@ -45,7 +45,7 @@ export function createActions(
         onSuccess: async (result) => {
           assertCurrent();
           const match = url.match(
-            /^\/(trips|genres|stamps|posts)(?:\/([^/]+))?/,
+            /^\/(trips|categories|stamps|posts)(?:\/([^/]+))?/,
           );
           if (
             match &&
@@ -112,8 +112,8 @@ export function createActions(
         ...(input.customActivities !== undefined
           ? { customActivities: input.customActivities }
           : {}),
-        ...(input.selectedGenres !== undefined
-          ? { selectedGenres: input.selectedGenres }
+        ...(input.selectedCategories !== undefined
+          ? { selectedCategories: input.selectedCategories }
           : {}),
         ...(input.clientRequestId
           ? { clientRequestId: input.clientRequestId }
@@ -121,10 +121,10 @@ export function createActions(
       }),
     updateTrip: (_userId: string, id: string, input: TripInput) =>
       mutate<Trip>('PATCH', `/trips/${id}`, tripInput(input)),
-    createGenre: (_userId: string, input: CreateGenreInput) =>
-      mutate<Genre>('POST', '/genres', input),
-    updateGenre: (_userId: string, id: string, input: NamedInput) =>
-      mutate<Genre>('PATCH', `/genres/${id}`, input),
+    createCategory: (_userId: string, input: CreateCategoryInput) =>
+      mutate<Category>('POST', '/categories', input),
+    updateCategory: (_userId: string, id: string, input: NamedInput) =>
+      mutate<Category>('PATCH', `/categories/${id}`, input),
     createStamp: (_userId: string, input: CreateStampInput) =>
       mutate<Stamp>('POST', '/stamps', input),
     updateStamp: (_userId: string, id: string, input: StampInput) =>

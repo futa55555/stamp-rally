@@ -15,7 +15,7 @@ const repository = {
 };
 const access = {
   requireTrip: vi.fn(),
-  requireGenre: vi.fn(),
+  requireCategory: vi.fn(),
   requireStamp: vi.fn(),
   requirePost: vi.fn(),
 };
@@ -77,7 +77,7 @@ describe('PostsService', () => {
 
   it.each([
     ['tripId', 'trip', 'requireTrip'],
-    ['genreId', 'genre', 'requireGenre'],
+    ['categoryId', 'category', 'requireCategory'],
     ['stampId', 'stamp', 'requireStamp'],
   ] as const)(
     'authorizes %s before listing favorite posts',
@@ -102,9 +102,9 @@ describe('PostsService', () => {
 
   it.each([
     {},
-    { tripId: 'trip', genreId: 'genre' },
+    { tripId: 'trip', categoryId: 'category' },
     { tripId: 'trip', stampId: 'stamp' },
-    { genreId: 'genre', stampId: 'stamp' },
+    { categoryId: 'category', stampId: 'stamp' },
   ])('rejects ambiguous or missing list scope %o', async (scope) => {
     await expect(
       service.findAll('user', Object.assign(new ListPostsDto(), scope)),
@@ -113,11 +113,11 @@ describe('PostsService', () => {
   });
 
   it('does not read posts from an inaccessible parent', async () => {
-    access.requireGenre.mockRejectedValue(new NotFoundException());
+    access.requireCategory.mockRejectedValue(new NotFoundException());
     await expect(
       service.findAll(
         'outsider',
-        Object.assign(new ListPostsDto(), { genreId: 'genre' }),
+        Object.assign(new ListPostsDto(), { categoryId: 'category' }),
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(repository.list).not.toHaveBeenCalled();
@@ -139,7 +139,7 @@ describe('PostsService', () => {
     const post = {
       id: 'post',
       tripId: 'trip',
-      genreIds: ['genre'],
+      categoryIds: ['category'],
       stampId: 'stamp',
     };
     repository.findById.mockResolvedValue(post);

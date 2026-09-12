@@ -1,4 +1,4 @@
-import { stampGenreContext } from '../../features/trips/navigation/genreContext';
+import { stampCategoryContext } from '../../features/trips/navigation/categoryContext';
 import { useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
@@ -14,7 +14,7 @@ import {
   type PickedMedia,
 } from '../../features/photos/model/inputs';
 import { SelectedMediaGrid } from '../../features/photos/ui/SelectedMediaGrid';
-import type { Genre, Stamp, Trip } from '../../features/trips/model/types';
+import type { Category, Stamp, Trip } from '../../features/trips/model/types';
 import { useUploads } from '../../features/uploads/UploadProvider';
 import { UploadList } from '../../features/uploads/UploadList';
 import { useTask } from '../../shared/hooks/useTask';
@@ -25,12 +25,12 @@ import { SelectField } from '../../shared/ui/SelectField';
 export function PostEditorScreen() {
   const params = useLocalSearchParams<{
     stampId?: string;
-    genreId?: string;
+    categoryId?: string;
     tripId?: string;
-    viaGenreId?: string;
+    viaCategoryId?: string;
     batchId?: string;
     initialTripId?: string;
-    initialGenreId?: string;
+    initialCategoryId?: string;
     initialStampId?: string;
   }>();
   const { userId } = useData();
@@ -39,27 +39,27 @@ export function PostEditorScreen() {
   const focused = useIsFocused();
   const [destination, setDestination] = useState<{
     tripId?: string;
-    genreId?: string;
+    categoryId?: string;
     stampId?: string;
   }>();
   const initialStamp = useDetail<Stamp>(
     `/stamps/${params.initialStampId}`,
-    !destination && !!params.initialStampId && !params.initialGenreId,
+    !destination && !!params.initialStampId && !params.initialCategoryId,
   );
-  const initialGenreId =
-    params.initialGenreId ??
-    stampGenreContext(initialStamp.data, params.viaGenreId);
-  const initialGenre = useDetail<Genre>(
-    `/genres/${initialGenreId}`,
-    !destination && !!initialGenreId && !params.initialTripId,
+  const initialCategoryId =
+    params.initialCategoryId ??
+    stampCategoryContext(initialStamp.data, params.viaCategoryId);
+  const initialCategory = useDetail<Category>(
+    `/categories/${initialCategoryId}`,
+    !destination && !!initialCategoryId && !params.initialTripId,
   );
-  const { tripId, genreId, stampId } = destination ?? {
+  const { tripId, categoryId, stampId } = destination ?? {
     tripId:
       params.tripId ??
       params.initialTripId ??
       initialStamp.data?.tripId ??
-      initialGenre.data?.tripId,
-    genreId: params.genreId ?? initialGenreId,
+      initialCategory.data?.tripId,
+    categoryId: params.categoryId ?? initialCategoryId,
     stampId: params.stampId ?? params.initialStampId,
   };
   const [files, setFiles] = useState<PickedMedia[]>([]);
@@ -75,17 +75,22 @@ export function PostEditorScreen() {
   const task = useTask();
   const pending = task.pending || flow.finishing;
   const locked = pending || !!batchId || !!completedStampId;
-  const destinationPending = initialStamp.isPending || initialGenre.isPending;
-  const trips = useList<Trip>('/trips', {}, !params.stampId && !params.genreId);
-  const genres = useList<Genre>(
-    '/genres',
+  const destinationPending =
+    initialStamp.isPending || initialCategory.isPending;
+  const trips = useList<Trip>(
+    '/trips',
+    {},
+    !params.stampId && !params.categoryId,
+  );
+  const categories = useList<Category>(
+    '/categories',
     { tripId },
     !!tripId && !params.stampId,
   );
   const stamps = useList<Stamp>(
     '/stamps',
-    { genreId },
-    !!genreId && !params.stampId,
+    { categoryId },
+    !!categoryId && !params.stampId,
   );
   useEditorGuard(files.length > 0, pending);
   useEffect(() => {
@@ -123,8 +128,8 @@ export function PostEditorScreen() {
     void task.run(() =>
       flow.finish({
         target: { type: 'stamp', stampId: completedStampId },
-        ...((params.viaGenreId ?? genreId)
-          ? { viaGenreId: params.viaGenreId ?? genreId }
+        ...((params.viaCategoryId ?? categoryId)
+          ? { viaCategoryId: params.viaCategoryId ?? categoryId }
           : {}),
       }),
     );
@@ -134,8 +139,8 @@ export function PostEditorScreen() {
     focused,
     task.run,
     flow.finish,
-    params.viaGenreId,
-    genreId,
+    params.viaCategoryId,
+    categoryId,
   ]);
   const picker = usePhotoPicker((picked) => {
     validateMediaSelection(picked);
@@ -167,10 +172,10 @@ export function PostEditorScreen() {
         task.error ??
         picker.error ??
         (!destination
-          ? (initialStamp.error?.message ?? initialGenre.error?.message)
+          ? (initialStamp.error?.message ?? initialCategory.error?.message)
           : null) ??
         trips.error?.message ??
-        genres.error?.message ??
+        categories.error?.message ??
         stamps.error?.message ??
         null
       }
@@ -179,8 +184,8 @@ export function PostEditorScreen() {
           void task.run(() =>
             flow.finish({
               target: { type: 'stamp', stampId: completedStampId },
-              ...((params.viaGenreId ?? genreId)
-                ? { viaGenreId: params.viaGenreId ?? genreId }
+              ...((params.viaCategoryId ?? categoryId)
+                ? { viaCategoryId: params.viaCategoryId ?? categoryId }
                 : {}),
             }),
           );
@@ -211,7 +216,7 @@ export function PostEditorScreen() {
     >
       {!params.stampId ? (
         <View>
-          {!params.genreId ? (
+          {!params.categoryId ? (
             <>
               <SelectField
                 label="旅行"
@@ -228,17 +233,17 @@ export function PostEditorScreen() {
                 }}
               />
               <SelectField
-                label="ジャンル"
+                label="カテゴリー"
                 disabled={locked || destinationPending}
                 icon="shape-outline"
-                value={genreId}
-                placeholder="ジャンルを選ぶ"
-                options={(genres.data ?? []).map((genre) => ({
-                  value: genre.id,
-                  label: genre.name,
+                value={categoryId}
+                placeholder="カテゴリーを選ぶ"
+                options={(categories.data ?? []).map((category) => ({
+                  value: category.id,
+                  label: category.name,
                 }))}
                 onChange={(value) => {
-                  setDestination({ tripId, genreId: value });
+                  setDestination({ tripId, categoryId: value });
                 }}
               />
             </>
@@ -254,7 +259,7 @@ export function PostEditorScreen() {
               label: stamp.name,
             }))}
             onChange={(value) =>
-              setDestination({ tripId, genreId, stampId: value })
+              setDestination({ tripId, categoryId, stampId: value })
             }
           />
         </View>

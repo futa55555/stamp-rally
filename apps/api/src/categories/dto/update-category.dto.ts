@@ -4,7 +4,7 @@ import {
   OptionalField,
 } from '../../common/validation.js';
 
-export class UpdateGenreDto {
+export class UpdateCategoryDto {
   @OptionalField()
   @DomainName()
   name?: string;

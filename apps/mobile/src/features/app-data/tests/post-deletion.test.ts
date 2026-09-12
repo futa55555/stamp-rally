@@ -69,14 +69,16 @@ describe('post deletion', () => {
     expect(data.stamps.find((s) => s.id === post.stampId)?.isCompleted).toBe(
       false,
     );
-    expect(data.genres.find((g) => g.id === post.genreIds[0])).toMatchObject({
+    expect(
+      data.categories.find((g) => g.id === post.categoryIds[0]),
+    ).toMatchObject({
       totalStampCount: 1,
       completedStampCount: 0,
       isCompleted: false,
     });
     expect(data.trips.find((t) => t.id === post.tripId)).toMatchObject({
-      totalGenreCount: 1,
-      completedGenreCount: 0,
+      totalCategoryCount: 1,
+      completedCategoryCount: 0,
       isCompleted: false,
     });
     await expect(service.deletePost(DEMO_USER_ID, post.id)).rejects.toThrow();

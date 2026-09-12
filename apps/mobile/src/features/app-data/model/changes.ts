@@ -1,11 +1,11 @@
 import type { Post } from '../../photos/model/types';
 import { withProgress } from '../../trips/model/progress';
-import type { Genre, Stamp, Trip } from '../../trips/model/types';
+import type { Category, Stamp, Trip } from '../../trips/model/types';
 import type { AppData } from './types';
 
 export type DomainChange =
   | { type: 'tripSaved'; trip: Trip; memberId?: string }
-  | { type: 'genreSaved'; genre: Genre }
+  | { type: 'categorySaved'; category: Category }
   | { type: 'stampSaved'; stamp: Stamp }
   | { type: 'postsCreated'; posts: Post[] }
   | { type: 'postDeleted'; postId: string };
@@ -36,10 +36,10 @@ export function applyDomainChange(
               ]
             : data.memberships,
       });
-    case 'genreSaved':
+    case 'categorySaved':
       return withProgress({
         ...data,
-        genres: upsert(data.genres, change.genre),
+        categories: upsert(data.categories, change.category),
       });
     case 'stampSaved':
       return withProgress({

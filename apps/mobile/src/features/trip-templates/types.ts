@@ -3,7 +3,7 @@ export type TemplateSource = {
   name: string;
 };
 
-export type TemplateGenre = {
+export type TemplateCategory = {
   name: string;
   stamps: { title: string; sources: TemplateSource[] }[];
 };
@@ -13,7 +13,7 @@ export type TemplatePresets = {
   activities: { name: string }[];
 };
 
-export type SelectedGenre = {
+export type SelectedCategory = {
   name: string;
   stamps: { title: string }[];
 };
