@@ -3,7 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { TripListScreen } from './trip-list/TripListScreen';
 import { TripDetailScreen } from './trip-detail/TripDetailScreen';
-import { GenreDetailScreen } from './genre-detail/GenreDetailScreen';
+import { CategoryDetailScreen } from './category-detail/CategoryDetailScreen';
 import { StampDetailScreen } from './stamp-detail/StampDetailScreen';
 import { NotificationsScreen } from './notifications/NotificationsScreen';
 
@@ -12,7 +12,7 @@ const native = vi.hoisted(() => ({ query: vi.fn() }));
 vi.mock('expo-router', () => ({
   useLocalSearchParams: () => ({
     tripId: 'trip',
-    genreId: 'genre',
+    categoryId: 'category',
     stampId: 'stamp',
   }),
   useRouter: () => ({}),
@@ -36,7 +36,7 @@ vi.mock('react-native-safe-area-context', () => ({
 vi.mock('../features/trips/hooks', () => ({
   useTrips: native.query,
   useTrip: native.query,
-  useGenre: native.query,
+  useCategory: native.query,
   useStamp: native.query,
 }));
 vi.mock('../features/trips/navigation/useTripHeader', () => ({
@@ -75,17 +75,17 @@ vi.mock('./trip-list/components/CreateTripButton', () => ({
 vi.mock('./trip-detail/sections/FavoritePhotosSection', () => ({
   FavoritePhotosSection: 'FavoritePhotosSection',
 }));
-vi.mock('./trip-detail/sections/GenresSection', () => ({
-  GenresSection: 'GenresSection',
+vi.mock('./trip-detail/sections/CategoriesSection', () => ({
+  CategoriesSection: 'CategoriesSection',
 }));
 vi.mock('./trip-detail/sections/TripDetailHeader', () => ({
   TripDetailHeader: 'TripDetailHeader',
 }));
-vi.mock('./genre-detail/components/StampCard', () => ({
+vi.mock('./category-detail/components/StampCard', () => ({
   StampCard: 'StampCard',
 }));
-vi.mock('./genre-detail/sections/GenreDetailHeader', () => ({
-  GenreDetailHeader: 'GenreDetailHeader',
+vi.mock('./category-detail/sections/CategoryDetailHeader', () => ({
+  CategoryDetailHeader: 'CategoryDetailHeader',
 }));
 vi.mock('./stamp-detail/components/CreatePostTile', () => ({
   CreatePostTile: 'CreatePostTile',
@@ -109,10 +109,10 @@ function createQuery() {
     fetchNextPage: vi.fn().mockResolvedValue(undefined),
     today: '2026-09-10',
     trip: { id: 'trip', name: 'Trip', coverImageUrl: null },
-    genre: { id: 'genre', name: 'Genre' },
+    category: { id: 'category', name: 'Category' },
     stamp: { id: 'stamp', name: 'Stamp' },
     trips: [],
-    genres: [],
+    categories: [],
     stamps: [],
     favorites: [],
     members: [],
@@ -151,7 +151,7 @@ async function render(Screen: ComponentType) {
 const screens = [
   { name: 'trip list', Screen: TripListScreen, host: 'FlatList' },
   { name: 'trip detail', Screen: TripDetailScreen, host: 'ScrollView' },
-  { name: 'genre detail', Screen: GenreDetailScreen, host: 'FlatList' },
+  { name: 'category detail', Screen: CategoryDetailScreen, host: 'FlatList' },
   { name: 'stamp detail', Screen: StampDetailScreen, host: 'FlatList' },
   { name: 'notifications', Screen: NotificationsScreen, host: 'FlatList' },
 ];

@@ -6,24 +6,24 @@ import {
 } from 'expo-router';
 import { useEffect, useLayoutEffect } from 'react';
 import { headerButtonOptions } from '../../../shared/navigation/headerButtonOptions';
-import type { Genre, Stamp, Trip } from '../model/types';
+import type { Category, Stamp, Trip } from '../model/types';
 import type { TripRoute, TripStackParamList } from './types';
 
 export function useTripHeader({
   title,
   trip,
-  genre,
+  category,
   stamp,
   tripId = trip?.id,
-  genreId = genre?.id,
+  categoryId = category?.id,
   stampId = stamp?.id,
 }: {
   title: string;
   trip?: Trip;
-  genre?: Genre;
+  category?: Category;
   stamp?: Stamp;
   tripId?: string;
-  genreId?: string;
+  categoryId?: string;
   stampId?: string;
 }) {
   const router = useRouter();
@@ -43,23 +43,24 @@ export function useTripHeader({
             pathname: '/editor/post',
             params: {
               initialTripId: tripId,
-              initialGenreId: genreId,
+              initialCategoryId: categoryId,
               initialStampId: stampId,
             },
           }),
       }),
     });
-  }, [navigation, router, title, tripId, genreId, stampId]);
+  }, [navigation, router, title, tripId, categoryId, stampId]);
 
   useEffect(() => {
-    if (!focused || !trip || (stampId && !stamp) || (genreId && !genre)) return;
+    if (!focused || !trip || (stampId && !stamp) || (categoryId && !category))
+      return;
     const state = navigation.getState();
     if (!state) return;
     const current = state.routes[state.index];
     const screenName = stampId
       ? 'stamp/[stampId]'
-      : genreId
-        ? 'genre/[genreId]'
+      : categoryId
+        ? 'category/[categoryId]'
         : 'trip/[tripId]';
     if (current.name !== screenName) return;
     // A direct link may contain only the destination (and the initial list).
@@ -76,10 +77,10 @@ export function useTripHeader({
         params: { tripId: trip.id, title: trip.name },
       });
     }
-    if (current.name === 'stamp/[stampId]' && genre) {
+    if (current.name === 'stamp/[stampId]' && category) {
       ancestors.push({
-        name: 'genre/[genreId]',
-        params: { genreId: genre.id, title: genre.name },
+        name: 'category/[categoryId]',
+        params: { categoryId: category.id, title: category.name },
       });
     }
     if (state.index === ancestors.length) return;
@@ -99,5 +100,5 @@ export function useTripHeader({
         ],
       },
     });
-  }, [focused, navigation, trip, genre, stamp, genreId, stampId]);
+  }, [focused, navigation, trip, category, stamp, categoryId, stampId]);
 }

@@ -12,24 +12,24 @@ import { StampDetailHeader } from './sections/StampDetailHeader';
 
 export function StampDetailScreen() {
   const router = useRouter();
-  const { stampId, viaGenreId } = useLocalSearchParams<{
+  const { stampId, viaCategoryId } = useLocalSearchParams<{
     stampId: string;
-    viaGenreId?: string;
+    viaCategoryId?: string;
   }>();
-  const query = useStamp(stampId, viaGenreId);
+  const query = useStamp(stampId, viaCategoryId);
   const refresh = usePullToRefresh(query.invalidate);
-  const { stamp, genre, genres, trip, photos } = query;
+  const { stamp, category, categories, trip, photos } = query;
   useTripHeader({
     title: stamp?.name ?? 'スタンプ',
     trip,
-    genre,
+    category,
     stamp,
     stampId,
   });
   const openPost = () =>
     router.push({
       pathname: '/editor/post',
-      params: { stampId, viaGenreId: genre?.id },
+      params: { stampId, viaCategoryId: category?.id },
     });
   if (query.isPending || query.error) return <QueryState query={query} />;
   if (!stamp)
@@ -55,8 +55,8 @@ export function StampDetailScreen() {
             <StampDetailHeader
               stamp={stamp}
               tripName={trip?.name}
-              genreNames={genres.map((genre) => genre.name)}
-              viaGenreId={genre?.id}
+              categoryNames={categories.map((category) => category.name)}
+              viaCategoryId={category?.id}
             />
             <UploadList stampId={stampId} />
           </>
@@ -81,7 +81,7 @@ export function StampDetailScreen() {
                     postId: item.id,
                     source: 'stamp',
                     stampId,
-                    viaGenreId: genre?.id,
+                    viaCategoryId: category?.id,
                   },
                 })
               }

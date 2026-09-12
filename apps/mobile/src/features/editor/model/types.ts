@@ -1,1 +1,1 @@
-export type EntityKind = 'trip' | 'genre' | 'stamp';
+export type EntityKind = 'trip' | 'category' | 'stamp';

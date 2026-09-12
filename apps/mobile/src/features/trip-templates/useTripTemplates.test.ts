@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useTripTemplates } from './useTripTemplates';
-import type { TemplateGenre } from './types';
+import type { TemplateCategory } from './types';
 
 const native = vi.hoisted(() => ({
   client: { request: vi.fn(), sessionGuard: () => () => {} },
@@ -13,15 +13,15 @@ vi.mock('../app-data/AppDataProvider', () => ({
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 function deferred() {
-  let resolve!: (value: { genres: TemplateGenre[] }) => void;
+  let resolve!: (value: { categories: TemplateCategory[] }) => void;
   let reject!: (error: Error) => void;
-  const promise = new Promise<{ genres: TemplateGenre[] }>((yes, no) => {
+  const promise = new Promise<{ categories: TemplateCategory[] }>((yes, no) => {
     resolve = yes;
     reject = no;
   });
   return { promise, resolve, reject };
 }
-const genres = (extra = false): TemplateGenre[] => [
+const categories = (extra = false): TemplateCategory[] => [
   {
     name: '自然',
     stamps: [
@@ -61,7 +61,7 @@ beforeEach(() => {
   native.client.request.mockReset().mockImplementation(({ url }) => {
     if (url === '/trip-templates/presets')
       return Promise.resolve({ locations: [], activities: [{ name: '海' }] });
-    return Promise.resolve({ genres: genres() });
+    return Promise.resolve({ categories: categories() });
   });
 });
 afterEach(async () => {
@@ -86,14 +86,14 @@ it('keeps choices during input changes and ignores delayed responses from older 
   });
   expect(latest.ready).toBe(false);
   await tick();
-  await act(async () => first.resolve({ genres: genres() }));
+  await act(async () => first.resolve({ categories: categories() }));
   await act(async () => latest.toggleStamp('自然', '海を見る'));
   expect(latest.selection['["自然","海を見る"]']).toBe(false);
   await act(async () =>
     view!.update(createElement(Probe, { locations: ['北海道'] })),
   );
   expect(latest.pending).toBe(true);
-  expect(latest.genres).toEqual(genres());
+  expect(latest.categories).toEqual(categories());
   expect(latest.selection['["自然","海を見る"]']).toBe(false);
   await tick();
   await act(async () =>
@@ -102,14 +102,14 @@ it('keeps choices during input changes and ignores delayed responses from older 
     ),
   );
   await tick();
-  await act(async () => current.resolve({ genres: genres(true) }));
+  await act(async () => current.resolve({ categories: categories(true) }));
   expect(latest.ready).toBe(true);
   expect(latest.selection).toEqual({
     '["自然","海を見る"]': false,
     '["自然","山を見る"]': true,
   });
-  await act(async () => stale.resolve({ genres: [] }));
-  expect(latest.genres).toEqual(genres(true));
+  await act(async () => stale.resolve({ categories: [] }));
+  expect(latest.categories).toEqual(categories(true));
   expect(native.client.request).toHaveBeenLastCalledWith(
     expect.objectContaining({
       method: 'POST',
@@ -124,7 +124,7 @@ it('retains selection after a failed preview and retries, then clears only after
     view = create(createElement(Probe, { locations: ['沖縄'] }));
   });
   await tick();
-  await act(async () => latest.toggleGenre(genres()[0], false));
+  await act(async () => latest.toggleCategory(categories()[0], false));
   native.client.request.mockRejectedValueOnce(new Error('通信失敗'));
   await act(async () =>
     view!.update(createElement(Probe, { locations: ['北海道'] })),
@@ -139,7 +139,7 @@ it('retains selection after a failed preview and retries, then clears only after
   expect(latest.selection['["自然","海を見る"]']).toBe(false);
   await act(async () => view!.update(createElement(Probe, { locations: [] })));
   expect(latest.ready).toBe(true);
-  expect(latest.genres).toEqual([]);
+  expect(latest.categories).toEqual([]);
   expect(latest.selection).toEqual({});
 });
 

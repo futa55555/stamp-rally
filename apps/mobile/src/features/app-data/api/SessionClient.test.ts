@@ -98,7 +98,7 @@ describe('session client', () => {
     });
     await signIn(client);
     const first = client.request({ url: '/trips' });
-    const second = client.request({ url: '/genres' });
+    const second = client.request({ url: '/categories' });
     await vi.waitFor(() => expect(refreshes).toBe(1));
     refresh.resolve({ accessToken: 'access-2', refreshToken: 'refresh-2' });
     await expect(Promise.all([first, second])).resolves.toEqual([

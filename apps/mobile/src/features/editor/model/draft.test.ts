@@ -5,22 +5,22 @@ import { initializePostDraft, selectPostScope } from './draft';
 describe('contextual post drafts', () => {
   const data = createDemoData();
   const stamp = data.stamps[0];
-  const genre = data.genres.find((g) => g.id === stamp.genreIds[0])!;
-  const tripId = genre.tripId;
+  const category = data.categories.find((g) => g.id === stamp.categoryIds[0])!;
+  const tripId = category.tripId;
 
   it('fills exactly the known hierarchy from each entry point', () => {
     expect(initializePostDraft(data, DEMO_USER_ID, { tripId })).toEqual({
       tripId,
-      genreId: undefined,
+      categoryId: undefined,
       stampId: undefined,
       mediaUrls: [],
     });
     expect(
-      initializePostDraft(data, DEMO_USER_ID, { genreId: genre.id }),
-    ).toMatchObject({ tripId, genreId: genre.id, stampId: undefined });
+      initializePostDraft(data, DEMO_USER_ID, { categoryId: category.id }),
+    ).toMatchObject({ tripId, categoryId: category.id, stampId: undefined });
     expect(
       initializePostDraft(data, DEMO_USER_ID, { stampId: stamp.id }),
-    ).toMatchObject({ tripId, genreId: genre.id, stampId: stamp.id });
+    ).toMatchObject({ tripId, categoryId: category.id, stampId: stamp.id });
   });
 
   it('clears descendant selections while preserving photos, including inline creation', () => {
@@ -32,15 +32,19 @@ describe('contextual post drafts', () => {
     const otherTrip = selectPostScope(draft, 'tripId', 'new-trip');
     expect(otherTrip).toEqual({
       tripId: 'new-trip',
-      genreId: undefined,
+      categoryId: undefined,
       stampId: undefined,
       mediaUrls: draft.mediaUrls,
     });
-    const newGenre = selectPostScope(otherTrip, 'genreId', 'created-genre');
-    const newStamp = selectPostScope(newGenre, 'stampId', 'created-stamp');
+    const newCategory = selectPostScope(
+      otherTrip,
+      'categoryId',
+      'created-category',
+    );
+    const newStamp = selectPostScope(newCategory, 'stampId', 'created-stamp');
     expect(newStamp).toEqual({
       tripId: 'new-trip',
-      genreId: 'created-genre',
+      categoryId: 'created-category',
       stampId: 'created-stamp',
       mediaUrls: draft.mediaUrls,
     });
@@ -51,7 +55,7 @@ describe('contextual post drafts', () => {
     expect(() =>
       initializePostDraft(data, DEMO_USER_ID, {
         stampId: stamp.id,
-        genreId: 'wrong',
+        categoryId: 'wrong',
       }),
     ).toThrow('一致');
     expect(() =>

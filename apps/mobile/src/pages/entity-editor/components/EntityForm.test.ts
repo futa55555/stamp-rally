@@ -11,7 +11,7 @@ const native = vi.hoisted(() => ({
   updateTrip: vi.fn(),
   createStamp: vi.fn(),
   updateStamp: vi.fn(),
-  genres: vi.fn(),
+  categories: vi.fn(),
 }));
 vi.mock('../../../features/app-data/AppDataProvider', () => ({
   useData: () => ({
@@ -45,9 +45,11 @@ vi.mock('./TextField', () => ({ TextField: 'TextField' }));
 vi.mock('./DateField', () => ({ DateField: 'DateField' }));
 vi.mock('./LocationsField', () => ({ LocationsField: 'LocationsField' }));
 vi.mock('../../../features/app-data/api/queries', () => ({
-  useList: (...args: unknown[]) => native.genres(...args),
+  useList: (...args: unknown[]) => native.categories(...args),
 }));
-vi.mock('./StampGenresField', () => ({ StampGenresField: 'StampGenresField' }));
+vi.mock('./StampCategoriesField', () => ({
+  StampCategoriesField: 'StampCategoriesField',
+}));
 vi.mock('./CoverField', () => ({ CoverField: 'CoverField' }));
 vi.mock('../../../features/trip-covers/useCoverUpload', () => ({
   useCoverUpload: (uri: string | null) => ({
@@ -62,7 +64,7 @@ vi.mock('../../../features/trip-covers/useCoverUpload', () => ({
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 beforeEach(() => {
-  native.genres.mockReset().mockReturnValue({
+  native.categories.mockReset().mockReturnValue({
     data: [],
     isPending: false,
     error: null,
@@ -70,17 +72,17 @@ beforeEach(() => {
   });
   native.templates
     .mockReset()
-    .mockReturnValue({ ready: true, genres: [], selection: {} });
+    .mockReturnValue({ ready: true, categories: [], selection: {} });
 });
 
-it('creates a stamp with multiple genres, requires a selection, and retains the draft after failure', async () => {
+it('creates a stamp with multiple categories, requires a selection, and retains the draft after failure', async () => {
   const warning = vi.spyOn(console, 'error').mockImplementation(() => {});
   native.createStamp
     .mockReset()
     .mockRejectedValueOnce(new Error('保存失敗'))
     .mockResolvedValueOnce({ id: 'stamp' });
   native.finish.mockReset().mockResolvedValue(undefined);
-  native.genres.mockReturnValue({
+  native.categories.mockReturnValue({
     data: [
       { id: 'food', name: 'グルメ' },
       { id: 'park', name: '遊園地' },
@@ -104,18 +106,18 @@ it('creates a stamp with multiple genres, requires a selection, and retains the 
         createElement(EntityForm, {
           kind: 'stamp',
           tripId: 'trip',
-          genreId: 'food',
-          viaGenreId: 'food',
+          categoryId: 'food',
+          viaCategoryId: 'food',
           initial,
           parentLabel: 'グルメ',
         }),
       );
     });
-    const field = () => view.root.findByType('StampGenresField' as never);
+    const field = () => view.root.findByType('StampCategoriesField' as never);
     const form = () => view.root.findByType('FormPage' as never);
     expect(field().props.selected).toEqual(['food']);
-    expect(native.genres).toHaveBeenCalledWith(
-      '/genres',
+    expect(native.categories).toHaveBeenCalledWith(
+      '/categories',
       { tripId: 'trip' },
       true,
     );
@@ -131,13 +133,13 @@ it('creates a stamp with multiple genres, requires a selection, and retains the 
     await act(async () => form().props.onSave());
     expect(native.createStamp).toHaveBeenLastCalledWith('viewer', {
       tripId: 'trip',
-      genreIds: ['food', 'park'],
+      categoryIds: ['food', 'park'],
       name: initial.name,
       description: '',
     });
     expect(native.finish).toHaveBeenCalledWith({
       target: { type: 'stamp', stampId: 'stamp' },
-      viaGenreId: 'food',
+      viaCategoryId: 'food',
     });
   } finally {
     if (view) await act(async () => view.unmount());
@@ -152,7 +154,7 @@ it('edits memberships without reassigning the trip and preserves selections on r
   const initial = {
     name: '夜景',
     description: '',
-    genreIds: ['view', 'memory'],
+    categoryIds: ['view', 'memory'],
     startDate: '',
     endDate: '',
     locations: [],
@@ -162,7 +164,7 @@ it('edits memberships without reassigning the trip and preserves selections on r
     kind: 'stamp' as const,
     id: 'stamp',
     tripId: 'trip',
-    viaGenreId: 'view',
+    viaCategoryId: 'view',
     initial,
     parentLabel: '',
   };
@@ -173,19 +175,19 @@ it('edits memberships without reassigning the trip and preserves selections on r
     });
     await act(async () =>
       view.root
-        .findByType('StampGenresField' as never)
+        .findByType('StampCategoriesField' as never)
         .props.onChange(['memory']),
     );
     await act(async () =>
       view.update(
         createElement(EntityForm, {
           ...props,
-          initial: { ...initial, genreIds: ['view'] },
+          initial: { ...initial, categoryIds: ['view'] },
         }),
       ),
     );
     expect(
-      view.root.findByType('StampGenresField' as never).props.selected,
+      view.root.findByType('StampCategoriesField' as never).props.selected,
     ).toEqual(['memory']);
     await act(async () =>
       view.root.findByType('FormPage' as never).props.onSave(),
@@ -193,7 +195,7 @@ it('edits memberships without reassigning the trip and preserves selections on r
     expect(native.updateStamp).toHaveBeenCalledExactlyOnceWith(
       'viewer',
       'stamp',
-      { name: '夜景', description: '', genreIds: ['memory'] },
+      { name: '夜景', description: '', categoryIds: ['memory'] },
     );
   } finally {
     if (view) await act(async () => view.unmount());
@@ -259,7 +261,7 @@ it('retains draft input on refetch and retries failed navigation without repeati
       clientRequestId: 'trip-create-request',
       activityPresets: [],
       customActivities: [],
-      selectedGenres: [],
+      selectedCategories: [],
     });
     expect(native.finish).toHaveBeenCalledTimes(2);
     expect(native.finish).toHaveBeenLastCalledWith({
@@ -281,7 +283,9 @@ it('preserves activity input and selections across cover failures and can skip a
   native.finish.mockReset().mockResolvedValue(undefined);
   native.templates.mockReturnValue({
     ready: false,
-    genres: [{ name: '自然', stamps: [{ title: '海を見る', sources: [] }] }],
+    categories: [
+      { name: '自然', stamps: [{ title: '海を見る', sources: [] }] },
+    ],
     selection: { '["自然","海を見る"]': false },
   });
   let view!: ReturnType<typeof create>;
@@ -333,7 +337,7 @@ it('preserves activity input and selections across cover failures and can skip a
       expect.objectContaining({
         activityPresets: ['海'],
         customActivities: ['星空を眺める'],
-        selectedGenres: [],
+        selectedCategories: [],
       }),
     );
   } finally {
@@ -350,7 +354,7 @@ it('sends only checked candidates and keeps template controls out of existing tr
   native.finish.mockReset().mockResolvedValue(undefined);
   native.templates.mockReturnValue({
     ready: true,
-    genres: [
+    categories: [
       {
         name: '自然',
         stamps: [
@@ -382,7 +386,7 @@ it('sends only checked candidates and keeps template controls out of existing tr
     expect(native.createTrip).toHaveBeenCalledWith(
       'viewer',
       expect.objectContaining({
-        selectedGenres: [{ name: '自然', stamps: [{ title: '海を見る' }] }],
+        selectedCategories: [{ name: '自然', stamps: [{ title: '海を見る' }] }],
       }),
     );
     await act(async () => view.unmount());
@@ -406,7 +410,7 @@ it('sends only checked candidates and keeps template controls out of existing tr
     expect(native.updateTrip).toHaveBeenCalledWith(
       'viewer',
       'existing',
-      expect.not.objectContaining({ selectedGenres: expect.anything() }),
+      expect.not.objectContaining({ selectedCategories: expect.anything() }),
     );
     expect(native.updateTrip.mock.calls[0][2]).not.toHaveProperty(
       'activityPresets',
@@ -486,7 +490,9 @@ it('validates custom activities before upload and retries an all-off creation wi
   native.finish.mockReset().mockResolvedValue(undefined);
   native.templates.mockReturnValue({
     ready: true,
-    genres: [{ name: '自然', stamps: [{ title: '海を見る', sources: [] }] }],
+    categories: [
+      { name: '自然', stamps: [{ title: '海を見る', sources: [] }] },
+    ],
     selection: { '["自然","海を見る"]': false },
   });
   let view!: ReturnType<typeof create>;
@@ -548,7 +554,7 @@ it('validates custom activities before upload and retries an all-off creation wi
       native.createTrip.mock.calls[1][1],
     );
     expect(native.createTrip.mock.calls[1][1]).toMatchObject({
-      selectedGenres: [],
+      selectedCategories: [],
       clientRequestId: 'trip-create-request',
     });
   } finally {

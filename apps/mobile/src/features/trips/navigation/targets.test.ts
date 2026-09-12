@@ -3,17 +3,17 @@ import { resolveApiTarget } from './targets';
 
 describe('API navigation hierarchy', () => {
   it.each(['memory', 'removed', undefined])(
-    'preserves a valid entry genre and otherwise falls back for %s',
+    'preserves a valid entry category and otherwise falls back for %s',
     async (preferred) => {
       const data: Record<string, unknown> = {
         '/stamps/shared': {
           id: 'shared',
           tripId: 'trip',
-          genreIds: ['view', 'memory'],
+          categoryIds: ['view', 'memory'],
           name: '夜景',
         },
-        '/genres/view': { id: 'view', tripId: 'trip', name: '景色' },
-        '/genres/memory': { id: 'memory', tripId: 'trip', name: '思い出' },
+        '/categories/view': { id: 'view', tripId: 'trip', name: '景色' },
+        '/categories/memory': { id: 'memory', tripId: 'trip', name: '思い出' },
         '/trips/trip': { id: 'trip', name: '旅' },
       };
       const request = vi.fn(
@@ -25,10 +25,10 @@ describe('API navigation hierarchy', () => {
         preferred,
       );
       const expected = preferred === 'memory' ? 'memory' : 'view';
-      expect(routes[2].params).toMatchObject({ genreId: expected });
+      expect(routes[2].params).toMatchObject({ categoryId: expected });
       expect(routes[3].params).toMatchObject({
         stampId: 'shared',
-        viaGenreId: expected,
+        viaCategoryId: expected,
       });
     },
   );
@@ -45,11 +45,11 @@ describe('API navigation hierarchy', () => {
         .mockResolvedValueOnce({
           id: 'stamp',
           tripId: 'trip',
-          genreIds: ['genre'],
+          categoryIds: ['category'],
           name: '朝の散歩',
         })
         .mockResolvedValueOnce({
-          id: 'genre',
+          id: 'category',
           tripId: 'trip',
           name: 'まち歩き',
         })
@@ -63,22 +63,26 @@ describe('API navigation hierarchy', () => {
           params: { tripId: 'trip', title: '京都旅行' },
         },
         {
-          name: 'genre/[genreId]',
-          params: { genreId: 'genre', title: 'まち歩き' },
+          name: 'category/[categoryId]',
+          params: { categoryId: 'category', title: 'まち歩き' },
         },
         {
           name: 'stamp/[stampId]',
-          params: { stampId: 'stamp', title: '朝の散歩', viaGenreId: 'genre' },
+          params: {
+            stampId: 'stamp',
+            title: '朝の散歩',
+            viaCategoryId: 'category',
+          },
         },
         {
           name: 'photo/[postId]',
-          params: { postId: 'photo', viaGenreId: 'genre' },
+          params: { postId: 'photo', viaCategoryId: 'category' },
         },
       ]);
       expect(request.mock.calls.map(([config]) => config.url)).toEqual([
         '/posts/photo',
         '/stamps/stamp',
-        '/genres/genre',
+        '/categories/category',
         '/trips/trip',
       ]);
     },
@@ -89,7 +93,7 @@ describe('API navigation hierarchy', () => {
       .mockResolvedValueOnce({
         id: 'stamp',
         tripId: 'trip',
-        genreIds: ['genre'],
+        categoryIds: ['category'],
       })
       .mockRejectedValueOnce(new Error('404'));
     await expect(

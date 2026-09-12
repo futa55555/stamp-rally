@@ -48,7 +48,7 @@ export function reducer(state: StoreState, action: Action): StoreState {
   if (!data) return state;
   switch (action.type) {
     case 'tripSaved':
-    case 'genreSaved':
+    case 'categorySaved':
     case 'stampSaved':
     case 'postsCreated':
     case 'postDeleted':

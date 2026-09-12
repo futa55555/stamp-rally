@@ -3,7 +3,7 @@ import { useData } from '../app-data/AppDataProvider';
 import { normalizeLocations } from '../trips/model/validation';
 import { reconcileSelection, stampSelectionKey } from './selection';
 import type {
-  TemplateGenre,
+  TemplateCategory,
   TemplatePresets,
   TemplateSelection,
 } from './types';
@@ -23,9 +23,9 @@ export function useTripTemplates(
   const [attempt, retryPreview] = useState(0);
   const [result, setResult] = useState<{
     key: string;
-    genres: TemplateGenre[];
+    categories: TemplateCategory[];
     selection: TemplateSelection;
-  }>({ key: '', genres: [], selection: {} });
+  }>({ key: '', categories: [], selection: {} });
   const [failure, setFailure] = useState<{
     key: string;
     message: string;
@@ -67,26 +67,26 @@ export function useTripTemplates(
     const guard = client.sessionGuard();
     setFailure(null);
     if (!input.locations.length && !input.activityPresets.length) {
-      setResult({ key: inputKey, genres: [], selection: {} });
+      setResult({ key: inputKey, categories: [], selection: {} });
       return;
     }
     // Keep the previous successful selection visible while the new input loads.
     const timer = setTimeout(() => {
       void client
-        .request<{ genres: TemplateGenre[] }>({
+        .request<{ categories: TemplateCategory[] }>({
           method: 'POST',
           url: '/trip-templates/preview',
           data: input,
           signal: controller.signal,
         })
-        .then(({ genres }) => {
+        .then(({ categories }) => {
           guard();
           if (controller.signal.aborted || currentKey.current !== inputKey)
             return;
           setResult((previous) => ({
             key: inputKey,
-            genres,
-            selection: reconcileSelection(genres, previous.selection),
+            categories,
+            selection: reconcileSelection(categories, previous.selection),
           }));
         })
         .catch((error) => {
@@ -106,14 +106,14 @@ export function useTripTemplates(
     normalizeLocations(locations).length > 0 || activityPresets.length > 0;
   const ready =
     !enabled ||
-    (!hasInput && !result.genres.length) ||
+    (!hasInput && !result.categories.length) ||
     (result.key === inputKey && !error);
   return {
     presets,
     presetsError,
     presetsPending: enabled && !presets && !presetsError,
     retryPresets: () => retryPresets((value) => value + 1),
-    genres: result.genres,
+    categories: result.categories,
     selection: result.selection,
     error,
     ready,
@@ -122,21 +122,21 @@ export function useTripTemplates(
       setFailure(null);
       retryPreview((value) => value + 1);
     },
-    toggleStamp: (genre: string, title: string) => {
-      const key = stampSelectionKey(genre, title);
+    toggleStamp: (category: string, title: string) => {
+      const key = stampSelectionKey(category, title);
       setResult((previous) => ({
         ...previous,
         selection: { ...previous.selection, [key]: !previous.selection[key] },
       }));
     },
-    toggleGenre: (genre: TemplateGenre, checked: boolean) =>
+    toggleCategory: (category: TemplateCategory, checked: boolean) =>
       setResult((previous) => ({
         ...previous,
         selection: {
           ...previous.selection,
           ...Object.fromEntries(
-            genre.stamps.map(({ title }) => [
-              stampSelectionKey(genre.name, title),
+            category.stamps.map(({ title }) => [
+              stampSelectionKey(category.name, title),
               checked,
             ]),
           ),

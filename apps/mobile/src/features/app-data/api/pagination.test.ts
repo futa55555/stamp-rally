@@ -15,14 +15,14 @@ describe('complete resource lists', () => {
       await allPages(
         { request },
         '/posts',
-        { genreId: 'genre', mediaType: 'IMAGE' },
+        { categoryId: 'category', mediaType: 'IMAGE' },
         signal,
       ),
     ).toHaveLength(102);
     expect(request).toHaveBeenLastCalledWith({
       url: '/posts',
       params: {
-        genreId: 'genre',
+        categoryId: 'category',
         mediaType: 'IMAGE',
         limit: 100,
         cursor: 'second',

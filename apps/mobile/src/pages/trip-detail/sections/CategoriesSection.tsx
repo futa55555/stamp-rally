@@ -6,54 +6,54 @@ import { ListRow } from '../../../shared/ui/ListRow';
 import { SectionHeading } from '../../../shared/ui/SectionHeading';
 import { StateView } from '../../../shared/ui/StateView';
 
-export function GenresSection({
+export function CategoriesSection({
   tripId,
-  genres,
+  categories,
 }: {
   tripId: string;
-  genres: ReturnType<typeof useTrip>['genres'];
+  categories: ReturnType<typeof useTrip>['categories'];
 }) {
   const router = useRouter();
   return (
     <View className="gap-4 px-4">
       <SectionHeading
-        title="ジャンル"
+        title="カテゴリー"
         action={{
-          label: 'ジャンルを追加',
+          label: 'カテゴリーを追加',
           onPress: () =>
-            router.push({ pathname: '/editor/genre', params: { tripId } }),
+            router.push({ pathname: '/editor/category', params: { tripId } }),
         }}
       />
-      {genres.map((genre) => (
+      {categories.map((category) => (
         <ListRow
-          key={genre.id}
-          title={genre.name}
+          key={category.id}
+          title={category.name}
           icon="compass-outline"
-          unread={genre.unread}
+          unread={category.unread}
           onPress={() =>
             router.push({
-              pathname: '/trips/genre/[genreId]',
-              params: { genreId: genre.id },
+              pathname: '/trips/category/[categoryId]',
+              params: { categoryId: category.id },
             })
           }
         >
           <Progress
-            completed={genre.completedStampCount}
-            total={genre.totalStampCount}
+            completed={category.completedStampCount}
+            total={category.totalStampCount}
             label="スタンプ達成"
           />
         </ListRow>
       ))}
-      {!genres.length ? (
+      {!categories.length ? (
         <StateView
           compact
           title="旅の楽しみは、これから"
-          description="ジャンルを作って、旅の楽しみを増やしましょう。"
+          description="カテゴリーを作って、旅の楽しみを増やしましょう。"
           action={{
-            label: 'ジャンルを追加',
+            label: 'カテゴリーを追加',
             onPress: () =>
               router.push({
-                pathname: '/editor/genre',
+                pathname: '/editor/category',
                 params: { tripId },
               }),
           }}

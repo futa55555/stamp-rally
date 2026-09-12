@@ -68,7 +68,7 @@ function PhotoDetail({ postId, source, ...origin }: PhotoDetailParams) {
     else if (stampId)
       router.replace({
         pathname: '/trips/stamp/[stampId]',
-        params: { stampId, viaGenreId: origin.viaGenreId },
+        params: { stampId, viaCategoryId: origin.viaCategoryId },
       });
     else router.replace('/trips');
   };

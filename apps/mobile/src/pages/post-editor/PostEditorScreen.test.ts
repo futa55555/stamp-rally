@@ -86,9 +86,9 @@ beforeEach(async () => {
   native.detail.mockImplementation((path: string) => ({
     data:
       path === '/stamps/stamp'
-        ? { id: 'stamp', tripId: 'trip', genreIds: ['genre'] }
-        : path === '/genres/genre'
-          ? { id: 'genre', tripId: 'trip' }
+        ? { id: 'stamp', tripId: 'trip', categoryIds: ['category'] }
+        : path === '/categories/category'
+          ? { id: 'category', tripId: 'trip' }
           : undefined,
     error: null,
     isPending: false,
@@ -97,9 +97,9 @@ beforeEach(async () => {
     data: enabled
       ? path === '/trips'
         ? [{ id: 'trip', name: '旅行A' }]
-        : path === '/genres' && filters.tripId === 'trip'
-          ? [{ id: 'genre', name: 'ジャンルA' }]
-          : path === '/stamps' && filters.genreId === 'genre'
+        : path === '/categories' && filters.tripId === 'trip'
+          ? [{ id: 'category', name: 'カテゴリーA' }]
+          : path === '/stamps' && filters.categoryId === 'category'
             ? [{ id: 'stamp', name: 'スタンプA' }]
             : []
       : [],
@@ -288,12 +288,12 @@ describe('post media selection', () => {
     const fields = view!.root.findAllByType('SelectField' as never);
     expect(fields.map((field) => field.props.label)).toEqual([
       '旅行',
-      'ジャンル',
+      'カテゴリー',
       'スタンプ',
     ]);
     expect(fields.map((field) => field.props.value)).toEqual([
       'trip',
-      'genre',
+      'category',
       'stamp',
     ]);
     expect(fields.every((field) => field.props.disabled)).toBe(true);
@@ -336,14 +336,14 @@ describe('post destination selection', () => {
       expected: ['trip', undefined, undefined],
     },
     {
-      screen: 'genre',
-      params: { initialGenreId: 'genre' },
-      expected: ['trip', 'genre', undefined],
+      screen: 'category',
+      params: { initialCategoryId: 'category' },
+      expected: ['trip', 'category', undefined],
     },
     {
       screen: 'stamp',
       params: { initialStampId: 'stamp' },
-      expected: ['trip', 'genre', 'stamp'],
+      expected: ['trip', 'category', 'stamp'],
     },
   ])(
     'shows editable selections from the $screen header',
@@ -352,7 +352,7 @@ describe('post destination selection', () => {
       await mount();
       expect(fields().map((field) => field.props.label)).toEqual([
         '旅行',
-        'ジャンル',
+        'カテゴリー',
         'スタンプ',
       ]);
       expect(fields().map((field) => field.props.value)).toEqual(expected);
@@ -381,22 +381,22 @@ describe('post destination selection', () => {
     details.set('/stamps/stamp', {
       id: 'stamp',
       tripId: 'trip',
-      genreIds: ['genre'],
+      categoryIds: ['category'],
     });
     await act(async () => view!.update(createElement(PostEditorScreen)));
     expect(fields().every((field) => field.props.disabled)).toBe(true);
-    details.set('/genres/genre', { id: 'genre', tripId: 'trip' });
+    details.set('/categories/category', { id: 'category', tripId: 'trip' });
     await act(async () => view!.update(createElement(PostEditorScreen)));
     expect(fields().map((field) => field.props.value)).toEqual([
       'trip',
-      'genre',
+      'category',
       'stamp',
     ]);
 
-    await act(async () => fields()[1].props.onChange('other-genre'));
+    await act(async () => fields()[1].props.onChange('other-category'));
     expect(fields().map((field) => field.props.value)).toEqual([
       'trip',
-      'other-genre',
+      'other-category',
       undefined,
     ]);
     await act(async () => fields()[2].props.onChange('other-stamp'));
@@ -408,7 +408,7 @@ describe('post destination selection', () => {
       undefined,
     ]);
     expect(form().props.disabled).toBe(true);
-    await act(async () => fields()[1].props.onChange('new-genre'));
+    await act(async () => fields()[1].props.onChange('new-category'));
     await act(async () => fields()[2].props.onChange('new-stamp'));
     const batch = await submit();
     expect(batch.stampId).toBe('new-stamp');
@@ -416,7 +416,7 @@ describe('post destination selection', () => {
     await reconcile(batch, ['READY']);
     expect(native.finish).toHaveBeenCalledExactlyOnceWith({
       target: { type: 'stamp', stampId: 'new-stamp' },
-      viaGenreId: 'new-genre',
+      viaCategoryId: 'new-category',
     });
   });
 });

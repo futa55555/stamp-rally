@@ -12,12 +12,12 @@ export type Trip = {
   createdById: string;
   createdAt: string;
   updatedAt: string;
-  totalGenreCount: number;
-  completedGenreCount: number;
+  totalCategoryCount: number;
+  completedCategoryCount: number;
   isCompleted: boolean;
 };
 
-export type Genre = {
+export type Category = {
   hasUnreadPhotos: boolean;
   hasUnreadMedia?: boolean;
   id: string;
@@ -39,7 +39,7 @@ export type Stamp = {
   mediaCount?: number;
   id: string;
   tripId: string;
-  genreIds: string[];
+  categoryIds: string[];
   name: string;
   description: string;
   createdAt: string;

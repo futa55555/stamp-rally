@@ -23,29 +23,29 @@ import {
   validateTripInput,
 } from '../../../features/trips/model/validation';
 import { useTripTemplates } from '../../../features/trip-templates/useTripTemplates';
-import { selectedGenres } from '../../../features/trip-templates/selection';
+import { selectedCategories } from '../../../features/trip-templates/selection';
 import { ActivitiesField, TemplateCandidatesField } from './TemplateFields';
 import { useList } from '../../../features/app-data/api/queries';
-import type { Genre } from '../../../features/trips/model/types';
-import { StampGenresField } from './StampGenresField';
+import type { Category } from '../../../features/trips/model/types';
+import { StampCategoriesField } from './StampCategoriesField';
 
-const labels = { trip: '旅行', genre: 'ジャンル', stamp: 'スタンプ' };
+const labels = { trip: '旅行', category: 'カテゴリー', stamp: 'スタンプ' };
 
 export function EntityForm({
   kind,
   id,
   tripId,
-  genreId,
-  viaGenreId,
+  categoryId,
+  viaCategoryId,
   initial,
   parentLabel,
 }: {
   kind: EntityKind;
   id?: string;
   tripId?: string;
-  genreId?: string;
-  viaGenreId?: string;
-  initial: TripFormValues & NamedInput & { genreIds?: string[] };
+  categoryId?: string;
+  viaCategoryId?: string;
+  initial: TripFormValues & NamedInput & { categoryIds?: string[] };
   parentLabel: string;
 }) {
   const { actions, userId } = useData();
@@ -55,12 +55,12 @@ export function EntityForm({
     null,
   );
   const [values, setValues] = useState(initial);
-  const [originalGenreIds] = useState(
-    initial.genreIds ?? (genreId ? [genreId] : []),
+  const [originalCategoryIds] = useState(
+    initial.categoryIds ?? (categoryId ? [categoryId] : []),
   );
-  const [genreIds, setGenreIds] = useState(originalGenreIds);
-  const genres = useList<Genre>(
-    '/genres',
+  const [categoryIds, setCategoryIds] = useState(originalCategoryIds);
+  const categories = useList<Category>(
+    '/categories',
     { tripId },
     kind === 'stamp' && !!tripId,
   );
@@ -81,8 +81,8 @@ export function EntityForm({
     !savedTarget &&
     (cover.changed ||
       (kind === 'stamp' &&
-        (genreIds.length !== originalGenreIds.length ||
-          genreIds.some((id) => !originalGenreIds.includes(id)))) ||
+        (categoryIds.length !== originalCategoryIds.length ||
+          categoryIds.some((id) => !originalCategoryIds.includes(id)))) ||
       (newTrip &&
         (activityPresets.length > 0 ||
           customActivities.some(Boolean) ||
@@ -106,7 +106,7 @@ export function EntityForm({
         if (savedTarget) {
           await flow.finish({
             target: savedTarget,
-            ...(viaGenreId ? { viaGenreId } : {}),
+            ...(viaCategoryId ? { viaCategoryId } : {}),
           });
           return;
         }
@@ -121,8 +121,11 @@ export function EntityForm({
                 activityPresets: activityPresets.map(validateDomainName),
                 customActivities:
                   normalizeLocations(customActivities).map(validateDomainName),
-                selectedGenres: useTemplate
-                  ? selectedGenres(templates.genres, templates.selection)
+                selectedCategories: useTemplate
+                  ? selectedCategories(
+                      templates.categories,
+                      templates.selection,
+                    )
                   : [],
               }
             : {};
@@ -142,19 +145,22 @@ export function EntityForm({
               });
           cover.saved();
           target = { type: 'trip', tripId: trip.id };
-        } else if (kind === 'genre') {
+        } else if (kind === 'category') {
           const input = { name: values.name, description: values.description };
-          const genre = id
-            ? await actions.updateGenre(userId!, id, input)
-            : await actions.createGenre(userId!, { ...input, tripId: tripId! });
-          target = { type: 'genre', genreId: genre.id };
+          const category = id
+            ? await actions.updateCategory(userId!, id, input)
+            : await actions.createCategory(userId!, {
+                ...input,
+                tripId: tripId!,
+              });
+          target = { type: 'category', categoryId: category.id };
         } else {
-          if (!genreIds.length)
-            throw new Error('ジャンルを1つ以上選んでください。');
+          if (!categoryIds.length)
+            throw new Error('カテゴリーを1つ以上選んでください。');
           const input = {
             name: values.name,
             description: values.description,
-            genreIds,
+            categoryIds,
           };
           const stamp = id
             ? await actions.updateStamp(userId!, id, input)
@@ -166,7 +172,10 @@ export function EntityForm({
         }
         // A failed ancestor fetch can be retried without creating the entity twice.
         setSavedTarget(target);
-        await flow.finish({ target, ...(viaGenreId ? { viaGenreId } : {}) });
+        await flow.finish({
+          target,
+          ...(viaCategoryId ? { viaCategoryId } : {}),
+        });
       })
       .finally(cover.finish);
   };
@@ -180,7 +189,9 @@ export function EntityForm({
         !savedTarget &&
         ((newTrip && useTemplate && !templates.ready) ||
           (kind === 'stamp' &&
-            (!genreIds.length || genres.isPending || !!genres.error)))
+            (!categoryIds.length ||
+              categories.isPending ||
+              !!categories.error)))
       }
       saveLabel={
         coverPicking
@@ -204,16 +215,19 @@ export function EntityForm({
         hideLabel={kind === 'trip'}
       />
       {kind === 'stamp' ? (
-        <StampGenresField
-          genres={genres.data ?? []}
-          selected={genreIds}
-          onChange={setGenreIds}
+        <StampCategoriesField
+          categories={categories.data ?? []}
+          selected={categoryIds}
+          onChange={setCategoryIds}
           disabled={
-            pending || !!savedTarget || genres.isPending || !!genres.error
+            pending ||
+            !!savedTarget ||
+            categories.isPending ||
+            !!categories.error
           }
-          pending={genres.isPending}
-          error={genres.error?.message ?? null}
-          onRetry={genres.invalidate}
+          pending={categories.isPending}
+          error={categories.error?.message ?? null}
+          onRetry={categories.invalidate}
         />
       ) : null}
       {kind === 'trip' ? (

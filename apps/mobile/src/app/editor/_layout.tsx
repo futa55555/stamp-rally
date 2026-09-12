@@ -33,7 +33,7 @@ export default function EditorLayout() {
           >
             <Stack.Screen name="post" options={{ title: '写真・動画を追加' }} />
             <Stack.Screen name="trip" options={{ title: '旅行' }} />
-            <Stack.Screen name="genre" options={{ title: 'ジャンル' }} />
+            <Stack.Screen name="category" options={{ title: 'カテゴリー' }} />
             <Stack.Screen name="stamp" options={{ title: 'スタンプ' }} />
           </Stack>
         </EditorProvider>

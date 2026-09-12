@@ -6,9 +6,9 @@ import { useToday } from '../../shared/hooks/useToday';
 import { combineQueries, useDetail, useList } from '../app-data/api/queries';
 import type { Post } from '../photos/model/types';
 import type { User } from '../auth/model/types';
-import type { Genre, Stamp, Trip } from './model/types';
+import type { Category, Stamp, Trip } from './model/types';
 import { sortTrips } from './model/selectors';
-import { stampGenreContext } from './navigation/genreContext';
+import { stampCategoryContext } from './navigation/categoryContext';
 
 export function useTrips() {
   const today = useToday();
@@ -20,7 +20,7 @@ export function useTrip(tripId: string) {
   const cache = useQueryClient();
   const focused = useIsFocused();
   const trip = useDetail<Trip>(`/trips/${tripId}`, !!tripId);
-  const genres = useList<Genre>('/genres', { tripId }, !!trip.data);
+  const categories = useList<Category>('/categories', { tripId }, !!trip.data);
   const favorites = useList<Post>(
     '/posts',
     { tripId, favoritesOnly: true },
@@ -45,7 +45,7 @@ export function useTrip(tripId: string) {
   return {
     ...combineQueries(
       trip,
-      genres,
+      categories,
       favorites,
       members,
       ...stamps.map((query, index) => ({
@@ -61,16 +61,16 @@ export function useTrip(tripId: string) {
       })),
     ),
     trip: trip.data,
-    genres: (genres.data ?? []).map((genre) => ({
-      ...genre,
-      unread: genre.hasUnreadMedia ?? genre.hasUnreadPhotos,
+    categories: (categories.data ?? []).map((category) => ({
+      ...category,
+      unread: category.hasUnreadMedia ?? category.hasUnreadPhotos,
     })),
     favorites: (favorites.data ?? []).map((photo) => ({
       ...photo,
-      genreName:
-        genres.data
-          ?.filter((genre) => photo.genreIds.includes(genre.id))
-          .map((genre) => genre.name)
+      categoryName:
+        categories.data
+          ?.filter((category) => photo.categoryIds.includes(category.id))
+          .map((category) => category.name)
           .join(', ') ?? '',
       stampName:
         stamps.find((query) => query.data?.id === photo.stampId)?.data?.name ??
@@ -79,15 +79,21 @@ export function useTrip(tripId: string) {
     members: (members.data ?? []).map((member) => member.user),
   };
 }
-export function useGenre(genreId: string) {
-  const genre = useDetail<Genre>(`/genres/${genreId}`, !!genreId);
-  const trip = useDetail<Trip>(`/trips/${genre.data?.tripId}`, !!genre.data);
-  const stamps = useList<Stamp>('/stamps', { genreId }, !!genre.data);
+export function useCategory(categoryId: string) {
+  const category = useDetail<Category>(
+    `/categories/${categoryId}`,
+    !!categoryId,
+  );
+  const trip = useDetail<Trip>(
+    `/trips/${category.data?.tripId}`,
+    !!category.data,
+  );
+  const stamps = useList<Stamp>('/stamps', { categoryId }, !!category.data);
   // Finish every page before exposing candidates to the representative selector.
-  const photos = useList<Post>('/posts', { genreId }, !!genre.data);
+  const photos = useList<Post>('/posts', { categoryId }, !!category.data);
   return {
-    ...combineQueries(genre, trip, stamps, photos),
-    genre: genre.data,
+    ...combineQueries(category, trip, stamps, photos),
+    category: category.data,
     trip: trip.data,
     stamps: (stamps.data ?? []).map((stamp) => ({
       ...stamp,
@@ -96,23 +102,24 @@ export function useGenre(genreId: string) {
     })),
   };
 }
-export function useStamp(stampId: string, viaGenreId?: string) {
+export function useStamp(stampId: string, viaCategoryId?: string) {
   const stamp = useDetail<Stamp>(`/stamps/${stampId}`, !!stampId);
   const trip = useDetail<Trip>(`/trips/${stamp.data?.tripId}`, !!stamp.data);
-  const genres = useList<Genre>(
-    '/genres',
+  const categories = useList<Category>(
+    '/categories',
     { tripId: stamp.data?.tripId },
     !!stamp.data,
   );
   const photos = useList<Post>('/posts', { stampId }, !!stamp.data);
   return {
-    ...combineQueries(stamp, genres, trip, photos),
+    ...combineQueries(stamp, categories, trip, photos),
     stamp: stamp.data,
-    genres: (genres.data ?? []).filter((genre) =>
-      stamp.data?.genreIds.includes(genre.id),
+    categories: (categories.data ?? []).filter((category) =>
+      stamp.data?.categoryIds.includes(category.id),
     ),
-    genre: genres.data?.find(
-      (genre) => genre.id === stampGenreContext(stamp.data, viaGenreId),
+    category: categories.data?.find(
+      (category) =>
+        category.id === stampCategoryContext(stamp.data, viaCategoryId),
     ),
     trip: trip.data,
     photos: photos.data ?? [],

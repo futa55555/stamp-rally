@@ -11,16 +11,16 @@ function useEditorFlow() {
   const [finishing, setFinishing] = useState(false);
   const finish = async ({
     target,
-    viaGenreId,
+    viaCategoryId,
   }: {
     target?: NotificationTarget;
-    viaGenreId?: string;
+    viaCategoryId?: string;
   }) => {
     const assertCurrent = client.sessionGuard();
     setFinishing(true);
     try {
       const routes = target
-        ? await resolveApiTarget(client, target, viaGenreId)
+        ? await resolveApiTarget(client, target, viaCategoryId)
         : null;
       assertCurrent();
       if (client.snapshot().user?.id !== userId) return;

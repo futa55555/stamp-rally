@@ -1,7 +1,7 @@
 import { demoPhotoUrls as photos } from '../../../../assets/demoPhotoUrls';
 import { offsetDate } from '../../../shared/lib/dates';
 import type { Post } from '../../photos/model/types';
-import type { Genre, Stamp, Trip } from '../../trips/model/types';
+import type { Category, Stamp, Trip } from '../../trips/model/types';
 import type { AppData } from '../model/types';
 
 const id = (kind: number, index: number) =>
@@ -36,8 +36,8 @@ export function createDemoData(now = new Date()): AppData {
     createdById: DEMO_USER_ID,
     createdAt: time(created),
     updatedAt: time(created),
-    totalGenreCount: 0,
-    completedGenreCount: 0,
+    totalCategoryCount: 0,
+    completedCategoryCount: 0,
     isCompleted: false,
   });
   const trips = [
@@ -45,12 +45,12 @@ export function createDemoData(now = new Date()): AppData {
     trip(2, '海辺で過ごす週末', -45, -43, photos.coast, -55),
     trip(3, '富士山と、深呼吸。', 20, 22, photos.fuji, -3),
   ];
-  const genre = (
+  const category = (
     index: number,
     tripIndex: number,
     name: string,
     description: string,
-  ): Genre => ({
+  ): Category => ({
     id: id(3, index),
     tripId: id(2, tripIndex),
     name,
@@ -62,21 +62,22 @@ export function createDemoData(now = new Date()): AppData {
     isCompleted: false,
     hasUnreadPhotos: false,
   });
-  const genres = [
-    genre(1, 1, '景色とまち歩き', '路地の先で見つけた、忘れたくない景色。'),
-    genre(2, 1, 'おいしい寄り道', '旅先で出会った一杯と、ひと皿の記録。'),
-    genre(3, 1, '小さな発見', '予定になかった出会いも、旅の思い出に。'),
-    genre(4, 2, '海のある風景', '波の音を聴きながら、ゆっくり歩こう。'),
+  const categories = [
+    category(1, 1, '景色とまち歩き', '路地の先で見つけた、忘れたくない景色。'),
+    category(2, 1, 'おいしい寄り道', '旅先で出会った一杯と、ひと皿の記録。'),
+    category(3, 1, '小さな発見', '予定になかった出会いも、旅の思い出に。'),
+    category(4, 2, '海のある風景', '波の音を聴きながら、ゆっくり歩こう。'),
   ];
   const stamp = (
     index: number,
-    genreIndex: number,
+    categoryIndex: number,
     name: string,
     description: string,
   ): Stamp => ({
     id: id(4, index),
-    genreIds: [id(3, genreIndex)],
-    tripId: genres.find((genre) => genre.id === id(3, genreIndex))!.tripId,
+    categoryIds: [id(3, categoryIndex)],
+    tripId: categories.find((category) => category.id === id(3, categoryIndex))!
+      .tripId,
     name,
     description,
     createdAt: time(-8 + index / 10),
@@ -109,7 +110,7 @@ export function createDemoData(now = new Date()): AppData {
     return {
       id: id(5, index),
       stampId: parent.id,
-      genreIds: [...parent.genreIds],
+      categoryIds: [...parent.categoryIds],
       tripId: parent.tripId,
       author: { id: users[userIndex].id, name: users[userIndex].name },
       mediaType: 'IMAGE',
@@ -129,22 +130,22 @@ export function createDemoData(now = new Date()): AppData {
     post(6, 6, 0, photos.coast, true),
   ];
   for (const s of stamps) s.isCompleted = posts.some((p) => p.stampId === s.id);
-  for (const g of genres) {
-    const children = stamps.filter((s) => s.genreIds.includes(g.id));
+  for (const g of categories) {
+    const children = stamps.filter((s) => s.categoryIds.includes(g.id));
     g.totalStampCount = children.length;
     g.completedStampCount = children.filter((s) => s.isCompleted).length;
     g.isCompleted = children.length > 0 && children.every((s) => s.isCompleted);
   }
   for (const t of trips) {
-    const children = genres.filter((g) => g.tripId === t.id);
-    t.totalGenreCount = children.length;
-    t.completedGenreCount = children.filter((g) => g.isCompleted).length;
+    const children = categories.filter((g) => g.tripId === t.id);
+    t.totalCategoryCount = children.length;
+    t.completedCategoryCount = children.filter((g) => g.isCompleted).length;
     t.isCompleted = children.length > 0 && children.every((g) => g.isCompleted);
   }
   return {
     users,
     trips,
-    genres,
+    categories,
     stamps,
     posts,
     memberships: trips.flatMap((t) =>
@@ -186,7 +187,7 @@ export function createDemoData(now = new Date()): AppData {
         body: '「おいしい寄り道」のスタンプをチェック。',
         createdAt: time(-1),
         readAt: time(-0.9),
-        target: { type: 'genre', genreId: id(3, 2) },
+        target: { type: 'category', categoryId: id(3, 2) },
       },
     ],
   };

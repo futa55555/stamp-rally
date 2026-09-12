@@ -2,14 +2,18 @@
 export type TripStackParamList = {
   index: undefined;
   'trip/[tripId]': { tripId: string; title?: string };
-  'genre/[genreId]': { genreId: string; title?: string };
-  'stamp/[stampId]': { stampId: string; title?: string; viaGenreId?: string };
+  'category/[categoryId]': { categoryId: string; title?: string };
+  'stamp/[stampId]': {
+    stampId: string;
+    title?: string;
+    viaCategoryId?: string;
+  };
   'photo/[postId]': {
     postId: string;
     source?: 'trip' | 'stamp';
     tripId?: string;
     stampId?: string;
-    viaGenreId?: string;
+    viaCategoryId?: string;
   };
 };
 

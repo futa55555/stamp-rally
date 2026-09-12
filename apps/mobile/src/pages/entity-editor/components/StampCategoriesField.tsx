@@ -1,12 +1,12 @@
 import { Pressable, View } from 'react-native';
-import type { Genre } from '../../../features/trips/model/types';
+import type { Category } from '../../../features/trips/model/types';
 import { AppText } from '../../../shared/ui/AppText';
 import { Icon } from '../../../shared/ui/Icon';
 import { ErrorMessage } from '../../../shared/ui/ErrorMessage';
 import { Button } from '../../../shared/ui/Button';
 
-export function StampGenresField({
-  genres,
+export function StampCategoriesField({
+  categories,
   selected,
   onChange,
   disabled,
@@ -14,7 +14,7 @@ export function StampGenresField({
   error,
   onRetry,
 }: {
-  genres: Genre[];
+  categories: Category[];
   selected: string[];
   onChange: (ids: string[]) => void;
   disabled: boolean;
@@ -24,29 +24,29 @@ export function StampGenresField({
 }) {
   return (
     <View className="gap-2">
-      <AppText variant="label">所属ジャンル</AppText>
+      <AppText variant="label">所属カテゴリー</AppText>
       <AppText variant="caption" tone="textSecondary">
         1つ以上選択してください。複数選べます。
       </AppText>
       {pending ? (
-        <AppText variant="caption">ジャンルを読み込み中…</AppText>
+        <AppText variant="caption">カテゴリーを読み込み中…</AppText>
       ) : null}
       <View className="flex-row flex-wrap gap-2">
-        {genres.map((genre) => {
-          const checked = selected.includes(genre.id);
+        {categories.map((category) => {
+          const checked = selected.includes(category.id);
           return (
             <Pressable
-              key={genre.id}
+              key={category.id}
               accessibilityRole="checkbox"
-              accessibilityLabel={genre.name}
+              accessibilityLabel={category.name}
               accessibilityState={{ checked, disabled }}
               disabled={disabled}
               hitSlop={6}
               onPress={() =>
                 onChange(
                   checked
-                    ? selected.filter((id) => id !== genre.id)
-                    : [...selected, genre.id],
+                    ? selected.filter((id) => id !== category.id)
+                    : [...selected, category.id],
                 )
               }
               className={[
@@ -63,7 +63,7 @@ export function StampGenresField({
                 tone={checked ? 'onPrimary' : 'onChip'}
                 className="shrink font-semibold"
               >
-                {genre.name}
+                {category.name}
               </AppText>
             </Pressable>
           );
@@ -72,7 +72,7 @@ export function StampGenresField({
       <ErrorMessage message={error} />
       {error ? (
         <Button
-          label="ジャンルを再読み込み"
+          label="カテゴリーを再読み込み"
           variant="secondary"
           onPress={() => {
             void onRetry();
